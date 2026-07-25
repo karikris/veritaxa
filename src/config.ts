@@ -25,6 +25,17 @@ export function readPublicConfig(
     };
   }
 
+  if (
+    supabasePublishableKey.length > 4096 ||
+    supabasePublishableKey.startsWith('sb_secret_') ||
+    jwtRole(supabasePublishableKey) === 'service_role'
+  ) {
+    return {
+      ok: false,
+      message: 'VeriTaxa has invalid public configuration.',
+    };
+  }
+
   try {
     const parsedUrl = new URL(supabaseUrl);
     if (
@@ -46,4 +57,17 @@ export function readPublicConfig(
     ok: true,
     value: { supabaseUrl, supabasePublishableKey },
   };
+}
+
+function jwtRole(value: string): string | null {
+  const payload = value.split('.')[1];
+  if (!payload) return null;
+  try {
+    const base64 = payload.replaceAll('-', '+').replaceAll('_', '/');
+    const decoded = JSON.parse(atob(base64)) as unknown;
+    if (typeof decoded !== 'object' || decoded === null || !('role' in decoded)) return null;
+    return typeof decoded.role === 'string' ? decoded.role : null;
+  } catch {
+    return null;
+  }
 }
