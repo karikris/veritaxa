@@ -19,10 +19,15 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:db": "supabase test db supabase/tests --local",
+    "data:check": "node scripts/check-no-review-data.mjs",
+    "bundle:check": "node scripts/check-bundle-size.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.0",
     "@types/node": "26.1.1",
     "@vitest/coverage-v8": "4.1.10",
     "eslint": "10.8.0",

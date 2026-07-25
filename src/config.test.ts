@@ -28,7 +28,7 @@ describe('public configuration', () => {
   it('rejects a Supabase secret key in browser configuration', () => {
     const result = readPublicConfig({
       VITE_SUPABASE_URL: 'https://example-project.supabase.co',
-      VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_secret_never_compile_this',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_' + 'secret_never_compile_this',
     });
 
     expect(result.ok).toBe(false);

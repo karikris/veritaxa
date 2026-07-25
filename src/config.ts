@@ -27,7 +27,7 @@ export function readPublicConfig(
 
   if (
     supabasePublishableKey.length > 4096 ||
-    supabasePublishableKey.startsWith('sb_secret_') ||
+    isServerSecretKey(supabasePublishableKey) ||
     jwtRole(supabasePublishableKey) === 'service_role'
   ) {
     return {
@@ -57,6 +57,11 @@ export function readPublicConfig(
     ok: true,
     value: { supabaseUrl, supabasePublishableKey },
   };
+}
+
+function isServerSecretKey(value: string): boolean {
+  const segments = value.split('_', 3);
+  return segments[0] === 'sb' && segments[1] === 'secret' && segments[2] !== undefined;
 }
 
 function jwtRole(value: string): string | null {

@@ -2,12 +2,15 @@ import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 const CSP_ORIGIN_PLACEHOLDER = '__VERITAXA_SUPABASE_ORIGIN__';
+const CSP_DEV_STYLE_PLACEHOLDER = '__VERITAXA_DEV_STYLE__';
 
-function cspPlugin(origin: string): Plugin {
+function cspPlugin(origin: string, development: boolean): Plugin {
   return {
     name: 'veritaxa-csp',
     transformIndexHtml(html) {
-      return html.replace(CSP_ORIGIN_PLACEHOLDER, origin);
+      return html
+        .replace(CSP_ORIGIN_PLACEHOLDER, origin)
+        .replace(CSP_DEV_STYLE_PLACEHOLDER, development ? "'unsafe-inline'" : '');
     },
   };
 }
@@ -36,7 +39,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     base: '/veritaxa/',
-    plugins: [cspPlugin(origin)],
+    plugins: [cspPlugin(origin, command !== 'build')],
     build: {
       target: 'es2022',
     },

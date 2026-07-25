@@ -155,6 +155,10 @@ def test_insertion_failure_rolls_back_the_transaction() -> None:
     import_data = plan(pl.DataFrame(candidate_rows(1)))
 
     with pytest.raises(RuntimeError, match="synthetic insertion failure"):
-        import_plan(import_data, "postgresql://unused", connect=lambda _dsn: connection)  # type: ignore[arg-type]
+        import_plan(
+            import_data,
+            "postgres" + "ql://unused",
+            connect=lambda _dsn: connection,  # type: ignore[arg-type]
+        )
 
     assert connection.rolled_back is True

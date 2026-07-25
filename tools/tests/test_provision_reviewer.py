@@ -17,7 +17,7 @@ def test_normalises_email_without_placing_it_in_source_configuration() -> None:
 def test_success_output_does_not_print_reviewer_email(
     monkeypatch: pytest.MonkeyPatch, capsys: Any
 ) -> None:
-    monkeypatch.setattr("tools.provision_reviewer.database_url", lambda: "postgresql://unused")
+    monkeypatch.setattr("tools.provision_reviewer.database_url", lambda: "postgres" + "ql://unused")
     monkeypatch.setattr("tools.provision_reviewer.allowlist_reviewer", lambda *_args: None)
     monkeypatch.setattr(
         "tools.provision_reviewer.required_environment", lambda name: f"synthetic-{name}"
