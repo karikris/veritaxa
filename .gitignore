@@ -1,0 +1,37 @@
+# Environment and credentials
+.env
+.env.*
+!.env.example
+!.env.admin.example
+
+# Node and browser tooling
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Local Supabase state
+supabase/.branches/
+supabase/.temp/
+
+# Review data and exports
+data/
+reviewed/
+screenshots/
+*.parquet
+*.csv
+*.ndjson
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*:Zone.Identifier
