@@ -11,7 +11,13 @@ from urllib.request import Request, urlopen
 
 import psycopg
 
-from tools.common import AdminError, database_url, required_environment, validate_https_url
+from tools.common import (
+    AdminError,
+    database_url,
+    required_environment,
+    supabase_project_url,
+    validate_https_url,
+)
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -108,7 +114,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         email = normalise_email(args.email)
         allowlist_reviewer(database_url(), email)
         created = ensure_auth_user(
-            required_environment("SUPABASE_URL"),
+            supabase_project_url(),
             required_environment("SUPABASE_SECRET_KEY"),
             email,
         )

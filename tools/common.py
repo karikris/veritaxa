@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 
 class AdminError(Exception):
@@ -51,6 +51,44 @@ def required_environment(name: str) -> str:
     if not value:
         raise AdminError(f"Set {name} in .env.admin or the process environment.")
     return value
+
+
+def supabase_project_url() -> str:
+    """Resolve a hosted project origin without mistaking an API key for a URL."""
+    load_admin_environment()
+    for name in ("VERITAXA_SUPABASE_URL", "SUPABASE_PROJECT_URL", "SUPABASE_URL"):
+        origin = _project_origin(os.environ.get(name, ""))
+        if origin is not None:
+            return origin
+
+    jwks_url = os.environ.get("SUPABASE_JWKS_URL", "").strip()
+    try:
+        validated_jwks_url = validate_https_url(jwks_url, "SUPABASE_JWKS_URL")
+    except AdminError:
+        validated_jwks_url = ""
+    if validated_jwks_url:
+        parsed = urlsplit(validated_jwks_url)
+        if (
+            parsed.path.rstrip("/") == "/auth/v1/.well-known/jwks.json"
+            and not parsed.query
+            and not parsed.fragment
+        ):
+            return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+
+    raise AdminError(
+        "Set VERITAXA_SUPABASE_URL or SUPABASE_URL to the Supabase project HTTPS origin."
+    )
+
+
+def _project_origin(value: str) -> str | None:
+    try:
+        validated = validate_https_url(value, "Supabase project URL")
+    except AdminError:
+        return None
+    parsed = urlsplit(validated)
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        return None
+    return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
 
 
 def validate_https_url(value: object, field: str) -> str:

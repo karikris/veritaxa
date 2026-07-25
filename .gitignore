@@ -29,6 +29,7 @@ supabase/.temp/
 *.parquet
 *.csv
 *.ndjson
+*.jsonl
 
 # Editors and operating systems
 .DS_Store
