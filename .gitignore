@@ -23,9 +23,9 @@ supabase/.branches/
 supabase/.temp/
 
 # Review data and exports
-data/
-reviewed/
-screenshots/
+/data/
+/reviewed/
+/screenshots/
 *.parquet
 *.csv
 *.ndjson
