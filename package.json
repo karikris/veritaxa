@@ -1,0 +1,42 @@
+{
+  "name": "veritaxa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal authenticated image triage for taxonomic training data",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.110.8"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "tsc -b",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:db": "supabase test db supabase/tests --local",
+    "data:check": "node scripts/check-no-review-data.mjs",
+    "bundle:check": "node scripts/check-bundle-size.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.0",
+    "@types/node": "26.1.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "10.8.0",
+    "jsdom": "29.1.1",
+    "prettier": "3.9.6",
+    "supabase": "2.109.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.65.0",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
+  }
+}
