@@ -5,7 +5,12 @@ from typing import Any
 import pytest
 
 from tools.common import AdminError, supabase_project_url
-from tools.provision_reviewer import main, normalise_email, normalise_identified_by
+from tools.provision_reviewer import (
+    ensure_auth_user,
+    main,
+    normalise_email,
+    normalise_identified_by,
+)
 
 
 def test_normalises_email_without_placing_it_in_source_configuration() -> None:
@@ -26,7 +31,7 @@ def test_success_output_does_not_print_reviewer_email(
     monkeypatch: pytest.MonkeyPatch, capsys: Any
 ) -> None:
     monkeypatch.setattr("tools.provision_reviewer.database_url", lambda: "postgres" + "ql://unused")
-    monkeypatch.setattr("tools.provision_reviewer.allowlist_reviewer", lambda *_args: None)
+    monkeypatch.setattr("tools.provision_reviewer.activate_reviewer_profile", lambda *_args: None)
     monkeypatch.setattr(
         "tools.provision_reviewer.supabase_project_url",
         lambda: "https://synthetic-project.example.invalid",
@@ -34,7 +39,10 @@ def test_success_output_does_not_print_reviewer_email(
     monkeypatch.setattr(
         "tools.provision_reviewer.required_environment", lambda name: f"synthetic-{name}"
     )
-    monkeypatch.setattr("tools.provision_reviewer.ensure_auth_user", lambda *_args: True)
+    monkeypatch.setattr(
+        "tools.provision_reviewer.ensure_auth_user",
+        lambda *_args: (True, "10000000-0000-0000-0000-000000000001"),
+    )
 
     result = main(
         [
@@ -49,6 +57,42 @@ def test_success_output_does_not_print_reviewer_email(
     assert result == 0
     assert "reviewer@example.invalid" not in output
     assert "Auth user created" in output
+    assert "profile active" in output
+
+
+def test_new_auth_user_receives_submitted_name_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests: list[dict[str, Any] | None] = []
+
+    def request_json(
+        _url: str,
+        _headers: dict[str, str],
+        *,
+        method: str = "GET",
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        requests.append(body)
+        if method == "GET":
+            return {"users": []}
+        return {"id": "10000000-0000-0000-0000-000000000001"}
+
+    monkeypatch.setattr("tools.provision_reviewer._request_json", request_json)
+
+    created, user_id = ensure_auth_user(
+        "https://synthetic-project.example.invalid",
+        "synthetic-secret",
+        "reviewer@example.invalid",
+        "Synthetic reviewer",
+    )
+
+    assert created is True
+    assert user_id == "10000000-0000-0000-0000-000000000001"
+    assert requests[-1] == {
+        "email": "reviewer@example.invalid",
+        "email_confirm": True,
+        "user_metadata": {"identified_by": "Synthetic reviewer"},
+    }
 
 
 def test_project_url_falls_back_to_jwks_origin(monkeypatch: pytest.MonkeyPatch) -> None:

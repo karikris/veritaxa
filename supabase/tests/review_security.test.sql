@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(21);
+select plan(24);
 
 insert into auth.users (
   instance_id,
@@ -32,7 +32,7 @@ values
     '',
     now(),
     '{"provider":"email","providers":["email"]}',
-    '{}',
+    '{"identified_by":"Synthetic reviewer"}',
     now(),
     now(),
     '',
@@ -49,7 +49,7 @@ values
     '',
     now(),
     '{"provider":"email","providers":["email"]}',
-    '{}',
+    '{"identified_by":"Open reviewer"}',
     now(),
     now(),
     '',
@@ -57,9 +57,6 @@ values
     '',
     ''
   );
-
-insert into private.reviewer_allowlist (email, identified_by)
-values ('allowed-reviewer@example.invalid', 'Synthetic reviewer');
 
 insert into public.review_campaigns (
   id,
@@ -212,6 +209,31 @@ select
 
 select
   ok(
+    not has_table_privilege('authenticated', 'private.reviewer_profiles', 'select'),
+    'authenticated users cannot read stored reviewer profiles directly'
+  );
+
+select
+  results_eq(
+    $$
+      select email, identified_by
+      from private.reviewer_profiles
+      where user_id in (
+        '10000000-0000-0000-0000-000000000001',
+        '10000000-0000-0000-0000-000000000002'
+      )
+      order by email
+    $$,
+    $$
+      values
+        ('allowed-reviewer@example.invalid'::text, 'Synthetic reviewer'::text),
+        ('not-allowed@example.invalid'::text, 'Open reviewer'::text)
+    $$,
+    'new Auth users receive private profiles containing their email and submitted name'
+  );
+
+select
+  ok(
     position(
       'internal_name' in pg_get_function_result('public.list_review_batches()'::regprocedure)
     ) = 0,
@@ -236,11 +258,39 @@ select set_config(
 );
 
 select
+  is(
+    (
+      select count(*)
+      from public.list_review_batches()
+      where batch_id in (
+        '30000000-0000-0000-0000-000000000001',
+        '30000000-0000-0000-0000-000000000002',
+        '30000000-0000-0000-0000-000000000003'
+      )
+    ),
+    1::bigint,
+    'new passwordless users can list open review batches without an allowlist'
+  );
+
+reset role;
+
+update private.reviewer_profiles
+set active = false
+where user_id = '10000000-0000-0000-0000-000000000002';
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000002","email":"not-allowed@example.invalid","role":"authenticated"}',
+  true
+);
+
+select
   throws_ok(
     'select * from public.list_review_batches()',
     '42501',
     'Reviewer is not authorised',
-    'authenticated users outside the allowlist cannot list batches'
+    'an inactive reviewer profile cannot list batches'
   );
 
 select set_config(
@@ -261,7 +311,7 @@ select
       )
     ),
     1::bigint,
-    'allowlisted reviewers see open batches in open campaigns only'
+    'active reviewers see open batches in open campaigns only'
   );
 
 select
@@ -303,7 +353,7 @@ select
         'test-client'
       )
     $$,
-    'an allowlisted reviewer can submit a review'
+    'an active reviewer can submit a review'
   );
 
 reset role;
@@ -338,7 +388,7 @@ select
       where submission_id = '50000000-0000-0000-0000-000000000001'
     ),
     'Synthetic reviewer',
-    'reviews snapshot the allowlisted identifiedBy value'
+    'reviews snapshot the stored reviewer profile name'
   );
 
 set local role authenticated;
@@ -448,12 +498,13 @@ select
 select
   throws_ok(
     $$
-      insert into private.reviewer_allowlist (email, identified_by)
-      values ('blank-identity@example.invalid', '   ')
+      update private.reviewer_profiles
+      set identified_by = '   '
+      where user_id = '10000000-0000-0000-0000-000000000001'
     $$,
     '23514',
     null,
-    'reviewer identifiedBy values cannot be blank'
+    'reviewer profile names cannot be blank'
   );
 
 select * from finish();

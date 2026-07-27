@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 
 import type { PublicConfig } from '../config';
 import { isReviewLabelCode } from '../domain/reviewLabels';
@@ -10,7 +10,7 @@ import type {
 } from '../domain/reviewQueue';
 import type { Database } from './database.types';
 import {
-  ReviewerNotAuthorizedError,
+  ReviewerAccessDisabledError,
   type AuthEventHandler,
   type ReviewerSession,
   type ReviewRepository,
@@ -36,23 +36,24 @@ export class SupabaseReviewRepository implements ReviewRepository {
   async getSession(): Promise<ReviewerSession | null> {
     const { data, error } = await this.#client.auth.getSession();
     if (error) throw new Error('Could not restore the sign-in session.');
-    return sessionFromEmail(data.session?.user.email);
+    return sessionFromUser(data.session?.user);
   }
 
   onAuthStateChange(handler: AuthEventHandler): () => void {
     const {
       data: { subscription },
     } = this.#client.auth.onAuthStateChange((_event, session) => {
-      handler(sessionFromEmail(session?.user.email));
+      handler(sessionFromUser(session?.user));
     });
     return () => subscription.unsubscribe();
   }
 
-  async sendMagicLink(email: string, redirectTo: string): Promise<void> {
+  async sendMagicLink(identifiedBy: string, email: string, redirectTo: string): Promise<void> {
     const { error } = await this.#client.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: false,
+        data: { identified_by: identifiedBy },
+        shouldCreateUser: true,
         emailRedirectTo: redirectTo,
       },
     });
@@ -68,7 +69,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
   async listBatches(signal: AbortSignal): Promise<ReviewBatch[]> {
     const { data, error } = await this.#client.rpc('list_review_batches').abortSignal(signal);
     if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
-    if (error?.code === '42501') throw new ReviewerNotAuthorizedError();
+    if (error?.code === '42501') throw new ReviewerAccessDisabledError();
     if (error) throw new Error('Could not load review batches.');
     if (!Array.isArray(data)) throw new Error('The batch response was not valid.');
     return data.map(parseBatch);
@@ -98,8 +99,14 @@ export class SupabaseReviewRepository implements ReviewRepository {
   }
 }
 
-function sessionFromEmail(email: string | undefined): ReviewerSession | null {
-  return email ? { email } : null;
+function sessionFromUser(user: User | undefined): ReviewerSession | null {
+  if (!user?.email) return null;
+  const rawName: unknown = user.user_metadata.identified_by;
+  const identifiedBy =
+    typeof rawName === 'string' && rawName.trim() && rawName.trim().length <= 100
+      ? rawName.trim()
+      : null;
+  return { email: user.email, identifiedBy };
 }
 
 function parseBatch(value: unknown): ReviewBatch {

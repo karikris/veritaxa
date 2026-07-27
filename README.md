@@ -17,9 +17,9 @@ species-level confirmations, or verified occurrence records.
 
 GitHub Pages hosts only the compiled static interface. Supabase stores private
 campaigns, batches, source image URLs, hidden source metadata, the reviewer
-allowlist, and append-only reviews. Authentication, the private allowlist,
+profiles, and append-only reviews. Authentication, active private profiles,
 row-level security, and narrowly scoped security-definer RPC functions prevent
-anonymous or unapproved users from receiving task URLs or progress.
+anonymous or suspended users from receiving task URLs or progress.
 
 The browser uses a normal `<img>` element to download the displayed image
 directly from its source host. There is no iframe, server image proxy, image
@@ -82,9 +82,10 @@ The versioned definitions and pipeline mappings are in
 
 ## Database model and access
 
-- `private.reviewer_allowlist` adds application authorisation to Supabase Auth.
-- Each allowlist row assigns a required reviewer nickname. Reviews snapshot it
-  in the requested dataset field `identifiedBy`.
+- `private.reviewer_profiles` stores each authenticated reviewer's email,
+  submitted name, and active state outside the browser-accessible schema.
+- New email-auth users receive an active profile automatically. Reviews
+  snapshot the profile name in the requested dataset field `identifiedBy`.
 - `review_campaigns` retains internal scientific and source context.
 - `review_batches` divides campaigns into neutral batches of at most 1,000
   items.
@@ -95,20 +96,19 @@ The versioned definitions and pipeline mappings are in
   only browser-facing data operations.
 
 All exposed tables have RLS enabled and direct access is revoked from browser
-roles. Functions derive the reviewer UUID and email from the authenticated JWT,
-use a fixed safe search path, and return minimum shapes. Reviews cannot be
-edited or deleted through the reviewer application.
+roles. Functions derive the reviewer UUID from the authenticated JWT, use a
+fixed safe search path, and return minimum shapes. Reviews cannot be edited or
+deleted through the reviewer application.
 
 ## Exact production setup order
 
 1. Create or select a dedicated Supabase project.
 2. Apply the migrations.
-3. Provision a reviewer.
-4. Configure Auth site and redirect URLs.
-5. Set the GitHub repository variables.
-6. Import a candidate campaign.
-7. Deploy GitHub Pages.
-8. Sign in and review.
+3. Configure open email registration and Auth URLs.
+4. Set the GitHub repository variables.
+5. Import a candidate campaign.
+6. Deploy GitHub Pages.
+7. Register, sign in, and review.
 
 The following sections expand those steps. Never place administrative database
 credentials or a server-side Supabase key in a `VITE_` variable.
@@ -136,10 +136,35 @@ npx supabase db lint --linked --level warning
 Inspect the target before pushing. The migration creates only the `private`
 authorisation schema and the versioned VeriTaxa objects in `public`; it does not
 drop unrelated tables. The database tests run in a transaction and verify
-anonymous, unauthorised, allowlisted, hidden-field, append-only, and idempotency
-boundaries.
+anonymous, inactive-profile, open-registration, hidden-field, append-only, and
+idempotency boundaries.
 
-### 3. Provision a reviewer
+### 3. Configure open registration and Auth URLs
+
+In Supabase Authentication URL configuration, set these exact URLs, including
+the trailing slash:
+
+```text
+Site URL: https://karikris.github.io/veritaxa/
+Redirect URL: https://karikris.github.io/veritaxa/
+```
+
+The exact production redirect must be present in the redirect allow list.
+Otherwise Supabase falls back to the configured Site URL, which is commonly
+`http://localhost:3000` on a new project. Enable public email signup, keep
+anonymous sign-in disabled, and use the default magic-link template's
+confirmation URL. If the template was customised, ensure it follows the
+requested redirect rather than hard-coding the Site URL.
+
+The landing form asks for a name and email, with no password. The frontend uses
+`shouldCreateUser: true`; an Auth trigger stores a private active profile for a
+new user, and the canonical review snapshot uses that profile's name. Supabase
+persists and refreshes the browser session so returning users remain signed in.
+The local equivalents are recorded in `supabase/config.toml`.
+
+The normal registration path requires no administrative provisioning. The
+following optional command can create or reactivate a reviewer profile when
+support intervention is needed.
 
 Copy `.env.admin.example` to the ignored `.env.admin` and set:
 
@@ -160,26 +185,10 @@ uv run python -m tools.provision_reviewer \
 ```
 
 The command creates or finds the Supabase Auth user, activates the private
-allowlist row, and stores the nickname used by canonical exports as
-`identifiedBy`, without printing the email or credentials. If Auth
-administration is unavailable, it gives the exact Authentication > Users
-dashboard action and leaves the allowlist update explicit.
+profile, and stores the nickname used by canonical exports as `identifiedBy`,
+without printing the email or credentials.
 
-### 4. Configure Auth URLs
-
-In Supabase Authentication URL configuration, set:
-
-```text
-Site URL: https://karikris.github.io/veritaxa/
-Redirect URL: https://karikris.github.io/veritaxa/
-```
-
-Keep public email signup and anonymous sign-in disabled. The frontend requests
-email magic links with `shouldCreateUser: false`, so only a pre-provisioned Auth
-user who is also active in the private allowlist can access tasks. The local
-equivalents are recorded in `supabase/config.toml`.
-
-### 5. Configure GitHub
+### 4. Configure GitHub
 
 Set public repository variables, not administrative secrets:
 
@@ -193,7 +202,7 @@ prompted. Do not use a server secret or service-role JWT. Enable Pages with
 GitHub Actions as the source; `.github/workflows/pages.yml` deploys only after
 the complete `CI` workflow succeeds on `main`.
 
-### 6. Import a campaign
+### 5. Import a campaign
 
 Candidate input may be Parquet, CSV, NDJSON, or JSONL. It requires `image_id`,
 `image_url`, and `source_provider`; optional source columns are preserved, and
@@ -219,7 +228,7 @@ batches administratively after validation. Input order is retained unless
 uses a transaction, splits batches at 1,000 rows, and omits URLs and labels from
 normal logs.
 
-### 7–8. Deploy and review
+### 6–7. Deploy and review
 
 Merge a passing pull request into `main`. The Pages workflow builds with the
 repository's public variables, scans source and `dist/` for private review
@@ -230,8 +239,9 @@ deploys to:
 https://karikris.github.io/veritaxa/
 ```
 
-An approved reviewer can then request a magic link, choose an open neutral
-batch, classify one image, and resume at the next unreviewed item later.
+A reviewer can then enter their name and email, follow the one-time link, choose
+an open neutral batch, classify one image, and resume at the next unreviewed
+item later. Their session and per-batch database progress are remembered.
 
 ## Local frontend development
 
@@ -291,7 +301,7 @@ tools. Exact JavaScript and Python resolutions are committed in
 ## Known limitations
 
 - Version 1 records one label per reviewer and item, with no editing,
-  adjudication, consensus, or public registration.
+  adjudication, or consensus.
 - `identifiedBy` records the broad-image classifier's nickname; it does not
   turn the response into a taxonomic identification or species confirmation.
 - Labels describe the whole visible image; positive detector training still

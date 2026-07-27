@@ -46,7 +46,11 @@ export class SyntheticReviewRepository implements ReviewRepository {
   readonly #failedOnce = new Set<string>();
 
   getSession() {
-    return Promise.resolve(this.#signedIn ? { email: 'synthetic-reviewer@example.invalid' } : null);
+    return Promise.resolve(
+      this.#signedIn
+        ? { email: 'synthetic-reviewer@example.invalid', identifiedBy: 'Synthetic reviewer' }
+        : null,
+    );
   }
 
   onAuthStateChange(handler: AuthEventHandler) {
