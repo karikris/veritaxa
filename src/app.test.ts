@@ -44,7 +44,7 @@ type RepositoryOptions = {
 function repository(options: RepositoryOptions = {}): ReviewRepository & {
   listBatches: ReturnType<typeof vi.fn<ReviewRepository['listBatches']>>;
   getQueue: ReturnType<typeof vi.fn<ReviewRepository['getQueue']>>;
-  sendMagicLink: ReturnType<typeof vi.fn<ReviewRepository['sendMagicLink']>>;
+  signIn: ReturnType<typeof vi.fn<ReviewRepository['signIn']>>;
   signOut: ReturnType<typeof vi.fn<ReviewRepository['signOut']>>;
   submitReview: ReturnType<typeof vi.fn<ReviewRepository['submitReview']>>;
 } {
@@ -59,7 +59,13 @@ function repository(options: RepositoryOptions = {}): ReviewRepository & {
       options.submit ??
         (() => Promise.resolve({ reviewedCount: 1, totalCount: 2, complete: false })),
     );
-  const sendMagicLink = vi.fn<ReviewRepository['sendMagicLink']>().mockResolvedValue();
+  const signIn = vi.fn<ReviewRepository['signIn']>().mockImplementation((identifiedBy: string) => {
+    authHandler?.({
+      userId: '10000000-0000-0000-0000-000000000001',
+      identifiedBy,
+    });
+    return Promise.resolve();
+  });
   const signOut = vi.fn<ReviewRepository['signOut']>().mockImplementation(() => {
     authHandler?.(null);
     return Promise.resolve();
@@ -70,7 +76,7 @@ function repository(options: RepositoryOptions = {}): ReviewRepository & {
         options.signedIn === false
           ? null
           : {
-              email: 'reviewer@example.invalid',
+              userId: '10000000-0000-0000-0000-000000000001',
               identifiedBy: 'Synthetic reviewer',
             },
       ),
@@ -80,7 +86,7 @@ function repository(options: RepositoryOptions = {}): ReviewRepository & {
         authHandler = null;
       };
     },
-    sendMagicLink,
+    signIn,
     signOut,
     listBatches,
     getQueue,
@@ -98,7 +104,6 @@ function createApp(repo: ReviewRepository): VeriTaxaApp {
   return new VeriTaxaApp(getRoot(), repo, {
     storage: window.localStorage,
     imagePrefetch: new ImagePrefetch(() => ({ src: '' })),
-    locationHref: 'https://example.invalid/veritaxa/',
   });
 }
 
@@ -115,7 +120,7 @@ describe('VeriTaxa application', () => {
     await app.start();
 
     expect(document.querySelector('input[name="name"]')).not.toBeNull();
-    expect(document.querySelector('input[type="email"]')).not.toBeNull();
+    expect(document.querySelector('input[type="email"]')).toBeNull();
     expect(document.querySelector('input[type="password"]')).toBeNull();
     expect(document.querySelectorAll('[role="tab"]')).toHaveLength(0);
     expect(document.querySelector('nav')).toBeNull();
@@ -124,34 +129,25 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
-  it('remembers registration details and sends the exact production redirect', async () => {
+  it('remembers the submitted name and starts the review immediately', async () => {
     const repo = repository({ signedIn: false });
     const app = createApp(repo);
     await app.start();
 
     const name = document.querySelector<HTMLInputElement>('input[name="name"]');
-    const email = document.querySelector<HTMLInputElement>('input[name="email"]');
-    if (!name || !email) throw new Error('Registration fields are missing');
+    if (!name) throw new Error('Name field is missing');
     name.value = '  Remembered reviewer  ';
-    email.value = '  reviewer@example.invalid  ';
     document
       .querySelector<HTMLFormElement>('form')
       ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
-    await vi.waitFor(() =>
-      expect(repo.sendMagicLink).toHaveBeenCalledWith(
-        'Remembered reviewer',
-        'reviewer@example.invalid',
-        'https://example.invalid/veritaxa/',
-      ),
-    );
+    await vi.waitFor(() => expect(repo.signIn).toHaveBeenCalledWith('Remembered reviewer'));
     expect(window.localStorage.getItem('veritaxa:reviewer-name')).toBe('Remembered reviewer');
-    expect(window.localStorage.getItem('veritaxa:reviewer-email')).toBe('reviewer@example.invalid');
+    await vi.waitFor(() => expect(document.querySelector('img.review-image')).not.toBeNull());
+
+    await repo.signOut();
     expect(document.querySelector<HTMLInputElement>('input[name="name"]')?.value).toBe(
       'Remembered reviewer',
-    );
-    expect(document.querySelector<HTMLInputElement>('input[name="email"]')?.value).toBe(
-      'reviewer@example.invalid',
     );
     app.dispose();
   });
@@ -166,7 +162,7 @@ describe('VeriTaxa application', () => {
     expect(repo.signOut).toHaveBeenCalledOnce();
     expect(document.body.textContent).toContain('This reviewer profile is inactive.');
     expect(document.querySelector('input[name="name"]')).not.toBeNull();
-    expect(document.querySelector('input[type="email"]')).not.toBeNull();
+    expect(document.querySelector('input[type="email"]')).toBeNull();
     expect(document.querySelector('input[type="password"]')).toBeNull();
     expect(repo.getQueue).not.toHaveBeenCalled();
     app.dispose();

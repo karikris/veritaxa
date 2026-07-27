@@ -26,7 +26,7 @@ test('signed-out shell fetches no task or image data', async ({ page }) => {
   await page.goto('/veritaxa/');
 
   await expect(page.getByLabel('Name')).toBeVisible();
-  await expect(page.getByLabel('Email address')).toBeVisible();
+  await expect(page.locator('input[type="email"]')).toHaveCount(0);
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await expect(page.getByRole('tab')).toHaveCount(0);
   await expect(page.locator('nav')).toHaveCount(0);

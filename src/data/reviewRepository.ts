@@ -6,7 +6,7 @@ import type {
 } from '../domain/reviewQueue';
 
 export type ReviewerSession = {
-  email: string;
+  userId: string;
   identifiedBy: string | null;
 };
 
@@ -22,7 +22,7 @@ export class ReviewerAccessDisabledError extends Error {
 export type ReviewRepository = {
   getSession: () => Promise<ReviewerSession | null>;
   onAuthStateChange: (handler: AuthEventHandler) => () => void;
-  sendMagicLink: (identifiedBy: string, email: string, redirectTo: string) => Promise<void>;
+  signIn: (identifiedBy: string) => Promise<void>;
   signOut: () => Promise<void>;
   listBatches: (signal: AbortSignal) => Promise<ReviewBatch[]>;
   getQueue: (batchId: string, limit: number, signal: AbortSignal) => Promise<ReviewItem[]>;
