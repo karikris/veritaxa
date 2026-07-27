@@ -7,21 +7,22 @@ import type {
 
 export type ReviewerSession = {
   email: string;
+  identifiedBy: string | null;
 };
 
 export type AuthEventHandler = (session: ReviewerSession | null) => void;
 
-export class ReviewerNotAuthorizedError extends Error {
+export class ReviewerAccessDisabledError extends Error {
   constructor() {
-    super('This email is not approved for VeriTaxa.');
-    this.name = 'ReviewerNotAuthorizedError';
+    super('This reviewer profile is inactive.');
+    this.name = 'ReviewerAccessDisabledError';
   }
 }
 
 export type ReviewRepository = {
   getSession: () => Promise<ReviewerSession | null>;
   onAuthStateChange: (handler: AuthEventHandler) => () => void;
-  sendMagicLink: (email: string, redirectTo: string) => Promise<void>;
+  sendMagicLink: (identifiedBy: string, email: string, redirectTo: string) => Promise<void>;
   signOut: () => Promise<void>;
   listBatches: (signal: AbortSignal) => Promise<ReviewBatch[]>;
   getQueue: (batchId: string, limit: number, signal: AbortSignal) => Promise<ReviewItem[]>;

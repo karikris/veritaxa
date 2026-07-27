@@ -37,29 +37,23 @@ def normalise_identified_by(value: str) -> str:
     return identified_by
 
 
-def allowlist_reviewer(dsn: str, email: str, identified_by: str) -> None:
+def activate_reviewer_profile(dsn: str, user_id: str, email: str, identified_by: str) -> None:
     with psycopg.connect(dsn) as connection, connection.cursor() as cursor:
         cursor.execute(
             """
-            update private.reviewer_allowlist
-            set active = true, identified_by = %s
-            where lower(email) = %s
+            update private.reviewer_profiles
+            set active = true, email = %s, identified_by = %s
+            where user_id = %s::uuid
             """,
-            (identified_by, email),
+            (email, identified_by, user_id),
         )
-        if cursor.rowcount == 0:
-            cursor.execute(
-                """
-                insert into private.reviewer_allowlist (
-                  email, identified_by, active, created_by
-                )
-                values (%s, %s, true, 'tools.provision_reviewer')
-                """,
-                (email, identified_by),
-            )
+        if cursor.rowcount != 1:
+            raise AdminError("The Auth user does not have a reviewer profile.")
 
 
-def ensure_auth_user(project_url: str, secret_key: str, email: str) -> bool:
+def ensure_auth_user(
+    project_url: str, secret_key: str, email: str, identified_by: str
+) -> tuple[bool, str]:
     base_url = validate_https_url(project_url, "SUPABASE_URL").rstrip("/")
     headers = {
         "apikey": secret_key,
@@ -73,24 +67,32 @@ def ensure_auth_user(project_url: str, secret_key: str, email: str) -> bool:
         users = payload.get("users")
         if not isinstance(users, list):
             raise AdminError("Supabase Auth returned an invalid user list.")
-        if any(
-            isinstance(user, dict)
-            and isinstance(user.get("email"), str)
-            and user["email"].lower() == email
-            for user in users
-        ):
-            return False
+        for user in users:
+            if (
+                isinstance(user, dict)
+                and isinstance(user.get("email"), str)
+                and user["email"].lower() == email
+                and isinstance(user.get("id"), str)
+            ):
+                return (False, user["id"])
         if len(users) < 1000:
             break
         page += 1
 
-    _request_json(
+    created_user = _request_json(
         f"{base_url}/auth/v1/admin/users",
         headers,
         method="POST",
-        body={"email": email, "email_confirm": True},
+        body={
+            "email": email,
+            "email_confirm": True,
+            "user_metadata": {"identified_by": identified_by},
+        },
     )
-    return True
+    user_id = created_user.get("id")
+    if not isinstance(user_id, str):
+        raise AdminError("Supabase Auth returned an invalid created user.")
+    return (True, user_id)
 
 
 def _request_json(
@@ -113,7 +115,7 @@ def _request_json(
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Provision an approved VeriTaxa reviewer.")
+    parser = argparse.ArgumentParser(description="Administratively provision a VeriTaxa reviewer.")
     parser.add_argument("--email", required=True)
     parser.add_argument("--identified-by", required=True)
     return parser
@@ -124,17 +126,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         email = normalise_email(args.email)
         identified_by = normalise_identified_by(args.identified_by)
-        allowlist_reviewer(database_url(), email, identified_by)
-        created = ensure_auth_user(
+        created, user_id = ensure_auth_user(
             supabase_project_url(),
             required_environment("SUPABASE_SECRET_KEY"),
             email,
+            identified_by,
         )
+        activate_reviewer_profile(database_url(), user_id, email, identified_by)
     except AdminError as error:
         if "Auth administration is unavailable" in str(error):
             print(
-                "Allowlist updated, but Auth provisioning is unavailable. "
-                "Create the supplied email in Supabase Authentication > Users, then rerun."
+                "Auth provisioning is unavailable. "
+                "The reviewer can register through the public VeriTaxa form instead."
             )
         else:
             print("Reviewer provisioning failed. No email or credentials were printed.")
@@ -144,7 +147,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     state = "created" if created else "already existed"
-    print(f"Reviewer provisioned: Auth user {state}; allowlist active.")
+    print(f"Reviewer provisioned: Auth user {state}; profile active.")
     return 0
 
 

@@ -16,7 +16,7 @@ import {
 } from './image/imageLoader';
 import { ImagePrefetch } from './image/imagePrefetch';
 import {
-  ReviewerNotAuthorizedError,
+  ReviewerAccessDisabledError,
   type ReviewerSession,
   type ReviewRepository,
 } from './data/reviewRepository';
@@ -46,6 +46,8 @@ type AppOptions = {
 };
 
 const LAST_BATCH_KEY = 'veritaxa:last-batch-id';
+const REVIEWER_NAME_KEY = 'veritaxa:reviewer-name';
+const REVIEWER_EMAIL_KEY = 'veritaxa:reviewer-email';
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -142,6 +144,8 @@ export class VeriTaxaApp {
 
     if (this.#session?.email === session.email && this.#batches.length > 0) return;
     this.#session = session;
+    this.#storage?.setItem(REVIEWER_EMAIL_KEY, session.email);
+    if (session.identifiedBy) this.#storage?.setItem(REVIEWER_NAME_KEY, session.identifiedBy);
     await this.#loadBatches();
   }
 
@@ -174,7 +178,7 @@ export class VeriTaxaApp {
       await this.#selectBatch(selected.id);
     } catch (error) {
       if (!this.#isCurrentRequest(id) || isAbortError(error)) return;
-      if (error instanceof ReviewerNotAuthorizedError) {
+      if (error instanceof ReviewerAccessDisabledError) {
         this.#cancelRequests();
         this.#session = null;
         this.#batches = [];
@@ -475,36 +479,57 @@ export class VeriTaxaApp {
     const panel = element('section', 'login-panel');
     panel.setAttribute('aria-labelledby', 'login-heading');
     const eyebrow = element('p', 'eyebrow');
-    eyebrow.textContent = 'Private review workspace';
+    eyebrow.textContent = 'Review workspace';
     const heading = element('h1');
     heading.id = 'login-heading';
-    heading.textContent = 'Sign in to continue';
+    heading.textContent = 'Join the review';
     const intro = element('p', 'login-copy');
-    intro.textContent = 'We’ll email an access link to approved reviewers.';
+    intro.textContent = 'Enter your name and email. We’ll send you a one-time sign-in link.';
 
     const form = element('form', 'login-form');
-    const label = element('label');
-    label.htmlFor = 'reviewer-email';
-    label.textContent = 'Email address';
-    const field = element('input');
-    field.id = 'reviewer-email';
-    field.name = 'email';
-    field.type = 'email';
-    field.autocomplete = 'email';
-    field.required = true;
-    field.placeholder = 'you@example.org';
+    const nameLabel = element('label');
+    nameLabel.htmlFor = 'reviewer-name';
+    nameLabel.textContent = 'Name';
+    const nameField = element('input');
+    nameField.id = 'reviewer-name';
+    nameField.name = 'name';
+    nameField.type = 'text';
+    nameField.autocomplete = 'name';
+    nameField.required = true;
+    nameField.maxLength = 100;
+    nameField.placeholder = 'Your name';
+    nameField.value = this.#storage?.getItem(REVIEWER_NAME_KEY) ?? '';
+    nameField.addEventListener('input', () => nameField.setCustomValidity(''));
+
+    const emailLabel = element('label');
+    emailLabel.htmlFor = 'reviewer-email';
+    emailLabel.textContent = 'Email address';
+    const emailField = element('input');
+    emailField.id = 'reviewer-email';
+    emailField.name = 'email';
+    emailField.type = 'email';
+    emailField.autocomplete = 'email';
+    emailField.required = true;
+    emailField.maxLength = 320;
+    emailField.placeholder = 'you@example.org';
+    emailField.value = this.#storage?.getItem(REVIEWER_EMAIL_KEY) ?? '';
     const submit = element('button', 'primary-button');
     submit.type = 'submit';
     submit.textContent = 'Send sign-in link';
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      if (!field.reportValidity()) return;
+      nameField.setCustomValidity(nameField.value.trim() ? '' : 'Enter your name.');
+      if (!nameField.reportValidity() || !emailField.reportValidity()) return;
+      const identifiedBy = nameField.value.trim();
+      const email = emailField.value.trim();
+      this.#storage?.setItem(REVIEWER_NAME_KEY, identifiedBy);
+      this.#storage?.setItem(REVIEWER_EMAIL_KEY, email);
       submit.disabled = true;
       this.#authMessage = 'Sending sign-in link…';
       this.#errorMessage = '';
       this.#render();
       void this.#repository
-        .sendMagicLink(field.value.trim(), this.#productionRedirectUrl())
+        .sendMagicLink(identifiedBy, email, this.#productionRedirectUrl())
         .then(() => {
           this.#authMessage = 'Check your email for the sign-in link.';
           this.#render();
@@ -515,14 +540,16 @@ export class VeriTaxaApp {
           this.#render();
         });
     });
-    form.append(label, field, submit);
+    form.append(nameLabel, nameField, emailLabel, emailField, submit);
     panel.append(
       eyebrow,
       heading,
       intro,
       form,
       this.#buildLiveStatus(
-        this.#errorMessage || this.#authMessage || 'Access is limited to approved reviewers.',
+        this.#errorMessage ||
+          this.#authMessage ||
+          'Your details and review progress will be remembered.',
         Boolean(this.#errorMessage),
       ),
     );
