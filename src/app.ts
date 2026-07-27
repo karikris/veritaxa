@@ -41,13 +41,11 @@ type NavigatorWithConnection = Navigator & {
 type AppOptions = {
   storage?: Storage;
   imagePrefetch?: ImagePrefetch;
-  locationHref?: string;
   navigator?: NavigatorWithConnection;
 };
 
 const LAST_BATCH_KEY = 'veritaxa:last-batch-id';
 const REVIEWER_NAME_KEY = 'veritaxa:reviewer-name';
-const REVIEWER_EMAIL_KEY = 'veritaxa:reviewer-email';
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -70,7 +68,6 @@ export class VeriTaxaApp {
   readonly #repository: ReviewRepository;
   readonly #storage: Storage | undefined;
   readonly #prefetch: ImagePrefetch;
-  readonly #locationHref: string;
   readonly #navigator: NavigatorWithConnection;
 
   #state: AppStateName = 'auth_loading';
@@ -94,7 +91,6 @@ export class VeriTaxaApp {
     this.#repository = repository;
     this.#storage = options.storage;
     this.#prefetch = options.imagePrefetch ?? new ImagePrefetch();
-    this.#locationHref = options.locationHref ?? window.location.href;
     this.#navigator = options.navigator ?? navigator;
   }
 
@@ -142,9 +138,8 @@ export class VeriTaxaApp {
       return;
     }
 
-    if (this.#session?.email === session.email && this.#batches.length > 0) return;
+    if (this.#session?.userId === session.userId && this.#batches.length > 0) return;
     this.#session = session;
-    this.#storage?.setItem(REVIEWER_EMAIL_KEY, session.email);
     if (session.identifiedBy) this.#storage?.setItem(REVIEWER_NAME_KEY, session.identifiedBy);
     await this.#loadBatches();
   }
@@ -484,7 +479,7 @@ export class VeriTaxaApp {
     heading.id = 'login-heading';
     heading.textContent = 'Join the review';
     const intro = element('p', 'login-copy');
-    intro.textContent = 'Enter your name and email. We’ll send you a one-time sign-in link.';
+    intro.textContent = 'Enter your name to start reviewing.';
 
     const form = element('form', 'login-form');
     const nameLabel = element('label');
@@ -501,46 +496,31 @@ export class VeriTaxaApp {
     nameField.value = this.#storage?.getItem(REVIEWER_NAME_KEY) ?? '';
     nameField.addEventListener('input', () => nameField.setCustomValidity(''));
 
-    const emailLabel = element('label');
-    emailLabel.htmlFor = 'reviewer-email';
-    emailLabel.textContent = 'Email address';
-    const emailField = element('input');
-    emailField.id = 'reviewer-email';
-    emailField.name = 'email';
-    emailField.type = 'email';
-    emailField.autocomplete = 'email';
-    emailField.required = true;
-    emailField.maxLength = 320;
-    emailField.placeholder = 'you@example.org';
-    emailField.value = this.#storage?.getItem(REVIEWER_EMAIL_KEY) ?? '';
     const submit = element('button', 'primary-button');
     submit.type = 'submit';
-    submit.textContent = 'Send sign-in link';
+    submit.textContent = 'Start reviewing';
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       nameField.setCustomValidity(nameField.value.trim() ? '' : 'Enter your name.');
-      if (!nameField.reportValidity() || !emailField.reportValidity()) return;
+      if (!nameField.reportValidity()) return;
       const identifiedBy = nameField.value.trim();
-      const email = emailField.value.trim();
       this.#storage?.setItem(REVIEWER_NAME_KEY, identifiedBy);
-      this.#storage?.setItem(REVIEWER_EMAIL_KEY, email);
       submit.disabled = true;
-      this.#authMessage = 'Sending sign-in link…';
+      this.#authMessage = 'Starting review…';
       this.#errorMessage = '';
       this.#render();
       void this.#repository
-        .sendMagicLink(identifiedBy, email, this.#productionRedirectUrl())
+        .signIn(identifiedBy)
         .then(() => {
-          this.#authMessage = 'Check your email for the sign-in link.';
-          this.#render();
+          this.#authMessage = '';
         })
         .catch((error: unknown) => {
           this.#authMessage = '';
-          this.#errorMessage = messageFrom(error, 'The sign-in link could not be sent.');
+          this.#errorMessage = messageFrom(error, 'The review session could not be started.');
           this.#render();
         });
     });
-    form.append(nameLabel, nameField, emailLabel, emailField, submit);
+    form.append(nameLabel, nameField, submit);
     panel.append(
       eyebrow,
       heading,
@@ -549,19 +529,12 @@ export class VeriTaxaApp {
       this.#buildLiveStatus(
         this.#errorMessage ||
           this.#authMessage ||
-          'Your details and review progress will be remembered.',
+          'Your name, session, and review progress will be remembered on this device.',
         Boolean(this.#errorMessage),
       ),
     );
     main.append(panel);
     return main;
-  }
-
-  #productionRedirectUrl(): string {
-    const url = new URL(this.#locationHref);
-    url.hash = '';
-    url.search = '';
-    return url.href;
   }
 
   #buildAuthenticatedMain(): HTMLElement {

@@ -28,7 +28,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
       },
     });
   }
@@ -48,17 +48,13 @@ export class SupabaseReviewRepository implements ReviewRepository {
     return () => subscription.unsubscribe();
   }
 
-  async sendMagicLink(identifiedBy: string, email: string, redirectTo: string): Promise<void> {
-    const { error } = await this.#client.auth.signInWithOtp({
-      email,
+  async signIn(identifiedBy: string): Promise<void> {
+    const { error } = await this.#client.auth.signInAnonymously({
       options: {
         data: { identified_by: identifiedBy },
-        shouldCreateUser: true,
-        emailRedirectTo: redirectTo,
       },
     });
-    if (error)
-      throw new Error('The sign-in link could not be sent. Check the address and try again.');
+    if (error) throw new Error('The review session could not be started. Try again.');
   }
 
   async signOut(): Promise<void> {
@@ -100,13 +96,13 @@ export class SupabaseReviewRepository implements ReviewRepository {
 }
 
 function sessionFromUser(user: User | undefined): ReviewerSession | null {
-  if (!user?.email) return null;
+  if (!user) return null;
   const rawName: unknown = user.user_metadata.identified_by;
   const identifiedBy =
     typeof rawName === 'string' && rawName.trim() && rawName.trim().length <= 100
       ? rawName.trim()
       : null;
-  return { email: user.email, identifiedBy };
+  return { userId: user.id, identifiedBy };
 }
 
 function parseBatch(value: unknown): ReviewBatch {

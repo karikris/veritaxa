@@ -11,6 +11,7 @@ insert into auth.users (
   aud,
   role,
   email,
+  is_anonymous,
   encrypted_password,
   email_confirmed_at,
   raw_app_meta_data,
@@ -29,6 +30,7 @@ values
     'authenticated',
     'authenticated',
     'allowed-reviewer@example.invalid',
+    false,
     '',
     now(),
     '{"provider":"email","providers":["email"]}',
@@ -45,11 +47,12 @@ values
     '10000000-0000-0000-0000-000000000002',
     'authenticated',
     'authenticated',
-    'not-allowed@example.invalid',
+    null,
+    true,
     '',
-    now(),
-    '{"provider":"email","providers":["email"]}',
-    '{"identified_by":"Open reviewer"}',
+    null,
+    '{"provider":"anonymous","providers":[]}',
+    '{"identified_by":"Anonymous reviewer"}',
     now(),
     now(),
     '',
@@ -216,20 +219,28 @@ select
 select
   results_eq(
     $$
-      select email, identified_by
+      select user_id, email, identified_by
       from private.reviewer_profiles
       where user_id in (
         '10000000-0000-0000-0000-000000000001',
         '10000000-0000-0000-0000-000000000002'
       )
-      order by email
+      order by user_id
     $$,
     $$
       values
-        ('allowed-reviewer@example.invalid'::text, 'Synthetic reviewer'::text),
-        ('not-allowed@example.invalid'::text, 'Open reviewer'::text)
+        (
+          '10000000-0000-0000-0000-000000000001'::uuid,
+          'allowed-reviewer@example.invalid'::text,
+          'Synthetic reviewer'::text
+        ),
+        (
+          '10000000-0000-0000-0000-000000000002'::uuid,
+          null::text,
+          'Anonymous reviewer'::text
+        )
     $$,
-    'new Auth users receive private profiles containing their email and submitted name'
+    'anonymous Auth users receive private profiles containing only their submitted name'
   );
 
 select
@@ -253,7 +264,7 @@ select
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"10000000-0000-0000-0000-000000000002","email":"not-allowed@example.invalid","role":"authenticated"}',
+  '{"sub":"10000000-0000-0000-0000-000000000002","role":"authenticated","is_anonymous":true}',
   true
 );
 
@@ -269,7 +280,7 @@ select
       )
     ),
     1::bigint,
-    'new passwordless users can list open review batches without an allowlist'
+    'new name-only anonymous users can list open review batches immediately'
   );
 
 reset role;
@@ -281,7 +292,7 @@ where user_id = '10000000-0000-0000-0000-000000000002';
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"10000000-0000-0000-0000-000000000002","email":"not-allowed@example.invalid","role":"authenticated"}',
+  '{"sub":"10000000-0000-0000-0000-000000000002","role":"authenticated","is_anonymous":true}',
   true
 );
 

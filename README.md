@@ -82,10 +82,11 @@ The versioned definitions and pipeline mappings are in
 
 ## Database model and access
 
-- `private.reviewer_profiles` stores each authenticated reviewer's email,
+- `private.reviewer_profiles` stores each authenticated reviewer's UUID,
   submitted name, and active state outside the browser-accessible schema.
-- New email-auth users receive an active profile automatically. Reviews
-  snapshot the profile name in the requested dataset field `identifiedBy`.
+- New anonymous Auth users receive an active profile automatically without
+  providing an email or password. Reviews snapshot the profile name in the
+  requested dataset field `identifiedBy`.
 - `review_campaigns` retains internal scientific and source context.
 - `review_batches` divides campaigns into neutral batches of at most 1,000
   items.
@@ -104,7 +105,7 @@ deleted through the reviewer application.
 
 1. Create or select a dedicated Supabase project.
 2. Apply the migrations.
-3. Configure open email registration and Auth URLs.
+3. Enable anonymous Auth.
 4. Set the GitHub repository variables.
 5. Import a candidate campaign.
 6. Deploy GitHub Pages.
@@ -136,35 +137,25 @@ npx supabase db lint --linked --level warning
 Inspect the target before pushing. The migration creates only the `private`
 authorisation schema and the versioned VeriTaxa objects in `public`; it does not
 drop unrelated tables. The database tests run in a transaction and verify
-anonymous, inactive-profile, open-registration, hidden-field, append-only, and
-idempotency boundaries.
+unauthenticated, inactive-profile, anonymous-registration, hidden-field,
+append-only, and idempotency boundaries.
 
-### 3. Configure open registration and Auth URLs
+### 3. Configure name-only access
 
-In Supabase Authentication URL configuration, set these exact URLs, including
-the trailing slash:
+In Supabase Authentication > Sign In / Providers, enable anonymous sign-ins.
+Email signup can remain disabled because VeriTaxa does not send authentication
+emails or ask for an email or password.
 
-```text
-Site URL: https://karikris.github.io/veritaxa/
-Redirect URL: https://karikris.github.io/veritaxa/
-```
-
-The exact production redirect must be present in the redirect allow list.
-Otherwise Supabase falls back to the configured Site URL, which is commonly
-`http://localhost:3000` on a new project. Enable public email signup, keep
-anonymous sign-in disabled, and use the default magic-link template's
-confirmation URL. If the template was customised, ensure it follows the
-requested redirect rather than hard-coding the Site URL.
-
-The landing form asks for a name and email, with no password. The frontend uses
-`shouldCreateUser: true`; an Auth trigger stores a private active profile for a
-new user, and the canonical review snapshot uses that profile's name. Supabase
-persists and refreshes the browser session so returning users remain signed in.
-The local equivalents are recorded in `supabase/config.toml`.
+The landing form asks only for a name. The frontend calls
+`signInAnonymously()` with that name as display metadata; an Auth trigger stores
+a private active profile, and the canonical review snapshot uses the profile
+name. Supabase persists and refreshes the anonymous browser session so
+returning users on the same browser remain signed in. The local equivalent is
+recorded in `supabase/config.toml`.
 
 The normal registration path requires no administrative provisioning. The
-following optional command can create or reactivate a reviewer profile when
-support intervention is needed.
+following optional legacy-support command can create or reactivate an
+email-based reviewer profile when support intervention is needed.
 
 Copy `.env.admin.example` to the ignored `.env.admin` and set:
 
@@ -239,9 +230,9 @@ deploys to:
 https://karikris.github.io/veritaxa/
 ```
 
-A reviewer can then enter their name and email, follow the one-time link, choose
-an open neutral batch, classify one image, and resume at the next unreviewed
-item later. Their session and per-batch database progress are remembered.
+A reviewer can then enter their name, immediately choose an open neutral batch,
+classify one image, and resume at the next unreviewed item later. Their session
+and per-batch database progress are remembered on that browser.
 
 ## Local frontend development
 
@@ -311,8 +302,10 @@ tools. Exact JavaScript and Python resolutions are committed in
   VeriTaxa. A failed display URL is tried once with its fallback, then the human
   reviewer decides whether to use `image_unavailable`.
 - GitHub Pages and Supabase do not proxy or cache source image bytes.
-- Magic-link delivery depends on the hosted project's email configuration and
-  rate limits.
+- A name-only session cannot be recovered after sign-out, browser-data
+  deletion, or moving to another device.
+- Anonymous Auth creation is rate-limited and should be protected with CAPTCHA
+  before advertising the site to an untrusted high-volume audience.
 - Production deployment intentionally fails if either public Supabase variable
   is absent or resembles a server credential.
 

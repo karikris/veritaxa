@@ -48,7 +48,10 @@ export class SyntheticReviewRepository implements ReviewRepository {
   getSession() {
     return Promise.resolve(
       this.#signedIn
-        ? { email: 'synthetic-reviewer@example.invalid', identifiedBy: 'Synthetic reviewer' }
+        ? {
+            userId: '10000000-0000-0000-0000-000000000001',
+            identifiedBy: 'Synthetic reviewer',
+          }
         : null,
     );
   }
@@ -60,7 +63,12 @@ export class SyntheticReviewRepository implements ReviewRepository {
     };
   }
 
-  sendMagicLink() {
+  signIn(identifiedBy: string) {
+    this.#signedIn = true;
+    this.#authHandler?.({
+      userId: '10000000-0000-0000-0000-000000000001',
+      identifiedBy,
+    });
     return Promise.resolve();
   }
 
