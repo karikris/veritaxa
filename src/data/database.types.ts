@@ -8,6 +8,7 @@ export type Database = {
           client_version: string;
           comment: string | null;
           created_at: string;
+          flickrKeyword: string | null;
           id: string;
           identifiedBy: string;
           item_id: string;
@@ -80,6 +81,7 @@ export type Database = {
         Returns: {
           display_url: string | null;
           fallback_image_url: string;
+          flickr_keyword: string | null;
           image_id: string;
           item_id: string;
           position: number;
@@ -121,6 +123,7 @@ export type Database = {
       batch_status: 'draft' | 'open' | 'closed' | 'archived';
       campaign_status: 'draft' | 'open' | 'closed' | 'archived';
       review_label:
+        | 'flickr_keyword_match'
         | 'adult_butterfly'
         | 'caterpillar'
         | 'moth'

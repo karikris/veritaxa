@@ -1,6 +1,7 @@
-export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v1' as const;
+export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v2' as const;
 
 export const REVIEW_LABEL_CODES = [
+  'flickr_keyword_match',
   'adult_butterfly',
   'caterpillar',
   'moth',
@@ -19,7 +20,8 @@ export const REVIEW_LABEL_CODES = [
 ] as const;
 
 export type ReviewLabelCode = (typeof REVIEW_LABEL_CODES)[number];
-export type ReviewLabelGroup = 'insecta' | 'arthropods' | 'biological_negatives' | 'review_state';
+export type ReviewLabelGroup =
+  'source_keyword' | 'insecta' | 'arthropods' | 'biological_negatives' | 'review_state';
 
 export type ReviewLabelDefinition = {
   code: ReviewLabelCode;
@@ -31,102 +33,109 @@ export type ReviewLabelDefinition = {
 
 export const REVIEW_LABELS: readonly ReviewLabelDefinition[] = [
   {
+    code: 'flickr_keyword_match',
+    displayLabel: 'Matches the Flickr keyword',
+    group: 'source_keyword',
+    priority: 1,
+    shortcut: 'K',
+  },
+  {
     code: 'adult_butterfly',
     displayLabel: 'Adult butterfly',
     group: 'insecta',
-    priority: 1,
+    priority: 2,
     shortcut: 'B',
   },
   {
     code: 'caterpillar',
     displayLabel: 'Caterpillar',
     group: 'insecta',
-    priority: 2,
+    priority: 3,
     shortcut: 'C',
   },
-  { code: 'moth', displayLabel: 'Moth', group: 'insecta', priority: 3, shortcut: 'M' },
+  { code: 'moth', displayLabel: 'Moth', group: 'insecta', priority: 4, shortcut: 'M' },
   {
     code: 'other_insect',
     displayLabel: 'Other insect',
     group: 'insecta',
-    priority: 4,
+    priority: 5,
     shortcut: 'I',
   },
   {
     code: 'arachnid',
     displayLabel: 'Spider or other arachnid',
     group: 'arthropods',
-    priority: 5,
+    priority: 6,
     shortcut: 'A',
   },
   {
     code: 'other_arthropod',
     displayLabel: 'Other arthropod',
     group: 'arthropods',
-    priority: 6,
+    priority: 7,
     shortcut: 'R',
   },
   {
     code: 'plant',
     displayLabel: 'Plant',
     group: 'biological_negatives',
-    priority: 10,
+    priority: 11,
     shortcut: 'P',
   },
   {
     code: 'mammal_or_person',
     displayLabel: 'Mammal or person',
     group: 'biological_negatives',
-    priority: 7,
+    priority: 8,
     shortcut: 'H',
   },
   {
     code: 'bird',
     displayLabel: 'Bird',
     group: 'biological_negatives',
-    priority: 8,
+    priority: 9,
     shortcut: 'D',
   },
   {
     code: 'other_animal',
     displayLabel: 'Other animal',
     group: 'biological_negatives',
-    priority: 9,
+    priority: 10,
     shortcut: 'O',
   },
   {
     code: 'fungus',
     displayLabel: 'Fungus',
     group: 'biological_negatives',
-    priority: 11,
+    priority: 12,
     shortcut: 'F',
   },
   {
     code: 'artifact_or_illustration',
     displayLabel: 'Object, artwork or illustration',
     group: 'review_state',
-    priority: 12,
+    priority: 13,
     shortcut: 'X',
   },
   {
     code: 'no_biological_subject',
     displayLabel: 'No clear biological subject',
     group: 'review_state',
-    priority: 13,
+    priority: 14,
     shortcut: 'N',
   },
   {
     code: 'uncertain',
     displayLabel: 'Uncertain',
     group: 'review_state',
-    priority: 14,
+    priority: 15,
     shortcut: 'U',
   },
   {
     code: 'image_unavailable',
     displayLabel: 'Image unavailable',
     group: 'review_state',
-    priority: 15,
+    priority: 16,
     shortcut: 'V',
   },
 ] as const;
@@ -135,6 +144,7 @@ export const REVIEW_LABEL_GROUPS: readonly {
   code: ReviewLabelGroup;
   heading: string;
 }[] = [
+  { code: 'source_keyword', heading: 'Flickr keyword that returned this image' },
   { code: 'insecta', heading: 'Insecta and Lepidoptera' },
   { code: 'arthropods', heading: 'Other arthropods' },
   { code: 'biological_negatives', heading: 'Other biological negatives' },
@@ -142,6 +152,7 @@ export const REVIEW_LABEL_GROUPS: readonly {
 ];
 
 export const PIPELINE_MAPPINGS = {
+  flickrKeywordMatch: ['flickr_keyword_match'],
   insectaPositive: ['adult_butterfly', 'caterpillar', 'moth', 'other_insect'],
   lepidopteraEvidence: ['adult_butterfly', 'caterpillar', 'moth'],
   butterflyPositive: ['adult_butterfly'],

@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(24);
+select plan(28);
 
 insert into auth.users (
   instance_id,
@@ -145,7 +145,7 @@ values
     'synthetic',
     'https://images.example.invalid/review-001-small.jpg',
     'https://images.example.invalid/review-001.jpg',
-    'hidden synthetic term',
+    'synthetic Flickr keyword',
     '{"hidden":"label"}',
     '{"hidden":"model output"}'
   ),
@@ -257,8 +257,18 @@ select
       'flickr' in pg_get_function_result(
         'public.get_review_queue(uuid,integer)'::regprocedure
       )
+    ) > 0,
+    'queue result exposes the current item Flickr keyword'
+  );
+
+select
+  ok(
+    position(
+      'source_labels' in pg_get_function_result(
+        'public.get_review_queue(uuid,integer)'::regprocedure
+      )
     ) = 0,
-    'queue result omits source search metadata'
+    'queue result still omits other source and pipeline metadata'
   );
 
 set local role authenticated;
@@ -336,6 +346,17 @@ select
   );
 
 select
+  is(
+    (
+      select flickr_keyword
+      from public.get_review_queue('30000000-0000-0000-0000-000000000001', 2)
+      where item_id = '40000000-0000-0000-0000-000000000001'
+    ),
+    'synthetic Flickr keyword'::text,
+    'the queue returns the retrieval keyword for its matching item only'
+  );
+
+select
   throws_ok(
     $$
       select *
@@ -358,7 +379,7 @@ select
       select *
       from public.submit_image_review(
         '40000000-0000-0000-0000-000000000001',
-        'adult_butterfly',
+        'flickr_keyword_match',
         '   ',
         '50000000-0000-0000-0000-000000000001',
         'test-client'
@@ -402,6 +423,17 @@ select
     'reviews snapshot the stored reviewer profile name'
   );
 
+select
+  is(
+    (
+      select "flickrKeyword"
+      from public.image_reviews
+      where submission_id = '50000000-0000-0000-0000-000000000001'
+    ),
+    'synthetic Flickr keyword'::text,
+    'keyword-match reviews snapshot the item Flickr keyword'
+  );
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
@@ -415,7 +447,7 @@ select
       select *
       from public.submit_image_review(
         '40000000-0000-0000-0000-000000000001',
-        'adult_butterfly',
+        'flickr_keyword_match',
         '',
         '50000000-0000-0000-0000-000000000001',
         'test-client'
@@ -447,7 +479,7 @@ select
       select *
       from public.submit_image_review(
         '40000000-0000-0000-0000-000000000001',
-        'adult_butterfly',
+        'flickr_keyword_match',
         null,
         '50000000-0000-0000-0000-000000000002',
         'test-client'
@@ -473,6 +505,23 @@ select
     '22001',
     'Comment exceeds 1000 characters',
     'comments over 1000 characters are rejected'
+  );
+
+select
+  throws_ok(
+    $$
+      select *
+      from public.submit_image_review(
+        '40000000-0000-0000-0000-000000000002',
+        'flickr_keyword_match',
+        null,
+        '50000000-0000-0000-0000-000000000005',
+        'test-client'
+      )
+    $$,
+    '22023',
+    'Item has no Flickr keyword to select',
+    'keyword-match reviews are rejected when the item has no keyword'
   );
 
 select

@@ -10,7 +10,7 @@ import psycopg
 
 from tools.common import AdminError, database_url
 
-SCHEMA_VERSION = "veritaxa-review-label-v1"
+SCHEMA_VERSION = "veritaxa-review-label-v2"
 EXPORT_COLUMNS = [
     "campaign_code",
     "batch_code",
@@ -20,6 +20,7 @@ EXPORT_COLUMNS = [
     "image_url",
     "display_url",
     "flickr_search_term",
+    "flickrKeyword",
     "source_labels",
     "pipeline_metadata",
     "human_label",
@@ -41,6 +42,7 @@ select
   item.image_url,
   item.display_url,
   item.flickr_search_term,
+  review."flickrKeyword",
   item.source_labels,
   item.pipeline_metadata,
   review.label::text as human_label,
@@ -76,6 +78,7 @@ def fetch_export_frame(dsn: str, campaign_code: str) -> pl.DataFrame:
 def add_derived_mappings(frame: pl.DataFrame) -> pl.DataFrame:
     label = pl.col("human_label")
     return frame.with_columns(
+        (label == "flickr_keyword_match").alias("matches_flickr_keyword"),
         label.is_in(["adult_butterfly", "caterpillar", "moth", "other_insect"]).alias(
             "is_insecta_positive"
         ),

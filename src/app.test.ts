@@ -18,6 +18,7 @@ const batch: ReviewBatch = {
 const firstItem: ReviewItem = {
   id: '40000000-0000-0000-0000-000000000001',
   imageId: 'synthetic-image-001',
+  flickrKeyword: 'synthetic lepidoptera keyword',
   displayUrl: 'https://images.example.invalid/review-001-small.jpg',
   fallbackImageUrl: 'https://images.example.invalid/review-001.jpg',
   position: 1,
@@ -28,6 +29,7 @@ const firstItem: ReviewItem = {
 const secondItem: ReviewItem = {
   id: '40000000-0000-0000-0000-000000000002',
   imageId: 'synthetic-image-002',
+  flickrKeyword: null,
   displayUrl: null,
   fallbackImageUrl: 'https://images.example.invalid/review-002.jpg',
   position: 2,
@@ -168,7 +170,7 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
-  it('renders one generic image and all canonical labels for an authorised session', async () => {
+  it('renders one image, its Flickr keyword option, and all canonical labels', async () => {
     const repo = repository();
     const app = createApp(repo);
 
@@ -176,9 +178,42 @@ describe('VeriTaxa application', () => {
 
     expect(document.querySelectorAll('img.review-image')).toHaveLength(1);
     expect(document.querySelector('img')?.alt).toBe('Image under review');
-    expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(15);
-    expect(document.body.textContent).not.toContain('hidden');
+    const image = document.querySelector<HTMLImageElement>('img.review-image');
+    const zoomOut = document.querySelector<HTMLButtonElement>('[aria-label="Zoom out"]');
+    const resetZoom = document.querySelector<HTMLButtonElement>('[aria-label^="Reset image zoom"]');
+    const zoomIn = document.querySelector<HTMLButtonElement>('[aria-label="Zoom in"]');
+    expect(image?.dataset.zoom).toBe('1');
+    expect(zoomOut?.disabled).toBe(true);
+    expect(resetZoom?.textContent).toBe('100%');
+    expect(resetZoom?.disabled).toBe(true);
+    expect(zoomIn?.disabled).toBe(false);
+    zoomIn?.click();
+    expect(image?.dataset.zoom).toBe('1.25');
+    expect(zoomOut?.disabled).toBe(false);
+    expect(resetZoom?.textContent).toBe('125%');
+    resetZoom?.click();
+    expect(image?.dataset.zoom).toBe('1');
+    expect(resetZoom?.textContent).toBe('100%');
+    expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(16);
+    expect(document.body.textContent).toContain('Flickr keyword that returned this image');
+    expect(document.body.textContent).toContain('Matches: synthetic lepidoptera keyword');
+    expect(
+      document.querySelector<HTMLInputElement>('input[value="flickr_keyword_match"]'),
+    ).not.toBeNull();
     expect(document.body.textContent).not.toContain('Taxon example');
+    app.dispose();
+  });
+
+  it('omits the Flickr keyword choice when the current image has no keyword', async () => {
+    const app = createApp(repository({ queue: [secondItem] }));
+
+    await app.start();
+
+    expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(15);
+    expect(document.body.textContent).not.toContain('Flickr keyword that returned this image');
+    expect(
+      document.querySelector<HTMLInputElement>('input[value="flickr_keyword_match"]'),
+    ).toBeNull();
     app.dispose();
   });
 
@@ -220,6 +255,11 @@ describe('VeriTaxa application', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true }));
     expect(
       document.querySelector<HTMLInputElement>('input[value="adult_butterfly"]')?.checked,
+    ).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', bubbles: true }));
+    expect(
+      document.querySelector<HTMLInputElement>('input[value="flickr_keyword_match"]')?.checked,
     ).toBe(true);
 
     const textarea = document.querySelector<HTMLTextAreaElement>('textarea');

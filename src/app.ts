@@ -46,6 +46,9 @@ type AppOptions = {
 
 const LAST_BATCH_KEY = 'veritaxa:last-batch-id';
 const REVIEWER_NAME_KEY = 'veritaxa:reviewer-name';
+const MIN_IMAGE_ZOOM = 1;
+const MAX_IMAGE_ZOOM = 4;
+const IMAGE_ZOOM_STEP = 0.25;
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -79,6 +82,7 @@ export class VeriTaxaApp {
   #comment = '';
   #submissionId: string | null = null;
   #imageAttempt: ImageAttempt | null = null;
+  #imageZoom = MIN_IMAGE_ZOOM;
   #errorMessage = '';
   #authMessage = '';
   #requestId = 0;
@@ -234,6 +238,7 @@ export class VeriTaxaApp {
   }
 
   #prepareCurrentImage(): void {
+    this.#imageZoom = MIN_IMAGE_ZOOM;
     const current = this.#queue[0];
     if (!current) {
       this.#state = 'batch_complete';
@@ -372,6 +377,7 @@ export class VeriTaxaApp {
     if (event.ctrlKey || event.metaKey || event.altKey || this.#isEditable(event.target)) return;
     const label = LABEL_BY_SHORTCUT.get(event.key.toLowerCase());
     if (!label || !this.#queue[0] || this.#state === 'saving') return;
+    if (label === 'flickr_keyword_match' && !this.#queue[0].flickrKeyword) return;
     event.preventDefault();
     this.#selectedLabel = label;
     this.#render();
@@ -633,7 +639,46 @@ export class VeriTaxaApp {
         this.#render();
       }
     });
-    stage.append(image);
+
+    const controls = element('div', 'image-zoom-controls');
+    controls.setAttribute('role', 'group');
+    controls.setAttribute('aria-label', 'Image zoom controls');
+    const zoomOut = button('−', 'image-zoom-button');
+    zoomOut.setAttribute('aria-label', 'Zoom out');
+    zoomOut.title = 'Zoom out';
+    const resetZoom = button('100%', 'image-zoom-button image-zoom-level');
+    resetZoom.setAttribute('aria-label', 'Reset image zoom');
+    resetZoom.title = 'Reset image zoom';
+    const zoomIn = button('+', 'image-zoom-button');
+    zoomIn.setAttribute('aria-label', 'Zoom in');
+    zoomIn.title = 'Zoom in';
+
+    const applyZoom = (): void => {
+      const percentage = Math.round(this.#imageZoom * 100);
+      image.style.setProperty('--image-zoom', String(this.#imageZoom));
+      image.dataset.zoom = String(this.#imageZoom);
+      zoomOut.disabled = this.#imageZoom <= MIN_IMAGE_ZOOM;
+      zoomIn.disabled = this.#imageZoom >= MAX_IMAGE_ZOOM;
+      resetZoom.disabled = this.#imageZoom === MIN_IMAGE_ZOOM;
+      resetZoom.textContent = `${String(percentage)}%`;
+      resetZoom.setAttribute('aria-label', `Reset image zoom from ${String(percentage)}%`);
+    };
+
+    zoomOut.addEventListener('click', () => {
+      this.#imageZoom = Math.max(MIN_IMAGE_ZOOM, this.#imageZoom - IMAGE_ZOOM_STEP);
+      applyZoom();
+    });
+    resetZoom.addEventListener('click', () => {
+      this.#imageZoom = MIN_IMAGE_ZOOM;
+      applyZoom();
+    });
+    zoomIn.addEventListener('click', () => {
+      this.#imageZoom = Math.min(MAX_IMAGE_ZOOM, this.#imageZoom + IMAGE_ZOOM_STEP);
+      applyZoom();
+    });
+    applyZoom();
+    controls.append(zoomOut, resetZoom, zoomIn);
+    stage.append(image, controls);
     return stage;
   }
 
@@ -653,15 +698,16 @@ export class VeriTaxaApp {
     const headingRow = element('div', 'classification-heading-row');
     const heading = element('h2');
     heading.id = 'classification-heading';
-    heading.textContent = 'What is visibly present?';
+    heading.textContent = 'How should this image be classified?';
     const instruction = element('p');
-    instruction.textContent = 'Choose the most relevant visible subject.';
+    instruction.textContent = 'Choose the best matching option.';
     headingRow.append(heading, instruction);
 
     const group = element('div', 'label-groups');
     group.setAttribute('role', 'radiogroup');
     group.setAttribute('aria-labelledby', 'classification-heading');
     for (const definition of REVIEW_LABEL_GROUPS) {
+      if (definition.code === 'source_keyword' && !this.#queue[0]?.flickrKeyword) continue;
       group.append(this.#buildLabelGroup(definition.code, definition.heading, disabled));
     }
 
@@ -724,6 +770,7 @@ export class VeriTaxaApp {
     disabled: boolean,
   ): HTMLElement {
     const section = element('section', 'label-group');
+    if (groupCode === 'source_keyword') section.classList.add('label-group--source-keyword');
     const heading = element('h3');
     heading.textContent = headingText;
     const grid = element('div', 'label-grid');
@@ -746,7 +793,10 @@ export class VeriTaxaApp {
       check.setAttribute('aria-hidden', 'true');
       check.textContent = '✓';
       const text = element('span', 'label-text');
-      text.textContent = label.displayLabel;
+      text.textContent =
+        label.code === 'flickr_keyword_match'
+          ? `Matches: ${this.#queue[0]?.flickrKeyword ?? ''}`
+          : label.displayLabel;
       const shortcut = element('kbd');
       shortcut.textContent = label.shortcut;
       shortcut.setAttribute('aria-hidden', 'true');

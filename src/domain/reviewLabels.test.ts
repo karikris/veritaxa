@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import labelSchema from '../../schemas/review-labels-v1.json';
+import labelSchema from '../../schemas/review-labels-v2.json';
 import {
   highestPriorityLabel,
   PIPELINE_MAPPINGS,
@@ -10,9 +10,9 @@ import {
 } from './reviewLabels';
 
 describe('canonical review labels', () => {
-  it('defines all 15 stored codes exactly once', () => {
-    expect(REVIEW_LABEL_CODES).toHaveLength(15);
-    expect(new Set(REVIEW_LABEL_CODES)).toHaveLength(15);
+  it('defines all 16 stored codes exactly once', () => {
+    expect(REVIEW_LABEL_CODES).toHaveLength(16);
+    expect(new Set(REVIEW_LABEL_CODES)).toHaveLength(16);
     expect(REVIEW_LABELS.map((label) => label.code)).toEqual(REVIEW_LABEL_CODES);
   });
 
@@ -35,6 +35,9 @@ describe('canonical review labels', () => {
   });
 
   it('applies the deterministic multi-subject priority rule', () => {
+    expect(highestPriorityLabel(['adult_butterfly', 'flickr_keyword_match'])).toBe(
+      'flickr_keyword_match',
+    );
     expect(highestPriorityLabel(['plant', 'adult_butterfly'])).toBe('adult_butterfly');
     expect(highestPriorityLabel(['plant', 'other_insect'])).toBe('other_insect');
     expect(highestPriorityLabel(['bird', 'mammal_or_person'])).toBe('mammal_or_person');
