@@ -44,14 +44,35 @@ test('reviewer fallback, save retry, progress, and completion flow', async ({ pa
   await expect(reviewImage).toHaveAttribute('alt', 'Image under review');
   await expect(reviewImage).toHaveAttribute('src', /review-001\.svg/);
   await expect(page.locator('img.review-image')).toHaveCount(1);
-  await expect(page.locator('input[name="review-label"]')).toHaveCount(15);
+  await expect(page.locator('input[name="review-label"]')).toHaveCount(16);
+  await expect(page.getByText('Flickr keyword that returned this image')).toBeVisible();
+  await expect(page.getByText('Matches: synthetic lepidoptera keyword')).toBeVisible();
   await expect(page.locator('body')).not.toContainText('model output');
   await expect(page.locator('body')).not.toContainText('scientific name');
 
-  await page.getByText('Adult butterfly', { exact: true }).click();
+  const stageBox = await page.locator('.image-stage').boundingBox();
+  const imageBox = await reviewImage.boundingBox();
+  expect(stageBox).not.toBeNull();
+  expect(imageBox).not.toBeNull();
+  expect(imageBox?.width ?? Infinity).toBeLessThanOrEqual(stageBox?.width ?? 0);
+  expect(imageBox?.height ?? Infinity).toBeLessThanOrEqual(stageBox?.height ?? 0);
+  await expect(page.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Reset image zoom/ })).toHaveText('100%');
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await expect(reviewImage).toHaveAttribute('data-zoom', '1.5');
+  await expect(page.getByRole('button', { name: /Reset image zoom/ })).toHaveText('150%');
+  await page.getByRole('button', { name: /Reset image zoom/ }).click();
+  await expect(reviewImage).toHaveAttribute('data-zoom', '1');
+
+  await page.getByText('Matches: synthetic lepidoptera keyword', { exact: true }).click();
+  await page.getByRole('button', { name: 'Zoom in' }).click();
   await page.getByLabel('Comment').fill('Synthetic note');
   await page.getByRole('button', { name: 'Save this classification' }).click();
   await expect(reviewImage).toHaveAttribute('src', /review-002\.svg/);
+  await expect(reviewImage).toHaveAttribute('data-zoom', '1');
+  await expect(page.locator('input[name="review-label"]')).toHaveCount(15);
+  await expect(page.getByText('Flickr keyword that returned this image')).toHaveCount(0);
   await expect(page.locator('.header-progress')).toHaveText('1 / 2');
   await expect(page.locator('.classification-panel')).toBeFocused();
 

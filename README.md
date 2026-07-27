@@ -28,9 +28,11 @@ current image and, after it loads, at most one next image are requested. Data
 saver mode disables prefetch.
 
 Reviewer RPC responses contain only neutral batch details, progress, item IDs,
-and display/fallback URLs. Scientific targets, search terms, source labels,
-titles, tags, model outputs, confidence values, and previous reviews remain in
-Postgres and never enter reviewer-facing responses or the DOM.
+display/fallback URLs, and the current item's Flickr retrieval keyword when one
+exists. The keyword is shown as a classification option. Scientific targets,
+other source metadata, titles, tags, model outputs, confidence values, and
+previous reviews remain in Postgres and never enter reviewer-facing responses
+or the DOM.
 
 ```text
 GitHub Pages                         Supabase
@@ -47,38 +49,40 @@ browsers without rewriting a dataset.
 
 ## Canonical labels
 
-The stored schema version is `veritaxa-review-label-v1`. The granular code is
+The stored schema version is `veritaxa-review-label-v2`. The granular code is
 canonical; display labels and derived training groups are not stored as
 redundant review columns.
 
-| Stored code                | Display label                   |
-| -------------------------- | ------------------------------- |
-| `adult_butterfly`          | Adult butterfly                 |
-| `caterpillar`              | Caterpillar                     |
-| `moth`                     | Moth                            |
-| `other_insect`             | Other insect                    |
-| `arachnid`                 | Spider or other arachnid        |
-| `other_arthropod`          | Other arthropod                 |
-| `plant`                    | Plant                           |
-| `mammal_or_person`         | Mammal or person                |
-| `bird`                     | Bird                            |
-| `other_animal`             | Other animal                    |
-| `fungus`                   | Fungus                          |
-| `artifact_or_illustration` | Object, artwork or illustration |
-| `no_biological_subject`    | No clear biological subject     |
-| `uncertain`                | Uncertain                       |
-| `image_unavailable`        | Image unavailable               |
+| Stored code                | Display label                      |
+| -------------------------- | ---------------------------------- |
+| `flickr_keyword_match`     | Matches the current Flickr keyword |
+| `adult_butterfly`          | Adult butterfly                    |
+| `caterpillar`              | Caterpillar                        |
+| `moth`                     | Moth                               |
+| `other_insect`             | Other insect                       |
+| `arachnid`                 | Spider or other arachnid           |
+| `other_arthropod`          | Other arthropod                    |
+| `plant`                    | Plant                              |
+| `mammal_or_person`         | Mammal or person                   |
+| `bird`                     | Bird                               |
+| `other_animal`             | Other animal                       |
+| `fungus`                   | Fungus                             |
+| `artifact_or_illustration` | Object, artwork or illustration    |
+| `no_biological_subject`    | No clear biological subject        |
+| `uncertain`                | Uncertain                          |
+| `image_unavailable`        | Image unavailable                  |
 
-For images with several subjects, choose the most pipeline-relevant visible
-subject in the order above, except animals take priority over plants and fungi:
-adult butterfly, caterpillar, moth, other insect, arachnid, other arthropod,
-mammal or person, bird, other animal, plant, fungus, artifact, no clear
-biological subject, uncertain, then unavailable. A real pinned butterfly is an
-adult butterfly; a butterfly drawing, logo, toy, tattoo, or screenshot is an
-artifact.
+When the current image has a Flickr retrieval keyword, select its dynamic
+keyword option only when the visible subject matches that keyword. Otherwise,
+for images with several subjects, choose the most pipeline-relevant visible
+subject: adult butterfly, caterpillar, moth, other insect, arachnid, other
+arthropod, mammal or person, bird, other animal, plant, fungus, artifact, no
+clear biological subject, uncertain, then unavailable. A real pinned butterfly
+is an adult butterfly; a butterfly drawing, logo, toy, tattoo, or screenshot is
+an artifact.
 
 The versioned definitions and pipeline mappings are in
-`src/domain/reviewLabels.ts` and `schemas/review-labels-v1.json`.
+`src/domain/reviewLabels.ts` and `schemas/review-labels-v2.json`.
 
 ## Database model and access
 
@@ -90,9 +94,11 @@ The versioned definitions and pipeline mappings are in
 - `review_campaigns` retains internal scientific and source context.
 - `review_batches` divides campaigns into neutral batches of at most 1,000
   items.
-- `review_items` stores image URLs and hidden source/pipeline metadata.
+- `review_items` stores image URLs and source/pipeline metadata. Only the
+  current item's Flickr keyword is exposed by the queue RPC.
 - `image_reviews` stores one append-only response per reviewer and item, with a
-  client submission UUID for idempotent retry.
+  client submission UUID for idempotent retry. Keyword-match reviews snapshot
+  the database-derived keyword in `flickrKeyword`.
 - `list_review_batches`, `get_review_queue`, and `submit_image_review` are the
   only browser-facing data operations.
 
@@ -274,8 +280,9 @@ uv run python -m tools.export_reviews \
   --output reviewed/demo-reviews.parquet
 ```
 
-The export retains source metadata, the granular human label, comment, reviewer
-UUID, `identifiedBy`, review time, schema version, and client version.
+The export retains source metadata, the granular human label, selected
+`flickrKeyword`, comment, reviewer UUID, `identifiedBy`, review time, schema
+version, and client version.
 `--derived` adds pipeline group columns while preserving the canonical label.
 
 ## Dependencies
@@ -291,7 +298,7 @@ tools. Exact JavaScript and Python resolutions are committed in
 
 ## Known limitations
 
-- Version 1 records one label per reviewer and item, with no editing,
+- Version 2 records one label per reviewer and item, with no editing,
   adjudication, or consensus.
 - `identifiedBy` records the broad-image classifier's nickname; it does not
   turn the response into a taxonomic identification or species confirmation.
