@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VeriTaxaApp } from './app';
 import type { ReviewBatch, ReviewItem, ReviewProgress } from './domain/reviewQueue';
 import type { AuthEventHandler, ReviewRepository } from './data/reviewRepository';
+import { ReviewerNotAuthorizedError } from './data/reviewRepository';
 import { ImagePrefetch } from './image/imagePrefetch';
 
 const batch: ReviewBatch = {
@@ -43,6 +44,7 @@ type RepositoryOptions = {
 function repository(options: RepositoryOptions = {}): ReviewRepository & {
   listBatches: ReturnType<typeof vi.fn<ReviewRepository['listBatches']>>;
   getQueue: ReturnType<typeof vi.fn<ReviewRepository['getQueue']>>;
+  signOut: ReturnType<typeof vi.fn<ReviewRepository['signOut']>>;
   submitReview: ReturnType<typeof vi.fn<ReviewRepository['submitReview']>>;
 } {
   let authHandler: AuthEventHandler | null = null;
@@ -56,6 +58,10 @@ function repository(options: RepositoryOptions = {}): ReviewRepository & {
       options.submit ??
         (() => Promise.resolve({ reviewedCount: 1, totalCount: 2, complete: false })),
     );
+  const signOut = vi.fn<ReviewRepository['signOut']>().mockImplementation(() => {
+    authHandler?.(null);
+    return Promise.resolve();
+  });
   return {
     getSession: () =>
       Promise.resolve(
@@ -68,10 +74,7 @@ function repository(options: RepositoryOptions = {}): ReviewRepository & {
       };
     },
     sendMagicLink: () => Promise.resolve(),
-    signOut: () => {
-      authHandler?.(null);
-      return Promise.resolve();
-    },
+    signOut,
     listBatches,
     getQueue,
     submitReview,
@@ -108,6 +111,21 @@ describe('VeriTaxa application', () => {
     expect(document.querySelectorAll('[role="tab"]')).toHaveLength(0);
     expect(document.querySelector('nav')).toBeNull();
     expect(repo.listBatches).not.toHaveBeenCalled();
+    expect(repo.getQueue).not.toHaveBeenCalled();
+    app.dispose();
+  });
+
+  it('signs out an authenticated user who is not allowlisted', async () => {
+    const repo = repository();
+    repo.listBatches.mockRejectedValue(new ReviewerNotAuthorizedError());
+    const app = createApp(repo);
+
+    await app.start();
+
+    expect(repo.signOut).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain('This email is not approved for VeriTaxa.');
+    expect(document.querySelector('input[type="email"]')).not.toBeNull();
+    expect(document.querySelector('input[type="password"]')).toBeNull();
     expect(repo.getQueue).not.toHaveBeenCalled();
     app.dispose();
   });

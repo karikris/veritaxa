@@ -9,6 +9,7 @@ export type Database = {
           comment: string | null;
           created_at: string;
           id: string;
+          identifiedBy: string;
           item_id: string;
           label: Database['public']['Enums']['review_label'];
           reviewer_id: string;

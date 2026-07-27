@@ -83,6 +83,8 @@ The versioned definitions and pipeline mappings are in
 ## Database model and access
 
 - `private.reviewer_allowlist` adds application authorisation to Supabase Auth.
+- Each allowlist row assigns a required reviewer nickname. Reviews snapshot it
+  in the requested dataset field `identifiedBy`.
 - `review_campaigns` retains internal scientific and source context.
 - `review_batches` divides campaigns into neutral batches of at most 1,000
   items.
@@ -152,13 +154,16 @@ code or GitHub Pages. Supply the reviewer's email only at runtime:
 
 ```text
 uv sync --frozen --group dev
-uv run python -m tools.provision_reviewer --email "$VERITAXA_REVIEWER_EMAIL"
+uv run python -m tools.provision_reviewer \
+  --email "$VERITAXA_REVIEWER_EMAIL" \
+  --identified-by "$VERITAXA_IDENTIFIED_BY"
 ```
 
-The command creates or finds the Supabase Auth user and activates the private
-allowlist row without printing the email or credentials. If Auth administration
-is unavailable, it gives the exact Authentication > Users dashboard action and
-leaves the allowlist update explicit.
+The command creates or finds the Supabase Auth user, activates the private
+allowlist row, and stores the nickname used by canonical exports as
+`identifiedBy`, without printing the email or credentials. If Auth
+administration is unavailable, it gives the exact Authentication > Users
+dashboard action and leaves the allowlist update explicit.
 
 ### 4. Configure Auth URLs
 
@@ -269,8 +274,8 @@ uv run python -m tools.export_reviews \
 ```
 
 The export retains source metadata, the granular human label, comment, reviewer
-UUID, review time, schema version, and client version. `--derived` adds pipeline
-group columns while preserving the canonical label.
+UUID, `identifiedBy`, review time, schema version, and client version.
+`--derived` adds pipeline group columns while preserving the canonical label.
 
 ## Dependencies
 
@@ -287,6 +292,8 @@ tools. Exact JavaScript and Python resolutions are committed in
 
 - Version 1 records one label per reviewer and item, with no editing,
   adjudication, consensus, or public registration.
+- `identifiedBy` records the broad-image classifier's nickname; it does not
+  turn the response into a taxonomic identification or species confirmation.
 - Labels describe the whole visible image; positive detector training still
   requires boxes, masks, accepted pseudo-localisation, or another localisation
   process.

@@ -15,7 +15,11 @@ import {
   type ImageAttempt,
 } from './image/imageLoader';
 import { ImagePrefetch } from './image/imagePrefetch';
-import type { ReviewerSession, ReviewRepository } from './data/reviewRepository';
+import {
+  ReviewerNotAuthorizedError,
+  type ReviewerSession,
+  type ReviewRepository,
+} from './data/reviewRepository';
 
 export type AppStateName =
   | 'config_error'
@@ -170,6 +174,24 @@ export class VeriTaxaApp {
       await this.#selectBatch(selected.id);
     } catch (error) {
       if (!this.#isCurrentRequest(id) || isAbortError(error)) return;
+      if (error instanceof ReviewerNotAuthorizedError) {
+        this.#cancelRequests();
+        this.#session = null;
+        this.#batches = [];
+        this.#batchId = null;
+        this.#queue = [];
+        this.#clearDraft();
+        this.#state = 'signed_out';
+        this.#errorMessage = error.message;
+        this.#render();
+        try {
+          await this.#repository.signOut();
+        } catch {
+          this.#errorMessage = `${error.message} The local session could not be cleared.`;
+          this.#render();
+        }
+        return;
+      }
       this.#state = 'no_batches';
       this.#errorMessage = messageFrom(error, 'Could not load review batches.');
       this.#render();
