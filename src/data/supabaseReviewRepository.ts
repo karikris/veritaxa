@@ -9,7 +9,12 @@ import type {
   ReviewSubmission,
 } from '../domain/reviewQueue';
 import type { Database } from './database.types';
-import type { AuthEventHandler, ReviewerSession, ReviewRepository } from './reviewRepository';
+import {
+  ReviewerNotAuthorizedError,
+  type AuthEventHandler,
+  type ReviewerSession,
+  type ReviewRepository,
+} from './reviewRepository';
 
 const MAX_BATCH_NAME_LENGTH = 120;
 const MAX_BATCH_CODE_LENGTH = 80;
@@ -63,6 +68,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
   async listBatches(signal: AbortSignal): Promise<ReviewBatch[]> {
     const { data, error } = await this.#client.rpc('list_review_batches').abortSignal(signal);
     if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
+    if (error?.code === '42501') throw new ReviewerNotAuthorizedError();
     if (error) throw new Error('Could not load review batches.');
     if (!Array.isArray(data)) throw new Error('The batch response was not valid.');
     return data.map(parseBatch);

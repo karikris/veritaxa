@@ -25,6 +25,7 @@ def export_frame() -> pl.DataFrame:
                 "human_label": "adult_butterfly",
                 "comment": "Synthetic note",
                 "reviewer_uuid": "10000000-0000-0000-0000-000000000001",
+                "identifiedBy": "Synthetic reviewer",
                 "reviewed_at": "2026-07-26T00:00:00+00:00",
                 "schema_version": "veritaxa-review-label-v1",
                 "client_version": "veritaxa-web/0.1.0",
@@ -38,6 +39,7 @@ def test_canonical_export_columns_preserve_granular_label_and_metadata() -> None
 
     assert frame.columns == EXPORT_COLUMNS
     assert frame["human_label"].to_list() == ["adult_butterfly"]
+    assert frame["identifiedBy"].to_list() == ["Synthetic reviewer"]
     assert json.loads(frame["source_labels"][0]) == {"label": "synthetic"}
     assert json.loads(frame["pipeline_metadata"][0]) == {"score": 0.5}
 

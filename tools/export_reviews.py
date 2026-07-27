@@ -25,6 +25,7 @@ EXPORT_COLUMNS = [
     "human_label",
     "comment",
     "reviewer_uuid",
+    "identifiedBy",
     "reviewed_at",
     "schema_version",
     "client_version",
@@ -45,6 +46,7 @@ select
   review.label::text as human_label,
   review.comment,
   review.reviewer_id::text as reviewer_uuid,
+  review."identifiedBy",
   review.created_at as reviewed_at,
   %s as schema_version,
   review.client_version

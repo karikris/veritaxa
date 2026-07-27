@@ -5,13 +5,21 @@ from typing import Any
 import pytest
 
 from tools.common import AdminError, supabase_project_url
-from tools.provision_reviewer import main, normalise_email
+from tools.provision_reviewer import main, normalise_email, normalise_identified_by
 
 
 def test_normalises_email_without_placing_it_in_source_configuration() -> None:
     assert normalise_email("  Reviewer@Example.INVALID ") == "reviewer@example.invalid"
     with pytest.raises(AdminError):
         normalise_email("not-an-email")
+
+
+def test_normalises_identified_by() -> None:
+    assert normalise_identified_by("  Synthetic reviewer  ") == "Synthetic reviewer"
+    with pytest.raises(AdminError):
+        normalise_identified_by("   ")
+    with pytest.raises(AdminError):
+        normalise_identified_by("x" * 101)
 
 
 def test_success_output_does_not_print_reviewer_email(
@@ -28,7 +36,14 @@ def test_success_output_does_not_print_reviewer_email(
     )
     monkeypatch.setattr("tools.provision_reviewer.ensure_auth_user", lambda *_args: True)
 
-    result = main(["--email", "reviewer@example.invalid"])
+    result = main(
+        [
+            "--email",
+            "reviewer@example.invalid",
+            "--identified-by",
+            "Synthetic reviewer",
+        ]
+    )
     output = capsys.readouterr().out
 
     assert result == 0

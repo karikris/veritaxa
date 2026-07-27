@@ -20,6 +20,7 @@ from tools.common import (
 )
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+MAX_IDENTIFIED_BY_LENGTH = 100
 
 
 def normalise_email(value: str) -> str:
@@ -29,23 +30,32 @@ def normalise_email(value: str) -> str:
     return email
 
 
-def allowlist_reviewer(dsn: str, email: str) -> None:
+def normalise_identified_by(value: str) -> str:
+    identified_by = value.strip()
+    if not identified_by or len(identified_by) > MAX_IDENTIFIED_BY_LENGTH:
+        raise AdminError("Provide an identified-by value between 1 and 100 characters.")
+    return identified_by
+
+
+def allowlist_reviewer(dsn: str, email: str, identified_by: str) -> None:
     with psycopg.connect(dsn) as connection, connection.cursor() as cursor:
         cursor.execute(
             """
             update private.reviewer_allowlist
-            set active = true
+            set active = true, identified_by = %s
             where lower(email) = %s
             """,
-            (email,),
+            (identified_by, email),
         )
         if cursor.rowcount == 0:
             cursor.execute(
                 """
-                insert into private.reviewer_allowlist (email, active, created_by)
-                values (%s, true, 'tools.provision_reviewer')
+                insert into private.reviewer_allowlist (
+                  email, identified_by, active, created_by
+                )
+                values (%s, %s, true, 'tools.provision_reviewer')
                 """,
-                (email,),
+                (email, identified_by),
             )
 
 
@@ -105,6 +115,7 @@ def _request_json(
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Provision an approved VeriTaxa reviewer.")
     parser.add_argument("--email", required=True)
+    parser.add_argument("--identified-by", required=True)
     return parser
 
 
@@ -112,7 +123,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         email = normalise_email(args.email)
-        allowlist_reviewer(database_url(), email)
+        identified_by = normalise_identified_by(args.identified_by)
+        allowlist_reviewer(database_url(), email, identified_by)
         created = ensure_auth_user(
             supabase_project_url(),
             required_environment("SUPABASE_SECRET_KEY"),

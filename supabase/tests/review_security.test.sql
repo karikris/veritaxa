@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(19);
+select plan(21);
 
 insert into auth.users (
   instance_id,
@@ -58,8 +58,8 @@ values
     ''
   );
 
-insert into private.reviewer_allowlist (email)
-values ('allowed-reviewer@example.invalid');
+insert into private.reviewer_allowlist (email, identified_by)
+values ('allowed-reviewer@example.invalid', 'Synthetic reviewer');
 
 insert into public.review_campaigns (
   id,
@@ -251,7 +251,15 @@ select set_config(
 
 select
   is(
-    (select count(*) from public.list_review_batches()),
+    (
+      select count(*)
+      from public.list_review_batches()
+      where batch_id in (
+        '30000000-0000-0000-0000-000000000001',
+        '30000000-0000-0000-0000-000000000002',
+        '30000000-0000-0000-0000-000000000003'
+      )
+    ),
     1::bigint,
     'allowlisted reviewers see open batches in open campaigns only'
   );
@@ -320,6 +328,17 @@ select
     ),
     null,
     'blank comments are normalised to null'
+  );
+
+select
+  is(
+    (
+      select "identifiedBy"
+      from public.image_reviews
+      where submission_id = '50000000-0000-0000-0000-000000000001'
+    ),
+    'Synthetic reviewer',
+    'reviews snapshot the allowlisted identifiedBy value'
   );
 
 set local role authenticated;
@@ -424,6 +443,17 @@ select
     '55000',
     'Image reviews are append-only',
     'stored reviews cannot be edited'
+  );
+
+select
+  throws_ok(
+    $$
+      insert into private.reviewer_allowlist (email, identified_by)
+      values ('blank-identity@example.invalid', '   ')
+    $$,
+    '23514',
+    null,
+    'reviewer identifiedBy values cannot be blank'
   );
 
 select * from finish();
