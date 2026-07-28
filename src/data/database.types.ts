@@ -14,6 +14,7 @@ export type Database = {
           item_id: string;
           label: Database['public']['Enums']['review_label'];
           reviewer_id: string;
+          scientificName: string | null;
           submission_id: string;
         };
         Insert: never;
@@ -81,11 +82,11 @@ export type Database = {
         Returns: {
           display_url: string | null;
           fallback_image_url: string;
-          flickr_keyword: string | null;
           image_id: string;
           item_id: string;
           position: number;
           reviewed_count: number;
+          target_scientific_name: string | null;
           total_count: number;
         }[];
       };
@@ -124,6 +125,7 @@ export type Database = {
       campaign_status: 'draft' | 'open' | 'closed' | 'archived';
       review_label:
         | 'flickr_keyword_match'
+        | 'target_scientific_name'
         | 'adult_butterfly'
         | 'caterpillar'
         | 'moth'

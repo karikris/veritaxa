@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(28);
+select plan(29);
 
 insert into auth.users (
   instance_id,
@@ -187,6 +187,18 @@ values
   );
 
 select
+  throws_ok(
+    $$
+      update public.review_campaigns
+      set status = 'open'
+      where id = '20000000-0000-0000-0000-000000000002'
+    $$,
+    '23514',
+    null,
+    'a campaign cannot be opened without a target scientific name'
+  );
+
+select
   ok(
     not has_function_privilege('anon', 'public.list_review_batches()', 'execute'),
     'anonymous users cannot execute the batch-list RPC'
@@ -254,11 +266,11 @@ select
 select
   ok(
     position(
-      'flickr' in pg_get_function_result(
+      'target_scientific_name' in pg_get_function_result(
         'public.get_review_queue(uuid,integer)'::regprocedure
       )
     ) > 0,
-    'queue result exposes the current item Flickr keyword'
+    'queue result exposes the campaign target scientific name'
   );
 
 select
@@ -267,8 +279,13 @@ select
       'source_labels' in pg_get_function_result(
         'public.get_review_queue(uuid,integer)'::regprocedure
       )
+    ) = 0
+    and position(
+      'flickr' in pg_get_function_result(
+        'public.get_review_queue(uuid,integer)'::regprocedure
+      )
     ) = 0,
-    'queue result still omits other source and pipeline metadata'
+    'queue result omits Flickr and other source or pipeline metadata'
   );
 
 set local role authenticated;
@@ -348,12 +365,12 @@ select
 select
   is(
     (
-      select flickr_keyword
+      select target_scientific_name
       from public.get_review_queue('30000000-0000-0000-0000-000000000001', 2)
       where item_id = '40000000-0000-0000-0000-000000000001'
     ),
-    'synthetic Flickr keyword'::text,
-    'the queue returns the retrieval keyword for its matching item only'
+    'Taxon example'::text,
+    'the queue returns the campaign target scientific name'
   );
 
 select
@@ -379,7 +396,7 @@ select
       select *
       from public.submit_image_review(
         '40000000-0000-0000-0000-000000000001',
-        'flickr_keyword_match',
+        'target_scientific_name',
         '   ',
         '50000000-0000-0000-0000-000000000001',
         'test-client'
@@ -426,12 +443,12 @@ select
 select
   is(
     (
-      select "flickrKeyword"
+      select "scientificName"
       from public.image_reviews
       where submission_id = '50000000-0000-0000-0000-000000000001'
     ),
-    'synthetic Flickr keyword'::text,
-    'keyword-match reviews snapshot the item Flickr keyword'
+    'Taxon example'::text,
+    'target reviews snapshot the campaign scientific name'
   );
 
 set local role authenticated;
@@ -447,7 +464,7 @@ select
       select *
       from public.submit_image_review(
         '40000000-0000-0000-0000-000000000001',
-        'flickr_keyword_match',
+        'target_scientific_name',
         '',
         '50000000-0000-0000-0000-000000000001',
         'test-client'
@@ -479,7 +496,7 @@ select
       select *
       from public.submit_image_review(
         '40000000-0000-0000-0000-000000000001',
-        'flickr_keyword_match',
+        'target_scientific_name',
         null,
         '50000000-0000-0000-0000-000000000002',
         'test-client'
@@ -520,8 +537,8 @@ select
       )
     $$,
     '22023',
-    'Item has no Flickr keyword to select',
-    'keyword-match reviews are rejected when the item has no keyword'
+    'Flickr keyword classification is no longer supported',
+    'legacy Flickr keyword classifications are rejected'
   );
 
 select

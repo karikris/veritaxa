@@ -55,7 +55,7 @@ class ImportPlan:
     internal_name: str
     reviewer_name: str
     target_taxon_key: str | None
-    target_scientific_name: str | None
+    target_scientific_name: str
     source_provider: str | None
     status: str
     batches: tuple[CandidateBatch, ...]
@@ -83,10 +83,10 @@ def build_import_plan(
     internal_name: str,
     reviewer_name: str,
     batch_prefix: str,
+    target_scientific_name: str,
     batch_size: int = MAX_BATCH_SIZE,
     status: str = "draft",
     target_taxon_key: str | None = None,
-    target_scientific_name: str | None = None,
     source_provider: str | None = None,
     shuffle_seed: int | None = None,
 ) -> ImportPlan:
@@ -115,7 +115,9 @@ def build_import_plan(
         internal_name=_required_text(internal_name, "internal name", 500),
         reviewer_name=_required_text(reviewer_name, "reviewer name", 120),
         target_taxon_key=_optional_text(target_taxon_key, 200),
-        target_scientific_name=_optional_text(target_scientific_name, 500),
+        target_scientific_name=_required_text(
+            target_scientific_name, "target scientific name", 500
+        ),
         source_provider=_optional_text(source_provider, 120),
         status=status,
         batches=tuple(batches),
@@ -291,7 +293,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch-size", type=int, default=MAX_BATCH_SIZE)
     parser.add_argument("--status", choices=("draft", "open"), default="draft")
     parser.add_argument("--target-taxon-key")
-    parser.add_argument("--target-scientific-name")
+    parser.add_argument("--target-scientific-name", required=True)
     parser.add_argument("--source-provider")
     parser.add_argument("--shuffle-seed", type=int)
     parser.add_argument("--dry-run", action="store_true")

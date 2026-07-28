@@ -18,7 +18,7 @@ const batch: ReviewBatch = {
 const firstItem: ReviewItem = {
   id: '40000000-0000-0000-0000-000000000001',
   imageId: 'synthetic-image-001',
-  flickrKeyword: 'synthetic lepidoptera keyword',
+  targetScientificName: 'Papilio exemplaris',
   displayUrl: 'https://images.example.invalid/review-001-small.jpg',
   fallbackImageUrl: 'https://images.example.invalid/review-001.jpg',
   position: 1,
@@ -29,7 +29,7 @@ const firstItem: ReviewItem = {
 const secondItem: ReviewItem = {
   id: '40000000-0000-0000-0000-000000000002',
   imageId: 'synthetic-image-002',
-  flickrKeyword: null,
+  targetScientificName: null,
   displayUrl: null,
   fallbackImageUrl: 'https://images.example.invalid/review-002.jpg',
   position: 2,
@@ -195,24 +195,24 @@ describe('VeriTaxa application', () => {
     expect(image?.dataset.zoom).toBe('1');
     expect(resetZoom?.textContent).toBe('100%');
     expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(16);
-    expect(document.body.textContent).toContain('Flickr keyword that returned this image');
-    expect(document.body.textContent).toContain('Matches: synthetic lepidoptera keyword');
+    expect(document.body.textContent).toContain('Target scientific name');
+    expect(document.body.textContent).toContain('Papilio exemplaris');
     expect(
-      document.querySelector<HTMLInputElement>('input[value="flickr_keyword_match"]'),
+      document.querySelector<HTMLInputElement>('input[value="target_scientific_name"]'),
     ).not.toBeNull();
     expect(document.body.textContent).not.toContain('Taxon example');
     app.dispose();
   });
 
-  it('omits the Flickr keyword choice when the current image has no keyword', async () => {
+  it('omits the target choice when the campaign has no scientific name', async () => {
     const app = createApp(repository({ queue: [secondItem] }));
 
     await app.start();
 
     expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(15);
-    expect(document.body.textContent).not.toContain('Flickr keyword that returned this image');
+    expect(document.body.textContent).not.toContain('Target scientific name');
     expect(
-      document.querySelector<HTMLInputElement>('input[value="flickr_keyword_match"]'),
+      document.querySelector<HTMLInputElement>('input[value="target_scientific_name"]'),
     ).toBeNull();
     app.dispose();
   });
@@ -259,7 +259,7 @@ describe('VeriTaxa application', () => {
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', bubbles: true }));
     expect(
-      document.querySelector<HTMLInputElement>('input[value="flickr_keyword_match"]')?.checked,
+      document.querySelector<HTMLInputElement>('input[value="target_scientific_name"]')?.checked,
     ).toBe(true);
 
     const textarea = document.querySelector<HTMLTextAreaElement>('textarea');

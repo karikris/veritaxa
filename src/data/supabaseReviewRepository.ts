@@ -19,7 +19,7 @@ import {
 const MAX_BATCH_NAME_LENGTH = 120;
 const MAX_BATCH_CODE_LENGTH = 80;
 const MAX_IMAGE_ID_LENGTH = 500;
-const MAX_FLICKR_KEYWORD_LENGTH = 1000;
+const MAX_SCIENTIFIC_NAME_LENGTH = 500;
 
 export class SupabaseReviewRepository implements ReviewRepository {
   readonly #client: SupabaseClient<Database>;
@@ -121,14 +121,18 @@ function parseBatch(value: unknown): ReviewBatch {
 function parseItem(value: unknown): ReviewItem {
   const row = asRecord(value, 'review item');
   const displayUrl = row.display_url;
-  const flickrKeyword = row.flickr_keyword;
+  const targetScientificName = row.target_scientific_name;
   return {
     id: requiredString(row.item_id, 36, 'item ID'),
     imageId: requiredString(row.image_id, MAX_IMAGE_ID_LENGTH, 'image ID'),
-    flickrKeyword:
-      flickrKeyword === null
+    targetScientificName:
+      targetScientificName === null
         ? null
-        : requiredString(flickrKeyword, MAX_FLICKR_KEYWORD_LENGTH, 'Flickr keyword'),
+        : requiredString(
+            targetScientificName,
+            MAX_SCIENTIFIC_NAME_LENGTH,
+            'target scientific name',
+          ),
     displayUrl: displayUrl === null ? null : requiredString(displayUrl, 2048, 'display image URL'),
     fallbackImageUrl: requiredString(row.fallback_image_url, 2048, 'fallback image URL'),
     position: requiredCount(row.position, 'item position'),

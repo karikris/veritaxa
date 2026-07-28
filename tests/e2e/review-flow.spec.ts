@@ -45,10 +45,10 @@ test('reviewer fallback, save retry, progress, and completion flow', async ({ pa
   await expect(reviewImage).toHaveAttribute('src', /review-001\.svg/);
   await expect(page.locator('img.review-image')).toHaveCount(1);
   await expect(page.locator('input[name="review-label"]')).toHaveCount(16);
-  await expect(page.getByText('Flickr keyword that returned this image')).toBeVisible();
-  await expect(page.getByText('Matches: synthetic lepidoptera keyword')).toBeVisible();
+  await expect(page.getByText('Target scientific name')).toBeVisible();
+  await expect(page.getByText('Papilio exemplaris', { exact: true })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('model output');
-  await expect(page.locator('body')).not.toContainText('scientific name');
+  await expect(page.locator('body')).not.toContainText('synthetic lepidoptera keyword');
 
   const stageBox = await page.locator('.image-stage').boundingBox();
   const imageBox = await reviewImage.boundingBox();
@@ -65,14 +65,14 @@ test('reviewer fallback, save retry, progress, and completion flow', async ({ pa
   await page.getByRole('button', { name: /Reset image zoom/ }).click();
   await expect(reviewImage).toHaveAttribute('data-zoom', '1');
 
-  await page.getByText('Matches: synthetic lepidoptera keyword', { exact: true }).click();
+  await page.getByText('Papilio exemplaris', { exact: true }).click();
   await page.getByRole('button', { name: 'Zoom in' }).click();
   await page.getByLabel('Comment').fill('Synthetic note');
   await page.getByRole('button', { name: 'Save this classification' }).click();
   await expect(reviewImage).toHaveAttribute('src', /review-002\.svg/);
   await expect(reviewImage).toHaveAttribute('data-zoom', '1');
   await expect(page.locator('input[name="review-label"]')).toHaveCount(15);
-  await expect(page.getByText('Flickr keyword that returned this image')).toHaveCount(0);
+  await expect(page.getByText('Target scientific name')).toHaveCount(0);
   await expect(page.locator('.header-progress')).toHaveText('1 / 2');
   await expect(page.locator('.classification-panel')).toBeFocused();
 

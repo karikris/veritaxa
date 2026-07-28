@@ -377,7 +377,7 @@ export class VeriTaxaApp {
     if (event.ctrlKey || event.metaKey || event.altKey || this.#isEditable(event.target)) return;
     const label = LABEL_BY_SHORTCUT.get(event.key.toLowerCase());
     if (!label || !this.#queue[0] || this.#state === 'saving') return;
-    if (label === 'flickr_keyword_match' && !this.#queue[0].flickrKeyword) return;
+    if (label === 'target_scientific_name' && !this.#queue[0].targetScientificName) return;
     event.preventDefault();
     this.#selectedLabel = label;
     this.#render();
@@ -707,7 +707,7 @@ export class VeriTaxaApp {
     group.setAttribute('role', 'radiogroup');
     group.setAttribute('aria-labelledby', 'classification-heading');
     for (const definition of REVIEW_LABEL_GROUPS) {
-      if (definition.code === 'source_keyword' && !this.#queue[0]?.flickrKeyword) continue;
+      if (definition.code === 'target_taxon' && !this.#queue[0]?.targetScientificName) continue;
       group.append(this.#buildLabelGroup(definition.code, definition.heading, disabled));
     }
 
@@ -770,7 +770,7 @@ export class VeriTaxaApp {
     disabled: boolean,
   ): HTMLElement {
     const section = element('section', 'label-group');
-    if (groupCode === 'source_keyword') section.classList.add('label-group--source-keyword');
+    if (groupCode === 'target_taxon') section.classList.add('label-group--target-taxon');
     const heading = element('h3');
     heading.textContent = headingText;
     const grid = element('div', 'label-grid');
@@ -794,8 +794,8 @@ export class VeriTaxaApp {
       check.textContent = '✓';
       const text = element('span', 'label-text');
       text.textContent =
-        label.code === 'flickr_keyword_match'
-          ? `Matches: ${this.#queue[0]?.flickrKeyword ?? ''}`
+        label.code === 'target_scientific_name'
+          ? (this.#queue[0]?.targetScientificName ?? '')
           : label.displayLabel;
       const shortcut = element('kbd');
       shortcut.textContent = label.shortcut;

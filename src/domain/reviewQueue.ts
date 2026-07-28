@@ -15,7 +15,7 @@ export type ReviewBatch = {
 export type ReviewItem = {
   id: string;
   imageId: string;
-  flickrKeyword: string | null;
+  targetScientificName: string | null;
   displayUrl: string | null;
   fallbackImageUrl: string;
   position: number;

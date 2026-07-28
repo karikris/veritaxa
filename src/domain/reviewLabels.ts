@@ -1,7 +1,7 @@
-export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v2' as const;
+export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v3' as const;
 
 export const REVIEW_LABEL_CODES = [
-  'flickr_keyword_match',
+  'target_scientific_name',
   'adult_butterfly',
   'caterpillar',
   'moth',
@@ -21,7 +21,7 @@ export const REVIEW_LABEL_CODES = [
 
 export type ReviewLabelCode = (typeof REVIEW_LABEL_CODES)[number];
 export type ReviewLabelGroup =
-  'source_keyword' | 'insecta' | 'arthropods' | 'biological_negatives' | 'review_state';
+  'target_taxon' | 'insecta' | 'arthropods' | 'biological_negatives' | 'review_state';
 
 export type ReviewLabelDefinition = {
   code: ReviewLabelCode;
@@ -33,9 +33,9 @@ export type ReviewLabelDefinition = {
 
 export const REVIEW_LABELS: readonly ReviewLabelDefinition[] = [
   {
-    code: 'flickr_keyword_match',
-    displayLabel: 'Matches the Flickr keyword',
-    group: 'source_keyword',
+    code: 'target_scientific_name',
+    displayLabel: 'Target scientific name',
+    group: 'target_taxon',
     priority: 1,
     shortcut: 'K',
   },
@@ -144,7 +144,7 @@ export const REVIEW_LABEL_GROUPS: readonly {
   code: ReviewLabelGroup;
   heading: string;
 }[] = [
-  { code: 'source_keyword', heading: 'Flickr keyword that returned this image' },
+  { code: 'target_taxon', heading: 'Target scientific name' },
   { code: 'insecta', heading: 'Insecta and Lepidoptera' },
   { code: 'arthropods', heading: 'Other arthropods' },
   { code: 'biological_negatives', heading: 'Other biological negatives' },
@@ -152,7 +152,7 @@ export const REVIEW_LABEL_GROUPS: readonly {
 ];
 
 export const PIPELINE_MAPPINGS = {
-  flickrKeywordMatch: ['flickr_keyword_match'],
+  targetScientificName: ['target_scientific_name'],
   insectaPositive: ['adult_butterfly', 'caterpillar', 'moth', 'other_insect'],
   lepidopteraEvidence: ['adult_butterfly', 'caterpillar', 'moth'],
   butterflyPositive: ['adult_butterfly'],

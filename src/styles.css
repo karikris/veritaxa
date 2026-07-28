@@ -447,15 +447,15 @@ h1 {
   min-width: 0;
 }
 
-.label-group--source-keyword {
+.label-group--target-taxon {
   grid-column: 1 / -1;
 }
 
-.label-group--source-keyword .label-grid {
+.label-group--target-taxon .label-grid {
   grid-template-columns: minmax(0, 520px);
 }
 
-.label-group--source-keyword .label-card {
+.label-group--target-taxon .label-card {
   border-color: #536244;
   background: #1b2118;
 }

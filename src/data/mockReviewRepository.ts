@@ -9,7 +9,7 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
     {
       id: '40000000-0000-0000-0000-000000000001',
       imageId: 'synthetic-image-001',
-      flickrKeyword: 'synthetic lepidoptera keyword',
+      targetScientificName: 'Papilio exemplaris',
       displayUrl: 'https://images.example.invalid/display-fail.jpg',
       fallbackImageUrl: 'https://images.example.invalid/review-001.svg',
       position: 1,
@@ -19,7 +19,7 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
     {
       id: '40000000-0000-0000-0000-000000000002',
       imageId: 'synthetic-image-002',
-      flickrKeyword: null,
+      targetScientificName: null,
       displayUrl: 'https://images.example.invalid/review-002.svg',
       fallbackImageUrl: 'https://images.example.invalid/review-002-original.svg',
       position: 2,
@@ -31,7 +31,7 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
     {
       id: '40000000-0000-0000-0000-000000000003',
       imageId: 'synthetic-image-003',
-      flickrKeyword: 'synthetic alternate keyword',
+      targetScientificName: 'Danaus exemplaris',
       displayUrl: null,
       fallbackImageUrl: 'https://images.example.invalid/review-003.svg',
       position: 1,

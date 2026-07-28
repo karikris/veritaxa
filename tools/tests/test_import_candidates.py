@@ -36,6 +36,7 @@ def plan(frame: pl.DataFrame, **overrides: Any):
         "internal_name": "Synthetic test campaign",
         "reviewer_name": "Synthetic candidate review",
         "batch_prefix": "SYNTH",
+        "target_scientific_name": "Papilio exemplaris",
     }
     arguments.update(overrides)
     return build_import_plan(frame, **arguments)
@@ -75,6 +76,11 @@ def test_rejects_duplicate_image_ids_within_a_batch() -> None:
         plan(pl.DataFrame(rows))
 
 
+def test_requires_a_target_scientific_name_for_every_campaign() -> None:
+    with pytest.raises(AdminError, match="target scientific name"):
+        plan(pl.DataFrame(candidate_rows(1)), target_scientific_name="")
+
+
 @pytest.mark.parametrize(
     "url",
     [
@@ -107,6 +113,8 @@ def test_dry_run_validates_without_opening_a_database(tmp_path: Path, capsys: An
             "Synthetic candidate review",
             "--batch-prefix",
             "SYNTH",
+            "--target-scientific-name",
+            "Papilio exemplaris",
             "--dry-run",
         ]
     )
