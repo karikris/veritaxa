@@ -1,7 +1,7 @@
 import type {
   ReviewBatch,
+  ReviewCursorDirection,
   ReviewItem,
-  ReviewProgress,
   ReviewSubmission,
 } from '../domain/reviewQueue';
 
@@ -25,6 +25,11 @@ export type ReviewRepository = {
   signIn: (identifiedBy: string) => Promise<void>;
   signOut: () => Promise<void>;
   listBatches: (signal: AbortSignal) => Promise<ReviewBatch[]>;
-  getQueue: (batchId: string, limit: number, signal: AbortSignal) => Promise<ReviewItem[]>;
-  submitReview: (submission: ReviewSubmission) => Promise<ReviewProgress>;
+  getCursor: (
+    batchId: string,
+    anchorPosition: number | null,
+    direction: ReviewCursorDirection,
+    signal: AbortSignal,
+  ) => Promise<ReviewItem | null>;
+  saveReview: (submission: ReviewSubmission) => Promise<ReviewItem>;
 };

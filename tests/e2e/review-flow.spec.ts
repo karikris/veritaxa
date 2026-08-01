@@ -87,11 +87,33 @@ test('reviewer fallback, save retry, progress, and completion flow', async ({ pa
   );
 
   await page.getByRole('button', { name: 'Save this classification' }).click();
-  await expect(page.getByRole('heading', { name: 'Batch complete' })).toBeVisible();
-  await expect(page.getByText('2 / 2 reviewed')).toBeVisible();
+  await expect(page.getByText('All reviewed—answers can still be updated.')).toBeVisible();
+  await expect(reviewImage).toHaveAttribute('src', /review-001\.svg/);
+  await expect(page.getByRole('button', { name: 'Previous image' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Next image' })).toBeEnabled();
+  await expect(page.locator('input[value="target_scientific_name"]')).toBeChecked();
+  await expect(page.getByLabel('Comment')).toHaveValue('Synthetic note');
 
   const nextImageRequests = images.filter((url) => url.includes('review-002'));
   expect(new Set(nextImageRequests).size).toBeLessThanOrEqual(1);
+});
+
+test('previous and next skip without saving and restore unsaved drafts', async ({ page }) => {
+  await routeSyntheticImages(page, []);
+  await page.goto('/veritaxa/?repository=synthetic');
+
+  await page.getByText('Adult butterfly', { exact: true }).click();
+  await page.getByLabel('Comment').fill('Unsaved browser draft');
+  await page.getByRole('button', { name: 'Next image' }).click();
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
+  await expect(page.locator('input[name="review-label"]:checked')).toHaveCount(0);
+  await expect(page.getByLabel('Comment')).toHaveValue('');
+
+  await page.getByRole('button', { name: 'Previous image' }).click();
+  await expect(page.locator('.image-position')).toHaveText('1 / 2');
+  await expect(page.locator('input[value="adult_butterfly"]')).toBeChecked();
+  await expect(page.getByLabel('Comment')).toHaveValue('Unsaved browser draft');
+  await expect(page.locator('.header-progress')).toHaveText('0 / 2');
 });
 
 test('keyboard shortcuts ignore editable fields and batch selection survives reload', async ({
@@ -106,6 +128,12 @@ test('keyboard shortcuts ignore editable fields and batch selection survives rel
   await page.getByLabel('Comment').focus();
   await page.keyboard.press('m');
   await expect(page.locator('input[value="moth"]')).not.toBeChecked();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.image-position')).toHaveText('1 / 2');
+
+  await page.locator('.classification-panel').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
 
   await page.getByLabel('Review batch').selectOption('30000000-0000-0000-0000-000000000002');
   await expect(page.locator('img.review-image')).toHaveAttribute('src', /review-003\.svg/);

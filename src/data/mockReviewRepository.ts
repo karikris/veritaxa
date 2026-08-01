@@ -1,4 +1,9 @@
-import type { ReviewBatch, ReviewItem, ReviewSubmission } from '../domain/reviewQueue';
+import type {
+  ReviewBatch,
+  ReviewCursorDirection,
+  ReviewItem,
+  ReviewSubmission,
+} from '../domain/reviewQueue';
 import type { AuthEventHandler, ReviewRepository } from './reviewRepository';
 
 const FIRST_BATCH_ID = '30000000-0000-0000-0000-000000000001';
@@ -13,8 +18,12 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
       displayUrl: 'https://images.example.invalid/display-fail.jpg',
       fallbackImageUrl: 'https://images.example.invalid/review-001.svg',
       position: 1,
+      currentLabel: null,
+      currentComment: null,
+      currentVersion: 0,
       reviewedCount: 0,
       totalCount: 2,
+      complete: false,
     },
     {
       id: '40000000-0000-0000-0000-000000000002',
@@ -23,8 +32,12 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
       displayUrl: 'https://images.example.invalid/review-002.svg',
       fallbackImageUrl: 'https://images.example.invalid/review-002-original.svg',
       position: 2,
+      currentLabel: null,
+      currentComment: null,
+      currentVersion: 0,
       reviewedCount: 0,
       totalCount: 2,
+      complete: false,
     },
   ],
   [SECOND_BATCH_ID]: [
@@ -35,8 +48,12 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
       displayUrl: null,
       fallbackImageUrl: 'https://images.example.invalid/review-003.svg',
       position: 1,
+      currentLabel: null,
+      currentComment: null,
+      currentVersion: 0,
       reviewedCount: 0,
       totalCount: 1,
+      complete: false,
     },
   ],
 };
@@ -44,8 +61,7 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
 export class SyntheticReviewRepository implements ReviewRepository {
   #signedIn = true;
   #authHandler: AuthEventHandler | null = null;
-  readonly #reviews = new Map<string, ReviewSubmission>();
-  readonly #submissionItems = new Map<string, string>();
+  readonly #reviews = new Map<string, ReviewSubmission & { version: number }>();
   readonly #failedOnce = new Set<string>();
 
   getSession() {
@@ -86,19 +102,19 @@ export class SyntheticReviewRepository implements ReviewRepository {
     return Promise.resolve(this.#batchList());
   }
 
-  getQueue(batchId: string, limit: number, signal: AbortSignal) {
+  getCursor(
+    batchId: string,
+    anchorPosition: number | null,
+    direction: ReviewCursorDirection,
+    signal: AbortSignal,
+  ) {
     throwIfAborted(signal);
     const items = itemsByBatch[batchId] ?? [];
-    const reviewedCount = items.filter((item) => this.#reviews.has(item.id)).length;
-    return Promise.resolve(
-      items
-        .filter((item) => !this.#reviews.has(item.id))
-        .slice(0, Math.min(Math.max(limit, 1), 2))
-        .map((item) => ({ ...item, reviewedCount, totalCount: items.length })),
-    );
+    const selected = this.#selectCursorItem(items, anchorPosition, direction);
+    return Promise.resolve(selected ? this.#withReview(selected, items) : null);
   }
 
-  submitReview(submission: ReviewSubmission) {
+  saveReview(submission: ReviewSubmission) {
     if (
       submission.comment === 'force-save-failure' &&
       !this.#failedOnce.has(submission.submissionId)
@@ -107,26 +123,64 @@ export class SyntheticReviewRepository implements ReviewRepository {
       return Promise.reject(new Error('Synthetic save failure'));
     }
 
-    const existingItem = this.#submissionItems.get(submission.submissionId);
-    if (existingItem && existingItem !== submission.itemId) {
-      return Promise.reject(new Error('Synthetic submission conflict'));
-    }
     const existing = this.#reviews.get(submission.itemId);
-    if (existing && existing.submissionId !== submission.submissionId) {
-      return Promise.reject(new Error('Synthetic duplicate review'));
+    if (existing?.submissionId === submission.submissionId) {
+      if (
+        existing.label !== submission.label ||
+        existing.comment !== submission.comment ||
+        existing.clientVersion !== submission.clientVersion ||
+        existing.version !== submission.expectedVersion + 1
+      ) {
+        return Promise.reject(new Error('Synthetic submission conflict'));
+      }
+    } else if ((existing?.version ?? 0) !== submission.expectedVersion) {
+      return Promise.reject(new Error('Synthetic stale review'));
+    } else {
+      this.#reviews.set(submission.itemId, {
+        ...submission,
+        version: submission.expectedVersion + 1,
+      });
     }
-    this.#submissionItems.set(submission.submissionId, submission.itemId);
-    this.#reviews.set(submission.itemId, submission);
+
     const batchEntry = Object.entries(itemsByBatch).find(([, items]) =>
       items.some((item) => item.id === submission.itemId),
     );
     const batchItems = batchEntry?.[1] ?? [];
-    const reviewedCount = batchItems.filter((item) => this.#reviews.has(item.id)).length;
-    return Promise.resolve({
+    const savedItem = batchItems.find((item) => item.id === submission.itemId);
+    const next = savedItem
+      ? this.#selectCursorItem(batchItems, savedItem.position, 'next')
+      : undefined;
+    if (!next) return Promise.reject(new Error('Synthetic review item is missing'));
+    return Promise.resolve(this.#withReview(next, batchItems));
+  }
+
+  #selectCursorItem(
+    items: readonly ReviewItem[],
+    anchorPosition: number | null,
+    direction: ReviewCursorDirection,
+  ): ReviewItem | undefined {
+    if (direction === 'resume') {
+      return items.find((item) => !this.#reviews.has(item.id)) ?? items[0];
+    }
+    if (anchorPosition === null) return undefined;
+    if (direction === 'next') {
+      return items.find((item) => item.position > anchorPosition) ?? items[0];
+    }
+    return [...items].reverse().find((item) => item.position < anchorPosition) ?? items.at(-1);
+  }
+
+  #withReview(item: ReviewItem, batchItems: readonly ReviewItem[]): ReviewItem {
+    const review = this.#reviews.get(item.id);
+    const reviewedCount = batchItems.filter((candidate) => this.#reviews.has(candidate.id)).length;
+    return {
+      ...item,
+      currentLabel: review?.label ?? null,
+      currentComment: review?.comment ?? null,
+      currentVersion: review?.version ?? 0,
       reviewedCount,
       totalCount: batchItems.length,
       complete: batchItems.length > 0 && reviewedCount === batchItems.length,
-    });
+    };
   }
 
   #batchList(): ReviewBatch[] {

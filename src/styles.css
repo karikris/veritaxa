@@ -276,6 +276,16 @@ h1 {
   background: #111311;
 }
 
+.completion-status {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid #394330;
+  color: #d7e9bb;
+  font-size: 0.82rem;
+  text-align: center;
+  background: #1b2218;
+}
+
 .image-stage {
   position: relative;
   width: 100%;
@@ -348,6 +358,53 @@ h1 {
   min-width: 72px;
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+}
+
+.image-navigation {
+  position: absolute;
+  z-index: 3;
+  bottom: 14px;
+  left: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(68px, auto) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 10px;
+  background: rgb(12 15 12 / 90%);
+  box-shadow: 0 6px 22px rgb(0 0 0 / 42%);
+  backdrop-filter: blur(10px);
+}
+
+.image-navigation-button {
+  min-height: 44px;
+  padding: 0 13px;
+  border: 0;
+  color: #edf1eb;
+  font-size: 0.78rem;
+  font-weight: 680;
+  background: transparent;
+  cursor: pointer;
+}
+
+.image-navigation-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 10%);
+}
+
+.image-navigation-button:disabled {
+  color: #727a70;
+  cursor: wait;
+}
+
+.image-position {
+  min-width: 68px;
+  padding: 0 10px;
+  border-right: 1px solid rgb(255 255 255 / 14%);
+  border-left: 1px solid rgb(255 255 255 / 14%);
+  color: #c7cec4;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .image-stage--loading {
@@ -737,6 +794,16 @@ kbd {
 
   .login-panel {
     padding: 24px 20px;
+  }
+
+  .image-navigation {
+    top: 10px;
+    bottom: auto;
+    left: 10px;
+  }
+
+  .image-navigation-button {
+    padding-inline: 10px;
   }
 
   .text-button {

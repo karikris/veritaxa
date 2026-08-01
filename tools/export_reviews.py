@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 
 import polars as pl
@@ -34,6 +36,46 @@ EXPORT_COLUMNS = [
     "client_version",
 ]
 
+CONSENSUS_EXPORT_COLUMNS = [
+    "campaign_code",
+    "target_scientific_name",
+    "batch_code",
+    "image_id",
+    "source_provider",
+    "source_record_id",
+    "image_url",
+    "display_url",
+    "flickr_search_term",
+    "source_labels",
+    "pipeline_metadata",
+    "human_label",
+    "review_count",
+    "reviews_unanimous",
+    "consensus_tied",
+    "reviewed_at",
+    "schema_version",
+]
+
+EXPECTED_RESULT_PRIORITY = (
+    "target_scientific_name",
+    "adult_butterfly",
+    "caterpillar",
+    "moth",
+    "other_insect",
+    "arachnid",
+    "other_arthropod",
+    "mammal_or_person",
+    "bird",
+    "other_animal",
+    "plant",
+    "fungus",
+    "artifact_or_illustration",
+    "no_biological_subject",
+    "uncertain",
+    "image_unavailable",
+    "flickr_keyword_match",
+)
+
 EXPORT_QUERY = """
 select
   campaign.campaign_code,
@@ -53,7 +95,7 @@ select
   review.comment,
   review.reviewer_id::text as reviewer_uuid,
   review."identifiedBy",
-  review.created_at as reviewed_at,
+  review.updated_at as reviewed_at,
   %s as schema_version,
   review.client_version
 from public.image_reviews as review
@@ -96,6 +138,62 @@ def add_derived_mappings(frame: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def build_consensus_export(frame: pl.DataFrame) -> pl.DataFrame:
+    grouped: dict[tuple[object, object, object], list[dict[str, object]]] = {}
+    for record in frame.to_dicts():
+        key = (record["campaign_code"], record["batch_code"], record["image_id"])
+        grouped.setdefault(key, []).append(record)
+
+    priority = {label: index for index, label in enumerate(EXPECTED_RESULT_PRIORITY)}
+    records: list[dict[str, object]] = []
+    for votes in grouped.values():
+        first = votes[0]
+        counts = Counter(str(vote["human_label"]) for vote in votes)
+        highest_count = max(counts.values())
+        tied_labels = [label for label, count in counts.items() if count == highest_count]
+        winner = min(tied_labels, key=lambda label: (priority.get(label, len(priority)), label))
+        records.append(
+            {
+                "campaign_code": first["campaign_code"],
+                "target_scientific_name": first["target_scientific_name"],
+                "batch_code": first["batch_code"],
+                "image_id": first["image_id"],
+                "source_provider": first["source_provider"],
+                "source_record_id": first["source_record_id"],
+                "image_url": first["image_url"],
+                "display_url": first["display_url"],
+                "flickr_search_term": first["flickr_search_term"],
+                "source_labels": first["source_labels"],
+                "pipeline_metadata": first["pipeline_metadata"],
+                "human_label": winner,
+                "review_count": len(votes),
+                "reviews_unanimous": len(counts) == 1,
+                "consensus_tied": len(tied_labels) > 1,
+                "reviewed_at": _latest_reviewed_at(votes),
+                "schema_version": first["schema_version"],
+            }
+        )
+
+    records.sort(
+        key=lambda record: (
+            str(record["campaign_code"]),
+            str(record["batch_code"]),
+            str(record["image_id"]),
+        )
+    )
+    schema = {
+        column: (
+            pl.UInt32
+            if column == "review_count"
+            else pl.Boolean
+            if column in {"reviews_unanimous", "consensus_tied"}
+            else pl.String
+        )
+        for column in CONSENSUS_EXPORT_COLUMNS
+    }
+    return pl.DataFrame(records, schema=schema)
+
+
 def write_export(frame: pl.DataFrame, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.suffix.lower() == ".parquet":
@@ -112,11 +210,17 @@ def _canonical_json(value: object) -> str | None:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def _latest_reviewed_at(votes: list[dict[str, object]]) -> str:
+    timestamps = [str(vote["reviewed_at"]) for vote in votes]
+    return max(timestamps, key=datetime.fromisoformat)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Export joined VeriTaxa reviews.")
     parser.add_argument("--campaign-code", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--derived", action="store_true")
+    parser.add_argument("--consensus", action="store_true")
     return parser
 
 
@@ -124,6 +228,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         frame = fetch_export_frame(database_url(), args.campaign_code)
+        if args.consensus:
+            frame = build_consensus_export(frame)
         if args.derived:
             frame = add_derived_mappings(frame)
         write_export(frame, args.output)

@@ -1,7 +1,7 @@
 import type { ReviewLabelCode } from './reviewLabels';
 
 export const MAX_COMMENT_LENGTH = 1000;
-export const CLIENT_VERSION = 'veritaxa-web/0.1.0';
+export const CLIENT_VERSION = 'veritaxa-web/0.2.0';
 
 export type ReviewBatch = {
   id: string;
@@ -19,9 +19,15 @@ export type ReviewItem = {
   displayUrl: string | null;
   fallbackImageUrl: string;
   position: number;
+  currentLabel: ReviewLabelCode | null;
+  currentComment: string | null;
+  currentVersion: number;
   reviewedCount: number;
   totalCount: number;
+  complete: boolean;
 };
+
+export type ReviewCursorDirection = 'resume' | 'next' | 'previous';
 
 export type ReviewSubmission = {
   itemId: string;
@@ -29,12 +35,7 @@ export type ReviewSubmission = {
   comment: string | null;
   submissionId: string;
   clientVersion: string;
-};
-
-export type ReviewProgress = {
-  reviewedCount: number;
-  totalCount: number;
-  complete: boolean;
+  expectedVersion: number;
 };
 
 export function normalizeComment(value: string): string | null {

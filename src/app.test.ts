@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VeriTaxaApp } from './app';
-import type { ReviewBatch, ReviewItem, ReviewProgress } from './domain/reviewQueue';
+import type { ReviewBatch, ReviewItem } from './domain/reviewQueue';
 import type { AuthEventHandler, ReviewRepository } from './data/reviewRepository';
 import { ReviewerAccessDisabledError } from './data/reviewRepository';
-import { ImagePrefetch } from './image/imagePrefetch';
 
 const batch: ReviewBatch = {
   id: '30000000-0000-0000-0000-000000000001',
@@ -22,8 +21,12 @@ const firstItem: ReviewItem = {
   displayUrl: 'https://images.example.invalid/review-001-small.jpg',
   fallbackImageUrl: 'https://images.example.invalid/review-001.jpg',
   position: 1,
+  currentLabel: null,
+  currentComment: null,
+  currentVersion: 0,
   reviewedCount: 0,
   totalCount: 2,
+  complete: false,
 };
 
 const secondItem: ReviewItem = {
@@ -33,34 +36,41 @@ const secondItem: ReviewItem = {
   displayUrl: null,
   fallbackImageUrl: 'https://images.example.invalid/review-002.jpg',
   position: 2,
+  currentLabel: null,
+  currentComment: null,
+  currentVersion: 0,
   reviewedCount: 0,
   totalCount: 2,
+  complete: false,
 };
 
 type RepositoryOptions = {
   signedIn?: boolean;
-  submit?: () => Promise<ReviewProgress>;
-  queue?: ReviewItem[];
+  save?: () => Promise<ReviewItem>;
+  cursor?: ReviewItem | null;
+  getCursor?: ReviewRepository['getCursor'];
 };
 
 function repository(options: RepositoryOptions = {}): ReviewRepository & {
   listBatches: ReturnType<typeof vi.fn<ReviewRepository['listBatches']>>;
-  getQueue: ReturnType<typeof vi.fn<ReviewRepository['getQueue']>>;
+  getCursor: ReturnType<typeof vi.fn<ReviewRepository['getCursor']>>;
   signIn: ReturnType<typeof vi.fn<ReviewRepository['signIn']>>;
   signOut: ReturnType<typeof vi.fn<ReviewRepository['signOut']>>;
-  submitReview: ReturnType<typeof vi.fn<ReviewRepository['submitReview']>>;
+  saveReview: ReturnType<typeof vi.fn<ReviewRepository['saveReview']>>;
 } {
   let authHandler: AuthEventHandler | null = null;
   const listBatches = vi.fn<ReviewRepository['listBatches']>().mockResolvedValue([batch]);
-  const getQueue = vi
-    .fn<ReviewRepository['getQueue']>()
-    .mockResolvedValue(options.queue ?? [firstItem, secondItem]);
-  const submitReview = vi
-    .fn<ReviewRepository['submitReview']>()
-    .mockImplementation(
-      options.submit ??
-        (() => Promise.resolve({ reviewedCount: 1, totalCount: 2, complete: false })),
-    );
+  const getCursor = vi
+    .fn<ReviewRepository['getCursor']>()
+    .mockImplementation(options.getCursor ?? (() => Promise.resolve(options.cursor ?? firstItem)));
+  const saveReview = vi.fn<ReviewRepository['saveReview']>().mockImplementation(
+    options.save ??
+      (() =>
+        Promise.resolve({
+          ...secondItem,
+          reviewedCount: 1,
+        })),
+  );
   const signIn = vi.fn<ReviewRepository['signIn']>().mockImplementation((identifiedBy: string) => {
     authHandler?.({
       userId: '10000000-0000-0000-0000-000000000001',
@@ -91,8 +101,8 @@ function repository(options: RepositoryOptions = {}): ReviewRepository & {
     signIn,
     signOut,
     listBatches,
-    getQueue,
-    submitReview,
+    getCursor,
+    saveReview,
   };
 }
 
@@ -105,7 +115,6 @@ function getRoot(): HTMLElement {
 function createApp(repo: ReviewRepository): VeriTaxaApp {
   return new VeriTaxaApp(getRoot(), repo, {
     storage: window.localStorage,
-    imagePrefetch: new ImagePrefetch(() => ({ src: '' })),
   });
 }
 
@@ -127,7 +136,7 @@ describe('VeriTaxa application', () => {
     expect(document.querySelectorAll('[role="tab"]')).toHaveLength(0);
     expect(document.querySelector('nav')).toBeNull();
     expect(repo.listBatches).not.toHaveBeenCalled();
-    expect(repo.getQueue).not.toHaveBeenCalled();
+    expect(repo.getCursor).not.toHaveBeenCalled();
     app.dispose();
   });
 
@@ -166,11 +175,11 @@ describe('VeriTaxa application', () => {
     expect(document.querySelector('input[name="name"]')).not.toBeNull();
     expect(document.querySelector('input[type="email"]')).toBeNull();
     expect(document.querySelector('input[type="password"]')).toBeNull();
-    expect(repo.getQueue).not.toHaveBeenCalled();
+    expect(repo.getCursor).not.toHaveBeenCalled();
     app.dispose();
   });
 
-  it('renders one image, its Flickr keyword option, and all canonical labels', async () => {
+  it('renders one image, its target option, navigation, and all canonical labels', async () => {
     const repo = repository();
     const app = createApp(repo);
 
@@ -195,6 +204,11 @@ describe('VeriTaxa application', () => {
     expect(image?.dataset.zoom).toBe('1');
     expect(resetZoom?.textContent).toBe('100%');
     expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(16);
+    expect(document.querySelector('.image-position')?.textContent).toBe('1 / 2');
+    expect(
+      document.querySelector<HTMLButtonElement>('[aria-label="Previous image"]'),
+    ).not.toBeNull();
+    expect(document.querySelector<HTMLButtonElement>('[aria-label="Next image"]')).not.toBeNull();
     expect(document.body.textContent).toContain('Target scientific name');
     expect(document.body.textContent).toContain('Papilio exemplaris');
     expect(
@@ -205,7 +219,7 @@ describe('VeriTaxa application', () => {
   });
 
   it('omits the target choice when the campaign has no scientific name', async () => {
-    const app = createApp(repository({ queue: [secondItem] }));
+    const app = createApp(repository({ cursor: secondItem }));
 
     await app.start();
 
@@ -219,10 +233,10 @@ describe('VeriTaxa application', () => {
 
   it('waits for save confirmation before advancing and preserves the draft on failure', async () => {
     let rejectSave: (error: Error) => void = () => undefined;
-    const save = new Promise<ReviewProgress>((_resolve, reject) => {
+    const save = new Promise<ReviewItem>((_resolve, reject) => {
       rejectSave = reject;
     });
-    const repo = repository({ submit: () => save });
+    const repo = repository({ save: () => save });
     const app = createApp(repo);
     await app.start();
 
@@ -248,6 +262,131 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it('renders the next item returned by the confirmed save without another cursor request', async () => {
+    let resolveSave: (item: ReviewItem) => void = () => undefined;
+    const save = new Promise<ReviewItem>((resolve) => {
+      resolveSave = resolve;
+    });
+    const repo = repository({ save: () => save });
+    const app = createApp(repo);
+    await app.start();
+
+    document.querySelector<HTMLInputElement>('input[value="moth"]')?.click();
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+    expect(document.querySelector('img')?.src).toContain('review-001-small.jpg');
+
+    resolveSave({ ...secondItem, reviewedCount: 1 });
+    await vi.waitFor(() => expect(document.querySelector('img')?.src).toContain('review-002.jpg'));
+    expect(repo.getCursor).toHaveBeenCalledOnce();
+    expect(repo.saveReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedVersion: 0,
+        itemId: firstItem.id,
+        label: 'moth',
+      }),
+    );
+    expect(document.querySelector('.classification-panel')).toBe(document.activeElement);
+    app.dispose();
+  });
+
+  it('navigates reviewed and unreviewed items and restores unsaved drafts', async () => {
+    const getCursor: ReviewRepository['getCursor'] = (_batchId, _anchorPosition, direction) =>
+      Promise.resolve(direction === 'next' ? secondItem : firstItem);
+    const repo = repository({ getCursor });
+    const app = createApp(repo);
+    await app.start();
+
+    document.querySelector<HTMLInputElement>('input[value="adult_butterfly"]')?.click();
+    const textarea = document.querySelector<HTMLTextAreaElement>('textarea');
+    if (!textarea) throw new Error('Comment field is missing');
+    textarea.value = 'Unsaved correction';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    document.querySelector<HTMLButtonElement>('[aria-label="Next image"]')?.click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2'),
+    );
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="review-label"]:checked'),
+    ).toBeNull();
+
+    document.querySelector<HTMLButtonElement>('[aria-label="Previous image"]')?.click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('1 / 2'),
+    );
+    expect(
+      document.querySelector<HTMLInputElement>('input[value="adult_butterfly"]')?.checked,
+    ).toBe(true);
+    expect(document.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(
+      'Unsaved correction',
+    );
+    expect(repo.saveReview).not.toHaveBeenCalled();
+    app.dispose();
+  });
+
+  it('prefills an existing answer and allows it to be corrected', async () => {
+    const reviewedItem: ReviewItem = {
+      ...firstItem,
+      currentLabel: 'moth',
+      currentComment: 'Original answer',
+      currentVersion: 3,
+      reviewedCount: 1,
+    };
+    const repo = repository({
+      cursor: reviewedItem,
+      save: () =>
+        Promise.resolve({
+          ...secondItem,
+          reviewedCount: 1,
+        }),
+    });
+    const app = createApp(repo);
+    await app.start();
+
+    expect(document.querySelector<HTMLInputElement>('input[value="moth"]')?.checked).toBe(true);
+    expect(document.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Original answer');
+    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+
+    await vi.waitFor(() => expect(repo.saveReview).toHaveBeenCalledOnce());
+    expect(repo.saveReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedVersion: 3,
+        itemId: firstItem.id,
+        label: 'plant',
+      }),
+    );
+    app.dispose();
+  });
+
+  it('keeps a completed batch navigable for corrections', async () => {
+    const repo = repository({
+      save: () =>
+        Promise.resolve({
+          ...firstItem,
+          currentLabel: 'moth',
+          currentVersion: 1,
+          reviewedCount: 2,
+          complete: true,
+        }),
+    });
+    const app = createApp(repo);
+    await app.start();
+
+    document.querySelector<HTMLInputElement>('input[value="moth"]')?.click();
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('All reviewed—answers can still be updated.'),
+    );
+    expect(document.querySelector('img.review-image')).not.toBeNull();
+    expect(
+      document.querySelector<HTMLButtonElement>('[aria-label="Previous image"]')?.disabled,
+    ).toBe(false);
+    expect(document.querySelector<HTMLInputElement>('input[value="moth"]')?.checked).toBe(true);
+    app.dispose();
+  });
+
   it('supports label shortcuts outside editable controls', async () => {
     const app = createApp(repository());
     await app.start();
@@ -266,6 +405,26 @@ describe('VeriTaxa application', () => {
     textarea?.focus();
     textarea?.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }));
     expect(document.querySelector<HTMLInputElement>('input[value="moth"]')?.checked).toBe(false);
+    app.dispose();
+  });
+
+  it('uses arrow navigation only outside editable fields', async () => {
+    const repo = repository({
+      getCursor: (_batchId, _anchorPosition, direction) =>
+        Promise.resolve(direction === 'next' ? secondItem : firstItem),
+    });
+    const app = createApp(repo);
+    await app.start();
+
+    const textarea = document.querySelector<HTMLTextAreaElement>('textarea');
+    textarea?.focus();
+    textarea?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(repo.getCursor).toHaveBeenCalledOnce();
+
+    document.body.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await vi.waitFor(() => expect(repo.getCursor).toHaveBeenCalledTimes(2));
+    expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2');
     app.dispose();
   });
 });
