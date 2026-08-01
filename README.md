@@ -3,7 +3,8 @@
 VeriTaxa is a minimal, authenticated, one-page tool for recording broad human
 labels against image candidates collected by BioMiner and related pipelines.
 It shows one image at a time, saves one classification and an optional comment,
-then advances only after Postgres confirms the write.
+then advances atomically after Postgres confirms the write. Reviewers can move
+through every image in a batch and revise their own current answer.
 
 VeriTaxa is separate from ButterflyLens. ButterflyLens remains the
 Australia-focused evidence and species-verification application; VeriTaxa is a
@@ -17,15 +18,14 @@ species-level confirmations, or verified occurrence records.
 
 GitHub Pages hosts only the compiled static interface. Supabase stores private
 campaigns, batches, source image URLs, hidden source metadata, the reviewer
-profiles, and append-only reviews. Authentication, active private profiles,
+profiles, and versioned current reviews. Authentication, active private profiles,
 row-level security, and narrowly scoped security-definer RPC functions prevent
 anonymous or suspended users from receiving task URLs or progress.
 
 The browser uses a normal `<img>` element to download the displayed image
 directly from its source host. There is no iframe, server image proxy, image
 mirror, Supabase image transfer, or application-owned image store. Only the
-current image and, after it loads, at most one next image are requested. Data
-saver mode disables prefetch.
+image selected by the review cursor is requested.
 
 Reviewer RPC responses contain only neutral batch details, progress, item IDs,
 display/fallback URLs, and the campaign's target scientific name. The target is
@@ -95,16 +95,19 @@ The versioned definitions and pipeline mappings are in
   items.
 - `review_items` stores image URLs and source/pipeline metadata. Flickr
   retrieval keywords remain hidden from the browser.
-- `image_reviews` stores one append-only response per reviewer and item, with a
-  client submission UUID for idempotent retry. Target-name reviews snapshot
-  the database-derived name in `scientificName`.
-- `list_review_batches`, `get_review_queue`, and `submit_image_review` are the
-  only browser-facing data operations.
+- `image_reviews` stores one current, versioned response per reviewer and item,
+  with a client submission UUID for idempotent retry. Corrections update only
+  that reviewer’s row. Target-name reviews snapshot the database-derived name
+  in `scientificName`.
+- `list_review_batches`, `get_review_cursor`, and `save_image_review_v2` are the
+  current browser-facing data operations. The original queue and submit RPCs
+  remain temporarily available to authenticated deployed clients.
 
 All exposed tables have RLS enabled and direct access is revoked from browser
 roles. Functions derive the reviewer UUID from the authenticated JWT, use a
-fixed safe search path, and return minimum shapes. Reviews cannot be edited or
-deleted through the reviewer application.
+fixed safe search path, and return minimum shapes. Only the owning reviewer can
+replace an answer through the version-checked RPC; review identity and rows
+cannot be changed or deleted.
 
 ## Exact production setup order
 
@@ -143,7 +146,7 @@ Inspect the target before pushing. The migration creates only the `private`
 authorisation schema and the versioned VeriTaxa objects in `public`; it does not
 drop unrelated tables. The database tests run in a transaction and verify
 unauthenticated, inactive-profile, anonymous-registration, hidden-field,
-append-only, and idempotency boundaries.
+versioning, non-deletion, and idempotency boundaries.
 
 ### 3. Configure name-only access
 
@@ -280,10 +283,25 @@ uv run python -m tools.export_reviews \
   --output reviewed/demo-reviews.parquet
 ```
 
-The export retains source metadata, the campaign target, the granular human
-label, selected `scientificName`, legacy `flickrKeyword` when present, comment,
-reviewer UUID, `identifiedBy`, review time, schema version, and client version.
-`--derived` adds pipeline group columns while preserving the canonical label.
+The default export retains source metadata, the campaign target, the granular
+human label, selected `scientificName`, legacy `flickrKeyword` when present,
+comment, reviewer UUID, `identifiedBy`, most recent answer time, schema
+version, and client version. `--derived` adds pipeline group columns while
+preserving the canonical label.
+
+Use `--consensus` for one row per reviewed image:
+
+```text
+uv run python -m tools.export_reviews \
+  --campaign-code DEMO-001 \
+  --output reviewed/demo-consensus.csv \
+  --consensus
+```
+
+Consensus rows contain the plurality label, review count, unanimity and tie
+flags, and latest correction time. Ties use the canonical expected-result
+priority while remaining marked as tied. Reviewer identity and comments stay
+exclusive to the default individual export.
 
 ## Dependencies
 
@@ -298,8 +316,8 @@ tools. Exact JavaScript and Python resolutions are committed in
 
 ## Known limitations
 
-- Version 3 records one label per reviewer and item, with no editing,
-  adjudication, or consensus.
+- Version 3 records one current label per reviewer and item. Consensus is an
+  export view rather than a stored adjudication.
 - `identifiedBy` records the broad-image classifier's nickname; it does not
   turn the response into a taxonomic identification or species confirmation.
 - Labels describe the whole visible image; positive detector training still

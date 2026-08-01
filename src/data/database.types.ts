@@ -16,6 +16,8 @@ export type Database = {
           reviewer_id: string;
           scientificName: string | null;
           submission_id: string;
+          updated_at: string;
+          version: number;
         };
         Insert: never;
         Update: never;
@@ -90,6 +92,27 @@ export type Database = {
           total_count: number;
         }[];
       };
+      get_review_cursor: {
+        Args: {
+          p_anchor_position: number | null;
+          p_batch_id: string;
+          p_direction: string;
+        };
+        Returns: {
+          complete: boolean;
+          current_comment: string | null;
+          current_label: Database['public']['Enums']['review_label'] | null;
+          current_version: number;
+          display_url: string | null;
+          fallback_image_url: string;
+          image_id: string;
+          item_id: string;
+          position: number;
+          reviewed_count: number;
+          target_scientific_name: string | null;
+          total_count: number;
+        }[];
+      };
       is_authorized_reviewer: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
@@ -116,6 +139,30 @@ export type Database = {
         Returns: {
           complete: boolean;
           reviewed_count: number;
+          total_count: number;
+        }[];
+      };
+      save_image_review_v2: {
+        Args: {
+          p_client_version: string;
+          p_comment: string | null;
+          p_expected_version: number;
+          p_item_id: string;
+          p_label: Database['public']['Enums']['review_label'];
+          p_submission_id: string;
+        };
+        Returns: {
+          complete: boolean;
+          current_comment: string | null;
+          current_label: Database['public']['Enums']['review_label'] | null;
+          current_version: number;
+          display_url: string | null;
+          fallback_image_url: string;
+          image_id: string;
+          item_id: string;
+          position: number;
+          reviewed_count: number;
+          target_scientific_name: string | null;
           total_count: number;
         }[];
       };

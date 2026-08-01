@@ -4,8 +4,8 @@ import type { PublicConfig } from '../config';
 import { isReviewLabelCode } from '../domain/reviewLabels';
 import type {
   ReviewBatch,
+  ReviewCursorDirection,
   ReviewItem,
-  ReviewProgress,
   ReviewSubmission,
 } from '../domain/reviewQueue';
 import type { Database } from './database.types';
@@ -72,27 +72,38 @@ export class SupabaseReviewRepository implements ReviewRepository {
     return data.map(parseBatch);
   }
 
-  async getQueue(batchId: string, limit: number, signal: AbortSignal): Promise<ReviewItem[]> {
+  async getCursor(
+    batchId: string,
+    anchorPosition: number | null,
+    direction: ReviewCursorDirection,
+    signal: AbortSignal,
+  ): Promise<ReviewItem | null> {
     const { data, error } = await this.#client
-      .rpc('get_review_queue', { p_batch_id: batchId, p_limit: limit })
+      .rpc('get_review_cursor', {
+        p_anchor_position: anchorPosition,
+        p_batch_id: batchId,
+        p_direction: direction,
+      })
       .abortSignal(signal);
     if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
-    if (error) throw new Error('Could not load the review queue.');
-    if (!Array.isArray(data)) throw new Error('The review queue response was not valid.');
-    return data.map(parseItem);
+    if (error) throw new Error('Could not load the requested image.');
+    if (!Array.isArray(data)) throw new Error('The review cursor response was not valid.');
+    const first = data[0];
+    return first === undefined ? null : parseItem(first);
   }
 
-  async submitReview(submission: ReviewSubmission): Promise<ReviewProgress> {
-    const { data, error } = await this.#client.rpc('submit_image_review', {
+  async saveReview(submission: ReviewSubmission): Promise<ReviewItem> {
+    const { data, error } = await this.#client.rpc('save_image_review_v2', {
       p_client_version: submission.clientVersion,
       p_comment: submission.comment,
+      p_expected_version: submission.expectedVersion,
       p_item_id: submission.itemId,
       p_label: submission.label,
       p_submission_id: submission.submissionId,
     });
     if (error) throw new Error('The classification could not be saved.');
     const first = Array.isArray(data) ? data[0] : undefined;
-    return parseProgress(first);
+    return parseItem(first);
   }
 }
 
@@ -122,6 +133,8 @@ function parseItem(value: unknown): ReviewItem {
   const row = asRecord(value, 'review item');
   const displayUrl = row.display_url;
   const targetScientificName = row.target_scientific_name;
+  const currentComment = row.current_comment;
+  const currentLabel = row.current_label;
   return {
     id: requiredString(row.item_id, 36, 'item ID'),
     imageId: requiredString(row.image_id, MAX_IMAGE_ID_LENGTH, 'image ID'),
@@ -136,14 +149,13 @@ function parseItem(value: unknown): ReviewItem {
     displayUrl: displayUrl === null ? null : requiredString(displayUrl, 2048, 'display image URL'),
     fallbackImageUrl: requiredString(row.fallback_image_url, 2048, 'fallback image URL'),
     position: requiredCount(row.position, 'item position'),
-    reviewedCount: requiredCount(row.reviewed_count, 'reviewed count'),
-    totalCount: requiredCount(row.total_count, 'total count'),
-  };
-}
-
-function parseProgress(value: unknown): ReviewProgress {
-  const row = asRecord(value, 'save response');
-  return {
+    currentLabel:
+      currentLabel === null ? null : requiredReviewLabel(currentLabel, 'current review label'),
+    currentComment:
+      currentComment === null
+        ? null
+        : requiredString(currentComment, 1000, 'current review comment'),
+    currentVersion: requiredCount(row.current_version, 'current review version'),
     reviewedCount: requiredCount(row.reviewed_count, 'reviewed count'),
     totalCount: requiredCount(row.total_count, 'total count'),
     complete: requiredBoolean(row.complete, 'completion state'),
@@ -174,6 +186,11 @@ function requiredCount(value: unknown, label: string): number {
 
 function requiredBoolean(value: unknown, label: string): boolean {
   if (typeof value !== 'boolean') throw new Error(`The ${label} response was not valid.`);
+  return value;
+}
+
+function requiredReviewLabel(value: unknown, label: string) {
+  if (!isReviewLabelCode(value)) throw new Error(`The ${label} response was not valid.`);
   return value;
 }
 
