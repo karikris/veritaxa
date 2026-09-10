@@ -22,5 +22,5 @@
     "exactOptionalPropertyTypes": true,
     "types": ["vite/client", "vitest/globals"]
   },
-  "include": ["src"]
+  "include": ["src", "tests/fixtures/synthetic-only/**/*.ts"]
 }

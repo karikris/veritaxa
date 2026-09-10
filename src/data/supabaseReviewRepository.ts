@@ -12,6 +12,7 @@ import type {
 } from '../domain/reviewQueue';
 import type { Database } from './database.types';
 import {
+  ReviewConflictError,
   ReviewerAccessDisabledError,
   type AuthEventHandler,
   type ReviewerSession,
@@ -103,6 +104,8 @@ export class SupabaseReviewRepository implements ReviewRepository {
       p_label: submission.label,
       p_submission_id: submission.submissionId,
     });
+    if (error?.code === '40001') throw new ReviewConflictError('stale_version');
+    if (error?.code === '23505') throw new ReviewConflictError('submission_conflict');
     if (error) throw new Error('The classification could not be saved.');
     const first = Array.isArray(data) ? data[0] : undefined;
     return parseItem(first);

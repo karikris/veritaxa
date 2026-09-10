@@ -1,13 +1,13 @@
-import type { ReviewLabelCode, ReviewLabelGroup } from './domain/reviewLabels';
+import type { ReviewLabelGroup } from './domain/reviewLabels';
+import { createReviewDraft, submissionForDraft, type ReviewDraft } from './domain/reviewDraft';
 import { countCodePoints, limitCodePoints } from './domain/text';
 import { LABEL_BY_SHORTCUT, REVIEW_LABEL_GROUPS, REVIEW_LABELS } from './domain/reviewLabels';
 import {
-  CLIENT_VERSION,
-  createSubmissionId,
   MAX_COMMENT_LENGTH,
   normalizeComment,
   type ReviewBatch,
   type ReviewItem,
+  type ReviewSubmission,
 } from './domain/reviewQueue';
 import {
   advanceImageAttempt,
@@ -16,6 +16,7 @@ import {
   type ImageAttempt,
 } from './image/imageLoader';
 import {
+  ReviewConflictError,
   ReviewerAccessDisabledError,
   type ReviewerSession,
   type ReviewRepository,
@@ -45,12 +46,6 @@ const MIN_IMAGE_ZOOM = 1;
 const MAX_IMAGE_ZOOM = 4;
 const IMAGE_ZOOM_STEP = 0.25;
 
-type ReviewDraft = {
-  label: ReviewLabelCode | null;
-  comment: string;
-  submissionId: string | null;
-};
-
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
@@ -78,9 +73,8 @@ export class VeriTaxaApp {
   #batchId: string | null = null;
   #currentItem: ReviewItem | null = null;
   readonly #drafts = new Map<string, ReviewDraft>();
-  #selectedLabel: ReviewLabelCode | null = null;
-  #comment = '';
-  #submissionId: string | null = null;
+  #draft = createReviewDraft();
+  #comparisonItem: ReviewItem | null = null;
   #imageAttempt: ImageAttempt | null = null;
   #imageZoom = MIN_IMAGE_ZOOM;
   #errorMessage = '';
@@ -295,16 +289,14 @@ export class VeriTaxaApp {
   }
 
   #clearDraft(): void {
-    this.#selectedLabel = null;
-    this.#comment = '';
-    this.#submissionId = null;
+    this.#draft = createReviewDraft();
+    this.#comparisonItem = null;
   }
 
   #restoreDraft(item: ReviewItem): void {
-    const draft = this.#drafts.get(item.id);
-    this.#selectedLabel = draft?.label ?? item.currentLabel;
-    this.#comment = draft?.comment ?? item.currentComment ?? '';
-    this.#submissionId = draft?.submissionId ?? null;
+    this.#draft = this.#drafts.get(item.id) ?? createReviewDraft(item);
+    this.#drafts.delete(item.id);
+    this.#comparisonItem = null;
   }
 
   #rememberCurrentDraft(): void {
@@ -312,18 +304,15 @@ export class VeriTaxaApp {
     if (!item) return;
     const persistedComment = item.currentComment ?? '';
     if (
-      this.#selectedLabel === item.currentLabel &&
-      this.#comment === persistedComment &&
-      this.#submissionId === null
+      this.#draft.label === item.currentLabel &&
+      this.#draft.comment === persistedComment &&
+      this.#draft.pendingSubmission === null &&
+      !this.#draft.conflicted
     ) {
       this.#drafts.delete(item.id);
       return;
     }
-    this.#drafts.set(item.id, {
-      label: this.#selectedLabel,
-      comment: this.#comment,
-      submissionId: this.#submissionId,
-    });
+    this.#drafts.set(item.id, this.#draft);
   }
 
   async #navigate(direction: 'next' | 'previous'): Promise<void> {
@@ -340,17 +329,21 @@ export class VeriTaxaApp {
     if (
       !current ||
       !this.#batchId ||
-      !this.#selectedLabel ||
+      !this.#draft.label ||
       !this.#session ||
       this.#state === 'saving' ||
       this.#state === 'loading_image'
     ) {
       return;
     }
-
-    let comment: string | null;
+    if (this.#comparisonItem) return;
+    if (this.#draft.conflicted) {
+      await this.#compareSavedReview();
+      return;
+    }
+    let submission: ReviewSubmission;
     try {
-      comment = normalizeComment(this.#comment);
+      submission = submissionForDraft(current.id, this.#draft);
     } catch (error) {
       this.#errorMessage = messageFrom(error, 'The comment is not valid.');
       this.#state = 'save_error';
@@ -358,7 +351,7 @@ export class VeriTaxaApp {
       return;
     }
 
-    this.#submissionId = createSubmissionId(this.#submissionId);
+    this.#draft.pendingSubmission = submission;
     const epoch = this.#sessionEpoch;
     const batchId = this.#batchId;
     this.#state = 'saving';
@@ -366,14 +359,7 @@ export class VeriTaxaApp {
     this.#render();
 
     try {
-      const nextItem = await this.#repository.saveReview({
-        itemId: current.id,
-        label: this.#selectedLabel,
-        comment,
-        submissionId: this.#submissionId,
-        clientVersion: CLIENT_VERSION,
-        expectedVersion: current.currentVersion,
-      });
+      const nextItem = await this.#repository.saveReview(submission);
       if (!this.#ownsSession(epoch) || this.#batchId !== batchId || this.#currentItem !== current)
         return;
       this.#updateBatchProgressValues(
@@ -382,16 +368,41 @@ export class VeriTaxaApp {
         nextItem.totalCount,
         nextItem.complete,
       );
-      this.#lastSaveSucceeded = true;
+      this.#draft.pendingSubmission = null;
       this.#drafts.delete(current.id);
-      this.#currentItem = nextItem;
-      this.#restoreDraft(nextItem);
-      this.#prepareCurrentImage();
+      if (
+        this.#draft.label === submission.label &&
+        normalizeComment(this.#draft.comment) === submission.comment
+      ) {
+        this.#lastSaveSucceeded = true;
+        this.#currentItem = nextItem;
+        this.#restoreDraft(nextItem);
+        this.#prepareCurrentImage();
+      } else {
+        // The original write is confirmed, but edits made after its failure are still unsaved.
+        this.#currentItem = {
+          ...current,
+          currentLabel: submission.label,
+          currentComment: submission.comment,
+          currentVersion: submission.expectedVersion + 1,
+          reviewedCount: nextItem.reviewedCount,
+          totalCount: nextItem.totalCount,
+          complete: nextItem.complete,
+        };
+        this.#draft.baseVersion = submission.expectedVersion + 1;
+        this.#lastSaveSucceeded = false;
+        this.#state = 'reviewing';
+        this.#errorMessage = 'Original save confirmed. Your newer changes are still unsaved.';
+      }
       this.#render();
       this.#focusClassification();
     } catch (error) {
       if (!this.#ownsSession(epoch) || this.#batchId !== batchId || this.#currentItem !== current)
         return;
+      if (error instanceof ReviewConflictError) {
+        this.#draft.pendingSubmission = null;
+        this.#draft.conflicted = true;
+      }
       this.#rememberCurrentDraft();
       this.#state = 'save_error';
       this.#errorMessage = messageFrom(error, 'The classification could not be saved.');
@@ -407,6 +418,90 @@ export class VeriTaxaApp {
       item.totalCount,
       item.reviewedCount === item.totalCount && item.totalCount > 0,
     );
+  }
+
+  async #compareSavedReview(): Promise<void> {
+    const current = this.#currentItem;
+    const batchId = this.#batchId;
+    if (!current || !batchId) return;
+    const { id, signal } = this.#beginRequest();
+    this.#state = 'loading_image';
+    this.#errorMessage = '';
+    this.#render();
+    try {
+      // Seek the same item through the existing owner-scoped RPC, not the resume cursor.
+      const latest = await this.#repository.getCursor(
+        batchId,
+        current.position - 1,
+        'next',
+        signal,
+      );
+      if (!this.#isCurrentRequest(id) || this.#currentItem !== current) return;
+      if (latest?.id !== current.id) {
+        throw new Error('The saved answer is unavailable. Your draft has not changed.');
+      }
+      this.#comparisonItem = latest;
+      this.#state = 'save_error';
+      this.#errorMessage = 'Compare your draft with the saved answer, then choose which to keep.';
+      this.#render();
+    } catch (error) {
+      if (!this.#isCurrentRequest(id) || this.#currentItem !== current) return;
+      this.#state = 'save_error';
+      this.#errorMessage = messageFrom(
+        error,
+        'Could not load the saved answer. Your draft has not changed.',
+      );
+      this.#render();
+    }
+  }
+
+  #resolveConflict(latest: ReviewItem, useSaved: boolean): void {
+    if (
+      this.#comparisonItem !== latest ||
+      this.#state === 'loading_image' ||
+      this.#state === 'saving'
+    )
+      return;
+    this.#currentItem = latest;
+    this.#draft = useSaved
+      ? createReviewDraft(latest)
+      : {
+          ...this.#draft,
+          baseVersion: latest.currentVersion,
+          pendingSubmission: null,
+          conflicted: false,
+        };
+    this.#drafts.delete(latest.id);
+    this.#comparisonItem = null;
+    this.#lastSaveSucceeded = false;
+    this.#updateBatchProgress(latest);
+    this.#state = 'reviewing';
+    this.#errorMessage = useSaved
+      ? ''
+      : 'Your changes are ready to send against the compared version.';
+    this.#render();
+    this.#focusClassification();
+  }
+
+  #buildConflictComparison(latest: ReviewItem): HTMLElement {
+    const section = element('section', 'conflict-comparison');
+    section.setAttribute('aria-label', 'Saved answer comparison');
+    const heading = element('h3');
+    heading.textContent = `Your saved answer (version ${String(latest.currentVersion)})`;
+    const label = element('p');
+    label.textContent =
+      latest.currentLabel === 'target_scientific_name'
+        ? latest.targetScientificName
+        : (REVIEW_LABELS.find((candidate) => candidate.code === latest.currentLabel)
+            ?.displayLabel ?? 'No classification');
+    const comment = element('p');
+    comment.textContent = latest.currentComment ?? 'No comment';
+    const useSaved = button('Use saved answer', 'secondary-button');
+    useSaved.addEventListener('click', () => this.#resolveConflict(latest, true));
+    const reapply = button('Reapply my changes', 'secondary-button');
+    reapply.addEventListener('click', () => this.#resolveConflict(latest, false));
+    section.append(heading, label, comment, useSaved, reapply);
+    return section;
   }
 
   #updateBatchProgressValues(
@@ -463,7 +558,7 @@ export class VeriTaxaApp {
     }
     if (label === 'target_scientific_name' && !this.#currentItem.targetScientificName) return;
     event.preventDefault();
-    this.#selectedLabel = label;
+    this.#draft.label = label;
     this.#render();
   };
 
@@ -696,7 +791,9 @@ export class VeriTaxaApp {
       const copy = element('p');
       copy.textContent = 'The source image could not be loaded.';
       const retry = button('Retry image', 'secondary-button');
+      retry.disabled = this.#state === 'saving' || this.#state === 'loading_image';
       retry.addEventListener('click', () => {
+        if (this.#state === 'saving' || this.#state === 'loading_image') return;
         this.#prepareCurrentImage();
         this.#render();
       });
@@ -829,11 +926,11 @@ export class VeriTaxaApp {
     textarea.id = 'review-comment';
     textarea.rows = 2;
     textarea.disabled = disabled;
-    textarea.value = this.#comment;
+    textarea.value = this.#draft.comment;
     textarea.addEventListener('input', () => {
       const limited = limitCodePoints(textarea.value, MAX_COMMENT_LENGTH);
       textarea.value = limited.value;
-      this.#comment = textarea.value;
+      this.#draft.comment = textarea.value;
       const remaining = MAX_COMMENT_LENGTH - limited.length;
       const counter = this.#root.querySelector<HTMLElement>('.comment-count');
       if (counter) {
@@ -841,15 +938,31 @@ export class VeriTaxaApp {
       }
     });
     const counter = element('span', 'comment-count');
-    const initialRemaining = MAX_COMMENT_LENGTH - countCodePoints(this.#comment);
+    const initialRemaining = MAX_COMMENT_LENGTH - countCodePoints(this.#draft.comment);
     counter.textContent = initialRemaining <= 100 ? `${String(initialRemaining)} remaining` : '';
 
     const send = element('button', 'send-button');
     send.type = 'button';
-    send.textContent = this.#state === 'save_error' ? 'Retry save' : 'Send';
-    send.setAttribute('aria-label', 'Save this classification and advance');
+    send.textContent = this.#draft.conflicted
+      ? 'Compare saved answer'
+      : this.#draft.pendingSubmission
+        ? 'Retry save'
+        : 'Send';
+    send.setAttribute(
+      'aria-label',
+      this.#draft.conflicted
+        ? 'Compare saved answer'
+        : this.#draft.pendingSubmission
+          ? 'Retry original save'
+          : 'Save this classification and advance',
+    );
     send.disabled =
-      disabled || !this.#selectedLabel || !this.#batchId || !this.#currentItem || !this.#session;
+      disabled ||
+      !!this.#comparisonItem ||
+      !this.#draft.label ||
+      !this.#batchId ||
+      !this.#currentItem ||
+      !this.#session;
     send.addEventListener('click', () => void this.#submit());
 
     const action = element('div', 'submission-action');
@@ -864,6 +977,15 @@ export class VeriTaxaApp {
       send,
     );
     form.append(commentHeader, textarea, counter, action);
+    if (this.#draft.pendingSubmission && this.#state !== 'saving') {
+      form.append(
+        this.#buildLiveStatus(
+          'Retry sends the original request. Any newer edits will remain unsaved until you send them separately.',
+          false,
+        ),
+      );
+    }
+    if (this.#comparisonItem) form.append(this.#buildConflictComparison(this.#comparisonItem));
     section.append(headingRow, group, form);
     return section;
   }
@@ -884,11 +1006,11 @@ export class VeriTaxaApp {
       input.type = 'radio';
       input.name = 'review-label';
       input.value = label.code;
-      input.checked = this.#selectedLabel === label.code;
+      input.checked = this.#draft.label === label.code;
       input.disabled = disabled;
       input.addEventListener('change', () => {
         if (input.checked) {
-          this.#selectedLabel = label.code;
+          this.#draft.label = label.code;
           this.#render();
         }
       });

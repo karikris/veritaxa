@@ -12,6 +12,17 @@ export type ReviewerSession = {
 
 export type AuthEventHandler = (session: ReviewerSession | null) => void;
 
+export class ReviewConflictError extends Error {
+  constructor(readonly kind: 'stale_version' | 'submission_conflict') {
+    super(
+      kind === 'stale_version'
+        ? 'Your saved answer changed elsewhere. Compare it with your draft before sending again.'
+        : 'The submission conflicts with a saved review. Compare the saved answer before sending again.',
+    );
+    this.name = 'ReviewConflictError';
+  }
+}
+
 export class ReviewerAccessDisabledError extends Error {
   constructor() {
     super('This reviewer profile is inactive.');

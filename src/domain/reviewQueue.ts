@@ -2,7 +2,7 @@ import type { ReviewLabelCode } from './reviewLabels';
 import { countCodePoints } from './text';
 
 export const MAX_COMMENT_LENGTH = 1000;
-export const CLIENT_VERSION = 'veritaxa-web/0.2.0';
+export const CLIENT_VERSION = 'veritaxa-web/0.3.0';
 
 export type ReviewBatch = {
   id: string;
@@ -30,14 +30,14 @@ export type ReviewItem = {
 
 export type ReviewCursorDirection = 'resume' | 'next' | 'previous';
 
-export type ReviewSubmission = {
+export type ReviewSubmission = Readonly<{
   itemId: string;
   label: ReviewLabelCode;
   comment: string | null;
   submissionId: string;
   clientVersion: string;
   expectedVersion: number;
-};
+}>;
 
 export function normalizeComment(value: string): string | null {
   const trimmed = value.trim();

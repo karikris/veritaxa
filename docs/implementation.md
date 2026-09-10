@@ -12,8 +12,8 @@ reproduction artifacts remain outside this public-code repository.
 
 | Phase | Required result                                                                                             | Status                               |
 | ----- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Local checks passed; CI follows push |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Pending                              |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                  |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Local checks passed; CI follows push |
 | 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Pending                              |
 | 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Pending                              |
 | 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                              |
@@ -96,3 +96,18 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   socket access is denied even outside the Codex sandbox. These are verification
   environment limits, not passing browser/database results. Remote CI covers
   both suites; later performance phases still require measured runtime evidence.
+- Phase 0 commit `fe3ad91` pushed; [CI 34472952988](https://github.com/karikris/veritaxa/actions/runs/34472952988)
+  passed application/browser and database security jobs.
+- Phase 1 focused commits: `cf7803e` (callback ownership), `063859f` (Unicode
+  round-trip and allocation-free counting), followed by versioned drafts and
+  immutable retries. The draft now owns its label, comment, base version and
+  pending request together. Typed version/submission conflicts require explicit
+  comparison and reapply; choosing a saved answer does not write to the database.
+- Phase 1 local evidence: 58 frontend unit tests and 14 desktop/mobile browser
+  tests pass, including actual retry-after-edit and conflict/reapply browser
+  flows. Temporary user-local Chromium libraries enabled local browser checks
+  without changing system packages. They are outside the repository. No live
+  review records or schema were changed. Client version is `veritaxa-web/0.3.0`.
+- Phase 1 final local gates also passed: 22 Python tests, TypeScript, ESLint,
+  Prettier, Ruff and whitespace checks. Production JavaScript is 59.46 KiB gzip;
+  synthetic conflict/retry fixtures are absent from the built output.

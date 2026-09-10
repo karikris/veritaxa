@@ -5,6 +5,7 @@ import type {
   ReviewSubmission,
 } from '../domain/reviewQueue';
 import type { AuthEventHandler, ReviewRepository } from './reviewRepository';
+import { ReviewConflictError } from './reviewRepository';
 
 const FIRST_BATCH_ID = '30000000-0000-0000-0000-000000000001';
 const SECOND_BATCH_ID = '30000000-0000-0000-0000-000000000002';
@@ -131,10 +132,10 @@ export class SyntheticReviewRepository implements ReviewRepository {
         existing.clientVersion !== submission.clientVersion ||
         existing.version !== submission.expectedVersion + 1
       ) {
-        return Promise.reject(new Error('Synthetic submission conflict'));
+        return Promise.reject(new ReviewConflictError('submission_conflict'));
       }
     } else if ((existing?.version ?? 0) !== submission.expectedVersion) {
-      return Promise.reject(new Error('Synthetic stale review'));
+      return Promise.reject(new ReviewConflictError('stale_version'));
     } else {
       this.#reviews.set(submission.itemId, {
         ...submission,

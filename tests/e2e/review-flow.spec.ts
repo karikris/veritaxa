@@ -82,11 +82,9 @@ test('reviewer fallback, save retry, progress, and completion flow', async ({ pa
   await expect(page.getByText('Synthetic save failure')).toBeVisible();
   await expect(reviewImage).toHaveAttribute('src', /review-002\.svg/);
   await expect(page.getByLabel('Comment')).toHaveValue('force-save-failure');
-  await expect(page.getByRole('button', { name: 'Save this classification' })).toHaveText(
-    'Retry save',
-  );
+  await expect(page.getByRole('button', { name: 'Retry original save' })).toHaveText('Retry save');
 
-  await page.getByRole('button', { name: 'Save this classification' }).click();
+  await page.getByRole('button', { name: 'Retry original save' }).click();
   await expect(page.getByText('All reviewed—answers can still be updated.')).toBeVisible();
   await expect(reviewImage).toHaveAttribute('src', /review-001\.svg/);
   await expect(page.getByRole('button', { name: 'Previous image' })).toBeEnabled();
@@ -114,6 +112,52 @@ test('previous and next skip without saving and restore unsaved drafts', async (
   await expect(page.locator('input[value="adult_butterfly"]')).toBeChecked();
   await expect(page.getByLabel('Comment')).toHaveValue('Unsaved browser draft');
   await expect(page.locator('.header-progress')).toHaveText('0 / 2');
+});
+
+test('retry confirms the original write without losing edits made after failure', async ({
+  page,
+}) => {
+  await routeSyntheticImages(page, []);
+  await page.goto('/veritaxa/?repository=synthetic');
+  await page.getByText('Plant', { exact: true }).click();
+  await page.getByLabel('Comment').fill('force-save-failure');
+  await page.getByRole('button', { name: 'Save this classification' }).click();
+  await expect(page.getByText('Synthetic save failure')).toBeVisible();
+  await page.getByText('Bird', { exact: true }).click();
+  await page.getByLabel('Comment').fill('Newer draft');
+  await page.getByRole('button', { name: 'Retry original save' }).click();
+  await expect(
+    page.getByText('Original save confirmed. Your newer changes are still unsaved.'),
+  ).toBeVisible();
+  await expect(page.locator('.image-position')).toHaveText('1 / 2');
+  await expect(page.locator('input[value="bird"]')).toBeChecked();
+  await expect(page.getByLabel('Comment')).toHaveValue('Newer draft');
+  await page.getByRole('button', { name: 'Save this classification' }).click();
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
+  await page.getByRole('button', { name: 'Previous image' }).click();
+  await expect(page.locator('input[value="bird"]')).toBeChecked();
+  await expect(page.getByLabel('Comment')).toHaveValue('Newer draft');
+});
+
+test('compares a stale answer and reapplies only after an explicit choice', async ({ page }) => {
+  await routeSyntheticImages(page, []);
+  await page.goto('/veritaxa/tests/fixtures/synthetic-only/conflict.html');
+  await page.getByText('Plant', { exact: true }).click();
+  await page.getByLabel('Comment').fill('My draft');
+  await page.getByRole('button', { name: 'Save this classification' }).click();
+  await page.getByRole('button', { name: 'Compare saved answer' }).click();
+  const comparison = page.getByRole('region', { name: 'Saved answer comparison' });
+  await expect(comparison).toContainText('Saved elsewhere');
+  await expect(comparison).toContainText('Bird');
+  await expect(page.locator('input[value="plant"]')).toBeChecked();
+  await expect(page.getByLabel('Comment')).toHaveValue('My draft');
+  await page.getByRole('button', { name: 'Reapply my changes' }).click();
+  await expect(page.locator('.image-position')).toHaveText('1 / 2');
+  await page.getByRole('button', { name: 'Save this classification' }).click();
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
+  await page.getByRole('button', { name: 'Previous image' }).click();
+  await expect(page.locator('input[value="plant"]')).toBeChecked();
+  await expect(page.getByLabel('Comment')).toHaveValue('My draft');
 });
 
 test('keyboard shortcuts ignore editable fields and batch selection survives reload', async ({
