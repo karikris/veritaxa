@@ -2,6 +2,8 @@ import { createClient, type SupabaseClient, type User } from '@supabase/supabase
 
 import type { PublicConfig } from '../config';
 import { isReviewLabelCode } from '../domain/reviewLabels';
+import { MAX_COMMENT_LENGTH } from '../domain/reviewQueue';
+import { countCodePoints } from '../domain/text';
 import type {
   ReviewBatch,
   ReviewCursorDirection,
@@ -154,7 +156,7 @@ function parseItem(value: unknown): ReviewItem {
     currentComment:
       currentComment === null
         ? null
-        : requiredString(currentComment, 1000, 'current review comment'),
+        : requiredString(currentComment, MAX_COMMENT_LENGTH, 'current review comment'),
     currentVersion: requiredCount(row.current_version, 'current review version'),
     reviewedCount: requiredCount(row.reviewed_count, 'reviewed count'),
     totalCount: requiredCount(row.total_count, 'total count'),
@@ -170,7 +172,7 @@ function asRecord(value: unknown, label: string): Record<string, unknown> {
 }
 
 function requiredString(value: unknown, maxLength: number, label: string): string {
-  if (typeof value !== 'string' || value.length === 0 || value.length > maxLength) {
+  if (typeof value !== 'string' || value.length === 0 || countCodePoints(value) > maxLength) {
     throw new Error(`The ${label} response was not valid.`);
   }
   return value;

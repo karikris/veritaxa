@@ -1,4 +1,5 @@
 import type { ReviewLabelCode, ReviewLabelGroup } from './domain/reviewLabels';
+import { countCodePoints, limitCodePoints } from './domain/text';
 import { LABEL_BY_SHORTCUT, REVIEW_LABEL_GROUPS, REVIEW_LABELS } from './domain/reviewLabels';
 import {
   CLIENT_VERSION,
@@ -830,19 +831,17 @@ export class VeriTaxaApp {
     textarea.disabled = disabled;
     textarea.value = this.#comment;
     textarea.addEventListener('input', () => {
-      const characters = Array.from(textarea.value);
-      if (characters.length > MAX_COMMENT_LENGTH) {
-        textarea.value = characters.slice(0, MAX_COMMENT_LENGTH).join('');
-      }
+      const limited = limitCodePoints(textarea.value, MAX_COMMENT_LENGTH);
+      textarea.value = limited.value;
       this.#comment = textarea.value;
-      const remaining = MAX_COMMENT_LENGTH - Array.from(this.#comment).length;
+      const remaining = MAX_COMMENT_LENGTH - limited.length;
       const counter = this.#root.querySelector<HTMLElement>('.comment-count');
       if (counter) {
         counter.textContent = remaining <= 100 ? `${String(remaining)} remaining` : '';
       }
     });
     const counter = element('span', 'comment-count');
-    const initialRemaining = MAX_COMMENT_LENGTH - Array.from(this.#comment).length;
+    const initialRemaining = MAX_COMMENT_LENGTH - countCodePoints(this.#comment);
     counter.textContent = initialRemaining <= 100 ? `${String(initialRemaining)} remaining` : '';
 
     const send = element('button', 'send-button');

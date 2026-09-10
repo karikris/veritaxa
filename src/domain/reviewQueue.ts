@@ -1,4 +1,5 @@
 import type { ReviewLabelCode } from './reviewLabels';
+import { countCodePoints } from './text';
 
 export const MAX_COMMENT_LENGTH = 1000;
 export const CLIENT_VERSION = 'veritaxa-web/0.2.0';
@@ -41,7 +42,7 @@ export type ReviewSubmission = {
 export function normalizeComment(value: string): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
-  if (Array.from(trimmed).length > MAX_COMMENT_LENGTH) {
+  if (countCodePoints(trimmed) > MAX_COMMENT_LENGTH) {
     throw new Error(`Comment must be ${String(MAX_COMMENT_LENGTH)} characters or fewer.`);
   }
   return trimmed;
