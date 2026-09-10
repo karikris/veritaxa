@@ -52,6 +52,7 @@ type RepositoryOptions = {
 };
 
 function repository(options: RepositoryOptions = {}): ReviewRepository & {
+  emitAuth: AuthEventHandler;
   listBatches: ReturnType<typeof vi.fn<ReviewRepository['listBatches']>>;
   getCursor: ReturnType<typeof vi.fn<ReviewRepository['getCursor']>>;
   signIn: ReturnType<typeof vi.fn<ReviewRepository['signIn']>>;
@@ -83,6 +84,7 @@ function repository(options: RepositoryOptions = {}): ReviewRepository & {
     return Promise.resolve();
   });
   return {
+    emitAuth: (session) => authHandler?.(session),
     getSession: () =>
       Promise.resolve(
         options.signedIn === false
@@ -116,6 +118,16 @@ function createApp(repo: ReviewRepository): VeriTaxaApp {
   return new VeriTaxaApp(getRoot(), repo, {
     storage: window.localStorage,
   });
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => undefined;
+  let reject: (error: Error) => void = () => undefined;
+  const promise = new Promise<T>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
 }
 
 describe('VeriTaxa application', () => {
@@ -215,6 +227,133 @@ describe('VeriTaxa application', () => {
       document.querySelector<HTMLInputElement>('input[value="target_scientific_name"]'),
     ).not.toBeNull();
     expect(document.body.textContent).not.toContain('Taxon example');
+    app.dispose();
+  });
+
+  it.each(['resolve', 'reject'] as const)('ignores a save %s after sign-out', async (outcome) => {
+    const save = deferred<ReviewItem>();
+    const repo = repository({ save: () => save.promise });
+    const app = createApp(repo);
+    await app.start();
+    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+    expect(app.state).toBe('saving');
+    await repo.signOut();
+    expect(app.state).toBe('signed_out');
+    if (outcome === 'resolve') save.resolve(secondItem);
+    else save.reject(new Error('Old account save failed'));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(app.state).toBe('signed_out');
+    expect(document.body.textContent).not.toContain('Old account save failed');
+    expect(document.querySelector('img')).toBeNull();
+    app.dispose();
+  });
+
+  it('clears drafts and rejects stale saves on direct account replacement', async () => {
+    const save = deferred<ReviewItem>();
+    const repo = repository({ save: () => save.promise });
+    const app = createApp(repo);
+    await app.start();
+    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+    repo.emitAuth({ userId: 'synthetic-other-reviewer', identifiedBy: 'Other reviewer' });
+    await vi.waitFor(() => expect(app.state).toBe('reviewing'));
+    save.resolve(secondItem);
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector('.image-position')?.textContent).toBe('1 / 2');
+    expect(document.querySelector('input:checked')).toBeNull();
+    expect(document.querySelector('.save-state')?.textContent).toBe('');
+    app.dispose();
+  });
+
+  it.each(['resolve', 'reject'] as const)('ignores a save %s after disposal', async (outcome) => {
+    const save = deferred<ReviewItem>();
+    const repo = repository({ save: () => save.promise });
+    const app = createApp(repo);
+    await app.start();
+    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+    app.dispose();
+    getRoot().textContent = 'Replacement application';
+    if (outcome === 'resolve') save.resolve(secondItem);
+    else save.reject(new Error('Disposed save failed'));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(getRoot().textContent).toBe('Replacement application');
+  });
+
+  it.each(['resolve', 'reject'] as const)(
+    'does not let an initial session %s overwrite a newer auth event',
+    async (outcome) => {
+      const session = deferred<Awaited<ReturnType<ReviewRepository['getSession']>>>();
+      const repo = repository();
+      repo.getSession = () => session.promise;
+      const app = createApp(repo);
+      const starting = app.start();
+      repo.emitAuth({ userId: 'synthetic-current-reviewer', identifiedBy: 'Current reviewer' });
+      await vi.waitFor(() => expect(app.state).toBe('reviewing'));
+      if (outcome === 'resolve') session.resolve(null);
+      else session.reject(new Error('Stale restoration error'));
+      await starting;
+      expect(app.state).toBe('reviewing');
+      expect(repo.listBatches).toHaveBeenCalledOnce();
+      app.dispose();
+    },
+  );
+
+  it('does not restart or attach keyboard handlers after disposal during initial restore', async () => {
+    const session = deferred<Awaited<ReturnType<ReviewRepository['getSession']>>>();
+    const repo = repository();
+    repo.getSession = () => session.promise;
+    const app = createApp(repo);
+    const starting = app.start();
+    app.dispose();
+    getRoot().textContent = 'Replacement application';
+    session.resolve({ userId: 'synthetic-old-reviewer', identifiedBy: null });
+    await starting;
+    await app.start();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', bubbles: true }));
+    expect(getRoot().textContent).toBe('Replacement application');
+    expect(repo.listBatches).not.toHaveBeenCalled();
+  });
+
+  it('ignores errors from a detached image while preserving the active fallback', async () => {
+    const repo = repository({
+      getCursor: (_batchId, _anchor, direction) =>
+        Promise.resolve(direction === 'next' ? secondItem : firstItem),
+    });
+    const app = createApp(repo);
+    await app.start();
+    const firstImage = document.querySelector<HTMLImageElement>('img');
+    firstImage?.dispatchEvent(new Event('error'));
+    expect(firstImage?.src).toBe(firstItem.fallbackImageUrl);
+    document.querySelector<HTMLButtonElement>('[aria-label="Next image"]')?.click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2'),
+    );
+    const currentImage = document.querySelector('img');
+    firstImage?.dispatchEvent(new Event('error'));
+    expect(app.state).toBe('reviewing');
+    expect(document.querySelector('img')).toBe(currentImage);
+    currentImage?.dispatchEvent(new Event('error'));
+    expect(app.state).toBe('image_error');
+    app.dispose();
+  });
+
+  it('keeps a pending save locked when its image fails', async () => {
+    const save = deferred<ReviewItem>();
+    const repo = repository({ save: () => save.promise });
+    const app = createApp(repo);
+    await app.start();
+    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+    const image = document.querySelector('img');
+    image?.dispatchEvent(new Event('error'));
+    image?.dispatchEvent(new Event('error'));
+    expect(app.state).toBe('saving');
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+    expect(repo.saveReview).toHaveBeenCalledOnce();
+    save.resolve(secondItem);
+    await vi.waitFor(() => expect(app.state).toBe('reviewing'));
     app.dispose();
   });
 

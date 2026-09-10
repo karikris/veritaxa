@@ -88,6 +88,10 @@ export class VeriTaxaApp {
   #requestController: AbortController | null = null;
   #unsubscribeAuth: (() => void) | null = null;
   #lastSaveSucceeded = false;
+  #sessionEpoch = 0;
+  #authRevision = 0;
+  #started = false;
+  #disposed = false;
 
   constructor(root: HTMLElement, repository: ReviewRepository, options: AppOptions = {}) {
     this.#root = root;
@@ -100,49 +104,73 @@ export class VeriTaxaApp {
   }
 
   async start(): Promise<void> {
+    if (this.#started || this.#disposed) return;
+    this.#started = true;
+    const authRevision = this.#authRevision;
     this.#state = 'auth_loading';
     this.#render();
+    document.addEventListener('keydown', this.#handleKeydown);
     this.#unsubscribeAuth = this.#repository.onAuthStateChange((session) => {
+      this.#authRevision += 1;
       void this.#handleSession(session);
     });
 
     try {
-      await this.#handleSession(await this.#repository.getSession());
+      const session = await this.#repository.getSession();
+      if (!this.#isCurrentAuthRevision(authRevision)) return;
+      await this.#handleSession(session);
     } catch {
-      this.#session = null;
+      if (!this.#isCurrentAuthRevision(authRevision)) return;
+      this.#resetSession(null);
       this.#state = 'signed_out';
       this.#errorMessage = 'The sign-in session could not be restored.';
       this.#render();
     }
-
-    document.addEventListener('keydown', this.#handleKeydown);
   }
 
   dispose(): void {
-    this.#cancelRequests();
+    this.#disposed = true;
+    this.#resetSession(null);
     this.#unsubscribeAuth?.();
     this.#unsubscribeAuth = null;
     document.removeEventListener('keydown', this.#handleKeydown);
   }
 
   async #handleSession(session: ReviewerSession | null): Promise<void> {
+    if (this.#disposed) return;
+    if (this.#session?.userId === session?.userId && this.#state !== 'auth_loading') return;
+    this.#resetSession(session);
     if (!session) {
-      this.#cancelRequests();
-      this.#session = null;
-      this.#batches = [];
-      this.#batchId = null;
-      this.#currentItem = null;
-      this.#drafts.clear();
-      this.#clearDraft();
       this.#state = 'signed_out';
       this.#render();
       return;
     }
 
-    if (this.#session?.userId === session.userId && this.#batches.length > 0) return;
-    this.#session = session;
     if (session.identifiedBy) this.#storage?.setItem(REVIEWER_NAME_KEY, session.identifiedBy);
     await this.#loadBatches();
+  }
+
+  #resetSession(session: ReviewerSession | null): void {
+    this.#sessionEpoch += 1;
+    this.#cancelRequests();
+    this.#session = session;
+    this.#batches = [];
+    this.#batchId = null;
+    this.#currentItem = null;
+    this.#imageAttempt = null;
+    this.#drafts.clear();
+    this.#clearDraft();
+    this.#lastSaveSucceeded = false;
+    this.#errorMessage = '';
+    this.#authMessage = '';
+  }
+
+  #ownsSession(epoch: number): boolean {
+    return !this.#disposed && this.#sessionEpoch === epoch;
+  }
+
+  #isCurrentAuthRevision(revision: number): boolean {
+    return !this.#disposed && this.#authRevision === revision;
   }
 
   async #loadBatches(): Promise<void> {
@@ -175,19 +203,15 @@ export class VeriTaxaApp {
     } catch (error) {
       if (!this.#isCurrentRequest(id) || isAbortError(error)) return;
       if (error instanceof ReviewerAccessDisabledError) {
-        this.#cancelRequests();
-        this.#session = null;
-        this.#batches = [];
-        this.#batchId = null;
-        this.#currentItem = null;
-        this.#drafts.clear();
-        this.#clearDraft();
+        this.#resetSession(null);
+        const epoch = this.#sessionEpoch;
         this.#state = 'signed_out';
         this.#errorMessage = error.message;
         this.#render();
         try {
           await this.#repository.signOut();
         } catch {
+          if (!this.#ownsSession(epoch)) return;
           this.#errorMessage = `${error.message} The local session could not be cleared.`;
           this.#render();
         }
@@ -266,7 +290,7 @@ export class VeriTaxaApp {
   }
 
   #isCurrentRequest(id: number): boolean {
-    return id === this.#requestId;
+    return !this.#disposed && id === this.#requestId;
   }
 
   #clearDraft(): void {
@@ -334,6 +358,8 @@ export class VeriTaxaApp {
     }
 
     this.#submissionId = createSubmissionId(this.#submissionId);
+    const epoch = this.#sessionEpoch;
+    const batchId = this.#batchId;
     this.#state = 'saving';
     this.#errorMessage = '';
     this.#render();
@@ -347,9 +373,10 @@ export class VeriTaxaApp {
         clientVersion: CLIENT_VERSION,
         expectedVersion: current.currentVersion,
       });
-      const activeBatchId = this.#batchId;
+      if (!this.#ownsSession(epoch) || this.#batchId !== batchId || this.#currentItem !== current)
+        return;
       this.#updateBatchProgressValues(
-        activeBatchId,
+        batchId,
         nextItem.reviewedCount,
         nextItem.totalCount,
         nextItem.complete,
@@ -362,6 +389,8 @@ export class VeriTaxaApp {
       this.#render();
       this.#focusClassification();
     } catch (error) {
+      if (!this.#ownsSession(epoch) || this.#batchId !== batchId || this.#currentItem !== current)
+        return;
       this.#rememberCurrentDraft();
       this.#state = 'save_error';
       this.#errorMessage = messageFrom(error, 'The classification could not be saved.');
@@ -391,12 +420,16 @@ export class VeriTaxaApp {
   }
 
   #focusClassification(): void {
+    const epoch = this.#sessionEpoch;
+    const item = this.#currentItem;
     queueMicrotask(() => {
+      if (!this.#ownsSession(epoch) || this.#currentItem !== item) return;
       this.#root.querySelector<HTMLElement>('.classification-panel')?.focus();
     });
   }
 
   readonly #handleKeydown = (event: KeyboardEvent): void => {
+    if (this.#disposed) return;
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       if (!this.#isEditableEmailOrSelector(event.target)) {
         event.preventDefault();
@@ -451,6 +484,7 @@ export class VeriTaxaApp {
   }
 
   #render(): void {
+    if (this.#disposed) return;
     this.#root.replaceChildren();
     const shell = element('div', 'app-shell');
     shell.append(this.#buildHeader());
@@ -517,7 +551,9 @@ export class VeriTaxaApp {
 
     const signOut = button('Sign out', 'text-button');
     signOut.addEventListener('click', () => {
+      const epoch = this.#sessionEpoch;
       void this.#repository.signOut().catch(() => {
+        if (!this.#ownsSession(epoch)) return;
         this.#errorMessage = 'Could not sign out. Try again.';
         this.#render();
       });
@@ -568,12 +604,15 @@ export class VeriTaxaApp {
       this.#authMessage = 'Starting review…';
       this.#errorMessage = '';
       this.#render();
+      const epoch = this.#sessionEpoch;
       void this.#repository
         .signIn(identifiedBy)
         .then(() => {
+          if (!this.#ownsSession(epoch)) return;
           this.#authMessage = '';
         })
         .catch((error: unknown) => {
+          if (!this.#ownsSession(epoch)) return;
           this.#authMessage = '';
           this.#errorMessage = messageFrom(error, 'The review session could not be started.');
           this.#render();
@@ -672,15 +711,26 @@ export class VeriTaxaApp {
     image.fetchPriority = 'high';
     image.referrerPolicy = 'no-referrer';
     image.src = source;
+    const epoch = this.#sessionEpoch;
+    let attempt = this.#imageAttempt;
     image.addEventListener('error', () => {
-      if (!this.#imageAttempt) return;
-      const next = advanceImageAttempt(this.#imageAttempt);
+      if (
+        !this.#ownsSession(epoch) ||
+        this.#currentItem !== current ||
+        !this.#root.contains(image) ||
+        !attempt ||
+        this.#imageAttempt !== attempt
+      )
+        return;
+      const next = advanceImageAttempt(attempt);
       if (next) {
+        attempt = next;
         this.#imageAttempt = next;
         const nextSource = currentImageSource(next);
         if (nextSource) image.src = nextSource;
       } else {
-        this.#state = 'image_error';
+        this.#imageAttempt = null;
+        if (this.#state === 'reviewing') this.#state = 'image_error';
         this.#render();
       }
     });
