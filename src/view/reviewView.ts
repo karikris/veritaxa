@@ -7,6 +7,7 @@ type ReviewViewActions = {
   selectLabel: (label: ReviewLabelCode) => void;
   editComment: (comment: string) => void;
   submit: () => void;
+  discardDraft: () => void;
   navigate: (direction: 'previous' | 'next') => void;
   retryImage: () => void;
   resolveConflict: (useSaved: boolean) => void;
@@ -16,6 +17,7 @@ type ReviewViewActions = {
 export type ReviewViewState = {
   item: ReviewItem | null;
   draft: ReviewDraft;
+  draftLimitReached: boolean;
   comparison: ReviewItem | null;
   sources: readonly string[] | null;
   source: string | null;
@@ -60,6 +62,9 @@ export class ReviewView {
   readonly #send: HTMLButtonElement;
   readonly #status: HTMLElement;
   readonly #pending: HTMLElement;
+  readonly #draftLimit: HTMLElement;
+  readonly #draftLimitMessage: HTMLElement;
+  readonly #discardDraft: HTMLButtonElement;
   readonly #comparison: HTMLElement;
   readonly #comparisonHeading: HTMLElement;
   readonly #comparisonLabel: HTMLElement;
@@ -106,6 +111,10 @@ export class ReviewView {
             <button type="button" class="send-button">Send</button>
           </div>
           <p class="status-text pending-notice" role="status" hidden>Retry sends the original request. Any newer edits will remain unsaved until you send them separately.</p>
+          <section class="draft-limit" aria-label="Unsaved draft limit" hidden>
+            <p class="status-text status-text--error" role="alert"></p>
+            <button type="button" class="secondary-button discard-draft">Discard local edits</button>
+          </section>
           <section class="conflict-comparison" aria-label="Saved answer comparison" hidden>
             <h3></h3><p class="saved-label"></p><p class="saved-comment"></p>
             <button type="button" class="secondary-button use-saved">Use saved answer</button>
@@ -136,6 +145,9 @@ export class ReviewView {
     this.#send = find('.send-button', HTMLButtonElement);
     this.#status = find('.submission-action .status-text', HTMLElement);
     this.#pending = find('.pending-notice', HTMLElement);
+    this.#draftLimit = find('.draft-limit', HTMLElement);
+    this.#draftLimitMessage = find('.draft-limit p', HTMLElement);
+    this.#discardDraft = find('.discard-draft', HTMLButtonElement);
     this.#comparison = find('.conflict-comparison', HTMLElement);
     this.#comparisonHeading = find('.conflict-comparison h3', HTMLElement);
     this.#comparisonLabel = find('.saved-label', HTMLElement);
@@ -174,6 +186,7 @@ export class ReviewView {
     this.#next.addEventListener('click', () => actions.navigate('next'));
     this.#retry.addEventListener('click', actions.retryImage);
     this.#send.addEventListener('click', actions.submit);
+    this.#discardDraft.addEventListener('click', actions.discardDraft);
     this.#comment.addEventListener('input', () => {
       if (!this.#comment.disabled) actions.editComment(this.#comment.value);
     });
@@ -245,6 +258,14 @@ export class ReviewView {
     this.#status.setAttribute('role', state.isError ? 'alert' : 'status');
     this.#status.setAttribute('aria-live', state.isError ? 'assertive' : 'polite');
     this.#pending.hidden = !draft.pendingSubmission || state.saving;
+    this.#draftLimit.hidden = !state.draftLimitReached;
+    this.#discardDraft.disabled = busy || !!draft.pendingSubmission;
+    this.#draftLimitMessage.textContent = state.draftLimitReached
+      ? 'Unsaved draft budget reached (256 entries or 1 MiB, including an active-editor reserve). ' +
+        (draft.pendingSubmission
+          ? 'Retry the original save to resolve its outcome before navigating; it may already have committed.'
+          : 'Save this review or explicitly discard its local edits before navigating. Other drafts are unchanged.')
+      : '';
     if (comparison) {
       if (!this.#comparison.isConnected) this.#pending.after(this.#comparison);
       this.#comparison.hidden = false;

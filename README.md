@@ -268,6 +268,15 @@ A reviewer can then enter their name, immediately choose an open neutral batch,
 classify one image, and resume at the next unreviewed item later. Their session
 and per-batch database progress are remembered on that browser.
 
+Unsaved edits remain only in the current tab's memory; they are not database
+reviews and do not survive reload or sign-out. Their retention is capped at 256
+drafts and 1 MiB of serialized data. One slot and 16 KiB are reserved within those
+limits for the active editor and its possible immutable retry request. At
+capacity, navigation and batch changes pause until the reviewer saves or
+explicitly discards the current local edits. Other drafts are not evicted.
+An unresolved save cannot be discarded: retry its original request first,
+because a failed browser response does not prove the database write failed.
+
 ## Local frontend development
 
 Copy `.env.example` to `.env.local`, replace its two public placeholders, then:

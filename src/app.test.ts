@@ -332,6 +332,81 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it.each(['discard', 'save', 'retry'] as const)(
+    'requires explicit %s resolution at the draft limit without evicting other work',
+    async (resolution) => {
+      const itemAt = (position: number): ReviewItem => ({
+        ...firstItem,
+        id: `40000000-0000-0000-0000-${String(position).padStart(12, '0')}`,
+        position,
+        totalCount: 1000,
+      });
+      const repo = repository({
+        getCursor: (_batchId, anchor, direction) =>
+          Promise.resolve(
+            itemAt(direction === 'resume' ? 1 : (anchor ?? 0) + (direction === 'next' ? 1 : -1)),
+          ),
+        save: () => Promise.resolve(itemAt(257)),
+      });
+      const alternate = { ...batch, id: '30000000-0000-0000-0000-000000000002' };
+      repo.listBatches.mockResolvedValue([batch, alternate]);
+      if (resolution === 'retry')
+        repo.saveReview.mockRejectedValueOnce(new Error('Synthetic unknown save outcome'));
+      const app = createApp(repo);
+      await app.start();
+      const radio = document.querySelector<HTMLInputElement>('input[value="plant"]');
+      const comment = document.querySelector<HTMLTextAreaElement>('#review-comment');
+      const next = document.querySelector<HTMLButtonElement>('[aria-label="Next image"]');
+      if (!radio || !comment || !next) throw new Error('Review controls are missing');
+      for (let position = 1; position <= 256; position += 1) {
+        radio.click();
+        comment.value = `Unsaved ${String(position)}`;
+        comment.dispatchEvent(new Event('input', { bubbles: true }));
+        next.click();
+        await new Promise<void>((resolve) => queueMicrotask(resolve));
+      }
+      expect(repo.getCursor).toHaveBeenCalledTimes(256);
+      expect(document.querySelector('.image-position')?.textContent).toBe('256 / 1000');
+      expect(comment.value).toBe('Unsaved 256');
+      expect(document.querySelector<HTMLElement>('.draft-limit')?.hidden).toBe(false);
+      const select = document.querySelector<HTMLSelectElement>('#batch-select');
+      if (!select) throw new Error('Batch selector is missing');
+      select.value = alternate.id;
+      select.dispatchEvent(new Event('change'));
+      expect(select.value).toBe(batch.id);
+      expect(repo.getCursor).toHaveBeenCalledTimes(256);
+      const discard = document.querySelector<HTMLButtonElement>('.discard-draft');
+      if (resolution === 'discard') {
+        discard?.click();
+        expect(comment.value).toBe('');
+        expect(repo.saveReview).not.toHaveBeenCalled();
+        next.click();
+      } else {
+        document.querySelector<HTMLButtonElement>('.send-button')?.click();
+        if (resolution === 'retry') {
+          await vi.waitFor(() => expect(app.state).toBe('save_error'));
+          expect(discard?.disabled).toBe(true);
+          expect(document.querySelector('.draft-limit')?.textContent).toContain(
+            'may already have committed',
+          );
+          discard?.dispatchEvent(new Event('click'));
+          expect(comment.value).toBe('Unsaved 256');
+          document.querySelector<HTMLButtonElement>('.send-button')?.click();
+        }
+      }
+      await vi.waitFor(() =>
+        expect(document.querySelector('.image-position')?.textContent).toBe('257 / 1000'),
+      );
+      expect(document.querySelector<HTMLElement>('.draft-limit')?.hidden).toBe(true);
+      repo.getCursor.mockResolvedValueOnce(itemAt(1));
+      document.querySelector<HTMLButtonElement>('[aria-label="Previous image"]')?.click();
+      await vi.waitFor(() => expect(comment.value).toBe('Unsaved 1'));
+      expect(radio.checked).toBe(true);
+      app.dispose();
+    },
+    15000,
+  );
+
   it.each(['resolve', 'reject'] as const)('ignores a save %s after sign-out', async (outcome) => {
     const save = deferred<ReviewItem>();
     const repo = repository({ save: () => save.promise });

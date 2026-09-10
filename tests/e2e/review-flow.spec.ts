@@ -143,6 +143,49 @@ test('ordinary edits preserve real browser nodes, focus, caret and the loaded im
   }
 });
 
+for (const budget of ['count', 'bytes'] as const) {
+  test(`unsaved draft ${budget} limit requires explicit resolution in the browser`, async ({
+    page,
+  }) => {
+    await routeSyntheticImages(page, []);
+    await page.goto('/veritaxa/tests/fixtures/synthetic-only/long-session.html');
+    await expect(page.locator('.image-position')).toHaveText('1 / 1000');
+    const position = await page.evaluate(async (limit) => {
+      const radio = document.querySelector<HTMLInputElement>('input[value="plant"]');
+      const comment = document.querySelector<HTMLTextAreaElement>('#review-comment');
+      const next = document.querySelector<HTMLButtonElement>('[aria-label="Next image"]');
+      const warning = document.querySelector<HTMLElement>('.draft-limit');
+      if (!radio || !comment || !next || !warning) throw new Error('Missing review controls');
+      for (let position = 1; position <= 256; position += 1) {
+        radio.click();
+        comment.value = limit === 'bytes' ? '\u0001'.repeat(1000) : `Unsaved ${String(position)}`;
+        comment.dispatchEvent(new Event('input', { bubbles: true }));
+        next.click();
+        await new Promise<void>((resolve) => queueMicrotask(resolve));
+        if (!warning.hidden) return position;
+      }
+      throw new Error('Draft budget did not stop navigation');
+    }, budget);
+    if (budget === 'count') expect(position).toBe(256);
+    else expect(position).toBeLessThan(256);
+    await expect(page.getByRole('region', { name: 'Unsaved draft limit' })).toBeVisible();
+    await expect(page.getByLabel('Comment')).toHaveValue(
+      budget === 'bytes' ? '\u0001'.repeat(1000) : `Unsaved ${String(position)}`,
+    );
+    await page.getByRole('button', { name: 'Discard local edits' }).click();
+    await expect(page.getByLabel('Comment')).toHaveValue('');
+    await page.getByRole('button', { name: 'Next image' }).click();
+    await expect(page.locator('.image-position')).toHaveText(`${String(position + 1)} / 1000`);
+    await page.getByRole('button', { name: 'Previous image' }).click();
+    await expect(page.getByLabel('Comment')).toHaveValue('');
+    await page.getByRole('button', { name: 'Previous image' }).click();
+    await expect(page.getByLabel('Comment')).toHaveValue(
+      budget === 'bytes' ? '\u0001'.repeat(1000) : `Unsaved ${String(position - 1)}`,
+    );
+    await expect(page.locator('input[value="plant"]')).toBeChecked();
+  });
+}
+
 test('previous and next skip without saving and restore unsaved drafts', async ({ page }) => {
   await routeSyntheticImages(page, []);
   await page.goto('/veritaxa/?repository=synthetic');

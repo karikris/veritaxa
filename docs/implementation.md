@@ -230,3 +230,18 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   pass. These are correctness/allocation-churn regressions, **not** the required
   1,000-navigation heap/process-memory soak. Bounded dirty drafts and explicit
   preview/original policy are still required before phase 4 is complete.
+- Phase 4 draft retention now uses byte-accounted parked snapshots. The total
+  256-entry / 1 MiB budget reserves one slot and 16 KiB for the current editor,
+  covering two maximally escaped 1,000-code-point comments plus request fields.
+  Capacity blocks navigation and batch changes without eviction; explicit save
+  or local discard resolves it. Unknown writes retain their immutable request
+  and cannot be discarded. Snapshots prevent later edits after failed navigation
+  from invalidating stored byte accounting. Restore/delete/session reset release
+  the corresponding accounting and records.
+- Draft-budget checks pass 68 frontend tests and 20 desktop/mobile browser tests.
+  They exercise independent count/byte limits, escaped metadata-free comments,
+  retained older drafts, batch-switch prevention, save/discard/retry decisions
+  and the active-editor reserve. A navigation-only synthetic fixture generates
+  one item on demand instead of allocating an artificial thousand-item queue.
+  Type/lint/format checks and a 61.09 KiB gzip bundle pass. Preview/original policy
+  and measured long-session JS/image/process-memory gates are still pending.

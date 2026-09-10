@@ -1,5 +1,6 @@
 import { ReviewView } from './view/reviewView';
-import { createReviewDraft, submissionForDraft, type ReviewDraft } from './domain/reviewDraft';
+import { DraftStore } from './domain/draftStore';
+import { createReviewDraft, submissionForDraft } from './domain/reviewDraft';
 import { limitCodePoints } from './domain/text';
 import { LABEL_BY_SHORTCUT } from './domain/reviewLabels';
 import {
@@ -73,7 +74,8 @@ export class VeriTaxaApp {
   #batches: ReviewBatch[] = [];
   #batchId: string | null = null;
   #currentItem: ReviewItem | null = null;
-  readonly #drafts = new Map<string, ReviewDraft>();
+  readonly #drafts = new DraftStore();
+  #draftLimitReached = false;
   #draft = createReviewDraft();
   #comparisonItem: ReviewItem | null = null;
   #imageAttempt: ImageAttempt | null = null;
@@ -226,7 +228,7 @@ export class VeriTaxaApp {
   }
 
   async #selectBatch(batchId: string): Promise<void> {
-    this.#rememberCurrentDraft();
+    if (!this.#rememberCurrentDraft()) return;
     this.#batchId = batchId;
     this.#storage?.setItem(LAST_BATCH_KEY, batchId);
     this.#currentItem = null;
@@ -298,17 +300,18 @@ export class VeriTaxaApp {
   #clearDraft(): void {
     this.#draft = createReviewDraft();
     this.#comparisonItem = null;
+    this.#draftLimitReached = false;
   }
 
   #restoreDraft(item: ReviewItem): void {
-    this.#draft = this.#drafts.get(item.id) ?? createReviewDraft(item);
-    this.#drafts.delete(item.id);
+    this.#draft = this.#drafts.take(item.id) ?? createReviewDraft(item);
     this.#comparisonItem = null;
+    this.#draftLimitReached = false;
   }
 
-  #rememberCurrentDraft(): void {
+  #rememberCurrentDraft(): boolean {
     const item = this.#currentItem;
-    if (!item) return;
+    if (!item) return true;
     const persistedComment = item.currentComment ?? '';
     if (
       this.#draft.label === item.currentLabel &&
@@ -317,16 +320,38 @@ export class VeriTaxaApp {
       !this.#draft.conflicted
     ) {
       this.#drafts.delete(item.id);
-      return;
+      return true;
     }
-    this.#drafts.set(item.id, this.#draft);
+    if (this.#drafts.keep(item.id, this.#draft)) return true;
+    this.#draftLimitReached = true;
+    this.#render();
+    return false;
+  }
+
+  #discardCurrentDraft(): void {
+    const current = this.#currentItem;
+    if (
+      !current ||
+      this.#draft.pendingSubmission ||
+      this.#state === 'saving' ||
+      this.#state === 'loading_image'
+    )
+      return;
+    this.#drafts.delete(current.id);
+    this.#draft = createReviewDraft(current);
+    this.#comparisonItem = null;
+    this.#draftLimitReached = false;
+    this.#lastSaveSucceeded = false;
+    this.#errorMessage = 'Local edits discarded. No database changes were made.';
+    this.#state = this.#imageAttempt ? 'reviewing' : 'image_error';
+    this.#render();
   }
 
   async #navigate(direction: 'next' | 'previous'): Promise<void> {
     const current = this.#currentItem;
     const batchId = this.#batchId;
     if (!current || !batchId || this.#state === 'saving' || this.#state === 'loading_image') return;
-    this.#rememberCurrentDraft();
+    if (!this.#rememberCurrentDraft()) return;
     await this.#loadCursor(batchId, current.position, direction);
     this.#focusClassification();
   }
@@ -410,7 +435,6 @@ export class VeriTaxaApp {
         this.#draft.pendingSubmission = null;
         this.#draft.conflicted = true;
       }
-      this.#rememberCurrentDraft();
       this.#state = 'save_error';
       this.#errorMessage = messageFrom(error, 'The classification could not be saved.');
       this.#render();
@@ -480,6 +504,7 @@ export class VeriTaxaApp {
         };
     this.#drafts.delete(latest.id);
     this.#comparisonItem = null;
+    this.#draftLimitReached = false;
     this.#lastSaveSucceeded = false;
     this.#updateBatchProgress(latest);
     this.#state = 'reviewing';
@@ -606,6 +631,7 @@ export class VeriTaxaApp {
       this.#reviewView.update({
         item: this.#currentItem,
         draft: this.#draft,
+        draftLimitReached: this.#draftLimitReached,
         comparison: this.#comparisonItem,
         sources: this.#imageAttempt?.sources ?? null,
         source: this.#imageAttempt ? currentImageSource(this.#imageAttempt) : null,
@@ -651,6 +677,9 @@ export class VeriTaxaApp {
       },
       submit: () => {
         if (owns()) void this.#submit();
+      },
+      discardDraft: () => {
+        if (owns() && this.#draftLimitReached) this.#discardCurrentDraft();
       },
       navigate: (direction) => {
         if (owns()) void this.#navigate(direction);
