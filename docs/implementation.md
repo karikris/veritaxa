@@ -211,3 +211,8 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   suites), 58 frontend tests and 14 desktop/mobile browser tests passed; type,
   lint, format, data-leak and whitespace checks passed. The frontend is unchanged
   at 59.46 KiB gzip. Phase push and remote CI/deployment verification follow.
+- Phase 3 pushed through `0e67929`. GitHub rejected CI `34483253598` before
+  starting jobs because `runner.temp` is unavailable in job-level `env`. The
+  fixture path now names a fixed temporary directory on the disposable runner;
+  generation still refuses to overwrite any existing fixture. This focused CI
+  correction requires a new push/run, not a passing claim for the rejected run.

@@ -129,7 +129,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       VERITAXA_IMPORT_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_import_synthetic user=synthetic password=synthetic-ci-only
-      VERITAXA_IMPORT_FIXTURES: ${{ runner.temp }}/veritaxa-import-fixtures
+      VERITAXA_IMPORT_FIXTURES: /tmp/veritaxa-import-fixtures
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v9.0.0
