@@ -16,8 +16,8 @@ reproduction artifacts remain outside this public-code repository.
 | 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed            |
 | 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed            |
 | 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed            |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Locally verified; push pending |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                        |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pushed; CI pending             |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Locally verified; push pending |
 | 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                        |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
@@ -317,3 +317,49 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   issues. This is SQL-only verification, not an Auth service test or a live
   Supabase migration. Cursor optimization and its new regression tests remain
   to be implemented.
+- Phase 4 focused commits `5ed5409` (browser-memory harness), `7d492bc` (bundle
+  ceiling) and `a1adf75` (measurements) are pushed. In
+  [CI 34493992268](https://github.com/karikris/veritaxa/actions/runs/34493992268),
+  application, Supabase security, browser-memory and export-memory jobs have
+  passed; import-memory remains running. The downloaded browser artifact was
+  independently revalidated: all nine runs passed on Node 24.20.0 / Chromium
+  151.0.7922.34, retained heap at most 0.962 MiB, post-GC PSS at most 1,039.87 MiB
+  and fitted decoded-image growth at most 2.715 MiB. The phase's overall CI and
+  Pages deployment cannot yet be called complete.
+- Phase 5 migration `594dbc5` replaces next/previous CASE sorting with strict
+  indexed position ranges and explicit wrap fallback. Existing indexes suffice.
+  Removing the redundant ID tie-breaker avoids even the incremental sort found
+  in an empty-range plan; an immediate unique-constraint assertion protects that
+  assumption. Resume, authorization, safe search path, grants, metadata-free
+  response fields, legacy-label handling and exact own-review progress remain
+  unchanged. No live migrations, cache/counters or historical RPC removal occur.
+- All 48 new cursor assertions and 54 existing security assertions pass. They
+  cover integer extremes, absent anchors, gaps, first/last wrap, empty/single-item
+  batches, complete reviewers, independent second-reviewer answers, full response
+  equality, invalid/closed/draft batches, missing identity and inactive profiles.
+  A second fresh temporary PostgreSQL cluster applied the SQL-only Auth fixture
+  and all ten migrations from scratch, passed all 102 assertions, rejected the
+  wrong/nonempty fixture targets and retained no test rows. It was then stopped.
+  Supabase advisors found no issues on the disposable migrated database.
+- The [cursor benchmark](../benchmarks/cursor-database.md), committed as `c5bee95`,
+  records three runs at each of 1,000, 10,000 and 100,000 items, with 10 warm-ups
+  and 30 measured calls per next/previous/wrap/resume case. Full RPCs run as the
+  authenticated caller, with another review on every item to catch cross-reviewer
+  progress mistakes. All range/wrap plans pass an indexed-LIMIT gate without
+  sort or prefix filter. Every timed call checks identity and progress; fixtures
+  roll back after each size. Four unit tests cover query shapes, timing samples
+  and failing plan gates.
+- [Cursor results](../benchmarks/results/cursor-2026-09-11.json) preserve samples,
+  individual runs, scan counters and three-run p50/p95 medians/ranges. At the
+  current 1,000-item batch cap, next-selection p50 changed from 0.131 to 0.046 ms
+  and full-RPC p50/p95 from 1.042/1.290 to 0.958/1.122 ms. At the 100,000-item
+  stress size, next-selection p50 changed from 7.139 to 0.058 ms and full-RPC
+  p50/p95 from 35.186/38.022 to 19.442/20.255 ms. Resume is unchanged; its
+  stress-size p50 was 39.843 before and 41.951 ms after, so no resume speedup is
+  claimed. Progress counts still scale with batch size. These include the local
+  driver but exclude HTTP, hosted-network and Auth-service latency.
+- Phase 5 local verification also passes all 141 Python tests, Ruff and format
+  checks, the private-data scan and whitespace checks. The application has no
+  frontend changes in this phase; its prior 87 unit/24 browser checks and
+  61.96 KiB gzip production result remain applicable. Phase push and remote
+  migration/CI verification follow.
