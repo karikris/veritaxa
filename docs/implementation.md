@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                           |
-| ----- | ----------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed              |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed              |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Local gates passed; push pending |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Pending                          |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                          |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                          |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                          |
+| Phase | Required result                                                                                             | Status                       |
+| ----- | ----------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed          |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed          |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed          |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | In progress: validated spool |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                      |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                      |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                      |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -157,3 +157,28 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   memory excluded. [Full aggregate measurements](../benchmarks/results/export-2026-09-10.json)
   retain versions, medians, ranges and individual runs. A separate CI job repeats
   this gate on disposable PostgreSQL 17 and publishes aggregate metrics only.
+- Phase 2 pushed through `a3bd232`; [CI 34477826371](https://github.com/karikris/veritaxa/actions/runs/34477826371)
+  passed the application, Supabase security and new driver-backed memory jobs.
+  The downloaded CI artifact confirms all 48 cases passed on Python 3.12.3 and
+  PostgreSQL 17.11, largest peak 206.22 MiB and largest median growth 38.65 MiB.
+  Local final checks passed 58 frontend and 14 desktop/mobile browser tests,
+  lint/type/format/data-leak checks and the 59.46 KiB gzip bundle gate.
+  [Pages 34479299018](https://github.com/karikris/veritaxa/actions/runs/34479299018)
+  also passed at the pushed phase commit.
+- Phase 3 started by extracting shared normalization (`2ea1c07`) without changing
+  legacy candidate semantics. The private SQLite spool validates metadata and
+  final logical batches before exposing any candidates; 4 MiB insertion chunks
+  keep batch/item positions independent of byte boundaries. It rejects normalized
+  rows over 16 MiB and nonfinite JSON before database publication. Global
+  `sha256-v1` shuffle is explicitly different from legacy Polars ordering, treats
+  seed 0 as a seed, and has a fixed-order regression fixture. Normalized metadata,
+  collisions, cross-batch membership, cancellation cleanup, finite-value checks,
+  read-only staging and one accepted 8 MiB payload are tested.
+- Phase 3 spool-only fresh-child measurements with global seed 0: three runs at
+  10,000 rows used 33.86 MiB; 100,000-row range 34.84–35.01 MiB (median 34.87).
+  These **exclude file readers and database insertion**. A direct-shell probe
+  initially reported an inherited launcher high-water mark around 155 MiB before
+  validation even began; the probe now forks explicitly and records its initial
+  high-water mark. Export CI already uses fresh child processes. **The import
+  CLI is still eager: reader/spool/inserter integration, transactional failure
+  tests and full import RSS/COPY comparisons remain required before phase 3 ends.**

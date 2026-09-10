@@ -81,3 +81,24 @@ an accepted 8 MiB metadata payload and a rejected 17 MiB payload. Oversized case
 are correctness tests, not evidence for the 20 KiB-fixture RSS bound. The output
 limit is checked after the driver decodes a row. Review the documented policy
 before exporting exceptionally large single records.
+
+## Import spool development probe
+
+```sh
+uv run python -m benchmarks.import_spool 10000 --shuffle-seed 0
+uv run python -m benchmarks.import_spool 100000 --shuffle-seed 0
+```
+
+This synthetic-only probe validates, orders and consumes a private SQLite spool;
+it does not read a candidate file or insert into Postgres. It is **not** the final
+import gate, and the existing import CLI has not yet been switched to the spool.
+Each invocation starts a fresh child so a shell launcher cannot contribute an
+inherited `ru_maxrss` high-water mark. It also reports initial and post-validation
+RSS. As with the export gate, use Linux and compare repeated ranges and medians.
+
+`sha256-v1` shuffle orders every input ordinal globally by the SHA-256 digest of
+the ASCII string `veritaxa-shuffle-sha256-v1:<seed>:<zero-based ordinal>`, breaking
+hash ties by ordinal. The ordering is independent of insertion chunk size and
+treats seed 0 normally; it does **not** reproduce legacy Polars PRNG order. No
+metadata or full permutation is retained in a Python list. Changing byte-sized
+insertion chunks never changes the requested logical batch size or item positions.
