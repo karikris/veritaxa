@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { createSubmissionId, MAX_COMMENT_LENGTH, normalizeComment } from './reviewQueue';
+import { MAX_COMMENT_LENGTH, normalizeComment } from './reviewQueue';
 
 describe('review submission rules', () => {
   it('normalises blank comments to null and trims meaningful comments', () => {
@@ -13,13 +13,5 @@ describe('review submission rules', () => {
     expect(() => normalizeComment('🦋'.repeat(MAX_COMMENT_LENGTH + 1))).toThrow(
       '1000 characters or fewer',
     );
-  });
-
-  it('reuses an existing submission ID for an idempotent retry', () => {
-    const randomUuid = vi.spyOn(crypto, 'randomUUID');
-    expect(createSubmissionId('50000000-0000-0000-0000-000000000001')).toBe(
-      '50000000-0000-0000-0000-000000000001',
-    );
-    expect(randomUuid).not.toHaveBeenCalled();
   });
 });

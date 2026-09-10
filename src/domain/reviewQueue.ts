@@ -47,7 +47,3 @@ export function normalizeComment(value: string): string | null {
   }
   return trimmed;
 }
-
-export function createSubmissionId(existing: string | null): string {
-  return existing ?? crypto.randomUUID();
-}

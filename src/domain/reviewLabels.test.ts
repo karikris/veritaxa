@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import labelSchema from '../../schemas/review-labels-v3.json';
 import {
-  highestPriorityLabel,
   PIPELINE_MAPPINGS,
   REVIEW_LABEL_CODES,
   REVIEW_LABEL_SCHEMA_VERSION,
@@ -32,15 +31,5 @@ describe('canonical review labels', () => {
     const exclusions = new Set<string>(PIPELINE_MAPPINGS.excludedFromAutomaticTraining);
     expect(PIPELINE_MAPPINGS.insectaPositive.every((code) => !exclusions.has(code))).toBe(true);
     expect(PIPELINE_MAPPINGS.butterflyPositive.every((code) => !exclusions.has(code))).toBe(true);
-  });
-
-  it('applies the deterministic multi-subject priority rule', () => {
-    expect(highestPriorityLabel(['adult_butterfly', 'target_scientific_name'])).toBe(
-      'target_scientific_name',
-    );
-    expect(highestPriorityLabel(['plant', 'adult_butterfly'])).toBe('adult_butterfly');
-    expect(highestPriorityLabel(['plant', 'other_insect'])).toBe('other_insect');
-    expect(highestPriorityLabel(['bird', 'mammal_or_person'])).toBe('mammal_or_person');
-    expect(highestPriorityLabel([])).toBeNull();
   });
 });

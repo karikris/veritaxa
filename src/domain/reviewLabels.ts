@@ -168,12 +168,6 @@ export function isReviewLabelCode(value: unknown): value is ReviewLabelCode {
   return typeof value === 'string' && LABEL_CODE_SET.has(value);
 }
 
-export function highestPriorityLabel(labels: readonly ReviewLabelCode[]): ReviewLabelCode | null {
-  if (labels.length === 0) return null;
-  const priority = new Map(REVIEW_LABELS.map((label) => [label.code, label.priority]));
-  return [...labels].sort((a, b) => (priority.get(a) ?? 99) - (priority.get(b) ?? 99))[0] ?? null;
-}
-
 export const LABEL_BY_SHORTCUT = new Map(
   REVIEW_LABELS.map((label) => [label.shortcut.toLowerCase(), label.code]),
 );
