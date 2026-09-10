@@ -965,6 +965,63 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it.each(['saving', 'loading_image'] as const)(
+    'keeps keyboard and control capabilities aligned while %s',
+    async (operation) => {
+      const pending = deferred<ReviewItem>();
+      const repo = repository({ save: () => pending.promise });
+      const app = createApp(repo);
+      await app.start();
+      const label = document.querySelector<HTMLInputElement>('input[value="moth"]');
+      const comment = document.querySelector<HTMLTextAreaElement>('#review-comment');
+      const next = document.querySelector<HTMLButtonElement>('[aria-label="Next image"]');
+      const send = document.querySelector<HTMLButtonElement>('.send-button');
+      const selector = document.querySelector<HTMLSelectElement>('#batch-select');
+      const source = document.querySelector<HTMLButtonElement>('.image-source-button');
+      if (!label || !comment || !next || !send || !selector || !source)
+        throw new Error('Missing review controls');
+      label.click();
+      comment.value = 'Original draft';
+      comment.dispatchEvent(new Event('input', { bubbles: true }));
+      if (operation === 'saving') send.click();
+      else {
+        repo.getCursor.mockReturnValueOnce(pending.promise);
+        next.click();
+      }
+      expect(app.state).toBe(operation);
+      const cursorCalls = repo.getCursor.mock.calls.length;
+      const saveCalls = repo.saveReview.mock.calls.length;
+      const image = document.querySelector('img');
+      for (const control of [label, comment, next, send, selector, source])
+        expect(control.disabled).toBe(true);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      comment.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }),
+      );
+      // Queued/programmatic events do not gain authority from a mutable DOM flag.
+      selector.disabled = false;
+      selector.dispatchEvent(new Event('change', { bubbles: true }));
+      comment.disabled = false;
+      comment.value = 'Ignored while busy';
+      comment.dispatchEvent(new Event('input', { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      source.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(repo.getCursor).toHaveBeenCalledTimes(cursorCalls);
+      expect(repo.saveReview).toHaveBeenCalledTimes(saveCalls);
+      expect(document.querySelector('img')).toBe(image);
+
+      pending.resolve({ ...firstItem, currentLabel: 'moth', currentComment: 'Original draft' });
+      await vi.waitFor(() => expect(app.state).toBe('reviewing'));
+      expect(label.checked).toBe(true);
+      expect(comment.value).toBe('Original draft');
+      for (const control of [label, comment, next, send, selector, source])
+        expect(control.disabled).toBe(false);
+      app.dispose();
+    },
+  );
+
   it('uses arrow navigation only outside editable fields', async () => {
     const repo = repository({
       getCursor: (_batchId, _anchorPosition, direction) =>

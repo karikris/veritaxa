@@ -27,7 +27,9 @@ export type ReviewViewState = {
   imageMode: ImageMode;
   originalAvailable: boolean;
   previewTooLarge: boolean;
-  busy: boolean;
+  canEdit: boolean;
+  canNavigate: boolean;
+  canDiscardDraft: boolean;
   saving: boolean;
   canSubmit: boolean;
   errorMessage: string;
@@ -223,11 +225,11 @@ export class ReviewView {
   }
 
   update(state: ReviewViewState): void {
-    const { item, draft, comparison, source, sources, busy } = state;
+    const { item, draft, comparison, source, sources, canEdit } = state;
     this.#completion.hidden = !state.complete;
     this.#classifier.hidden = !item;
     this.#navigation.hidden = !item;
-    this.#previous.disabled = this.#next.disabled = busy;
+    this.#previous.disabled = this.#next.disabled = !state.canNavigate;
     this.#position.textContent = item
       ? `${String(item.position)} / ${String(item.totalCount)}`
       : '';
@@ -242,7 +244,7 @@ export class ReviewView {
         ? 'A display-sized image is not available for automatic review.'
         : 'The supplied source image could not be loaded.';
     this.#retry.hidden = item ? !!source : !state.errorMessage;
-    this.#retry.disabled = !!item && busy;
+    this.#retry.disabled = !!item && !canEdit;
     this.#stage.classList.toggle('image-stage--loading', !item);
     this.#stage.classList.toggle('image-stage--error', !!item && !source);
     this.#stage.setAttribute('aria-label', item ? 'Image under review' : 'Loading image');
@@ -250,7 +252,7 @@ export class ReviewView {
     this.#updateImage(sources, source);
     this.#sourceControls.hidden = !item;
     this.#sourceButton.hidden = !state.originalAvailable;
-    this.#sourceButton.disabled = busy;
+    this.#sourceButton.disabled = !canEdit;
     this.#sourceButton.textContent =
       state.imageMode === 'original' ? 'Return to preview' : 'Inspect source image';
     this.#sourceStatus.textContent =
@@ -270,9 +272,9 @@ export class ReviewView {
     }
     for (const [label, input] of this.#labels) {
       input.checked = draft.label === label;
-      input.disabled = busy;
+      input.disabled = !canEdit;
     }
-    this.#comment.disabled = busy;
+    this.#comment.disabled = !canEdit;
     // Assigning an unchanged textarea value can disturb selection/IME composition.
     if (this.#comment.value !== draft.comment) this.#comment.value = draft.comment;
     const remaining = MAX_COMMENT_LENGTH - countCodePoints(draft.comment);
@@ -299,7 +301,7 @@ export class ReviewView {
     this.#status.setAttribute('aria-live', state.isError ? 'assertive' : 'polite');
     this.#pending.hidden = !draft.pendingSubmission || state.saving;
     this.#draftLimit.hidden = !state.draftLimitReached;
-    this.#discardDraft.disabled = busy || !!draft.pendingSubmission;
+    this.#discardDraft.disabled = !state.canDiscardDraft;
     this.#draftLimitMessage.textContent = state.draftLimitReached
       ? 'Unsaved draft budget reached (256 entries or 1 MiB, including an active-editor reserve). ' +
         (draft.pendingSubmission

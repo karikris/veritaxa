@@ -3,7 +3,7 @@ import { MAX_PREVIEW_EDGE } from './image/imagePolicy';
 import { DraftStore } from './domain/draftStore';
 import { createReviewDraft, submissionForDraft } from './domain/reviewDraft';
 import { limitCodePoints } from './domain/text';
-import { LABEL_BY_SHORTCUT } from './domain/reviewLabels';
+import { LABEL_BY_SHORTCUT, type ReviewLabelCode } from './domain/reviewLabels';
 import {
   MAX_COMMENT_LENGTH,
   normalizeComment,
@@ -104,6 +104,30 @@ export class VeriTaxaApp {
 
   get state(): AppStateName {
     return this.#state;
+  }
+
+  get #busy(): boolean {
+    return this.#state === 'saving' || this.#state === 'loading_image';
+  }
+
+  get #canEditReview(): boolean {
+    return !this.#disposed && !!this.#currentItem && !this.#busy;
+  }
+
+  get #canNavigate(): boolean {
+    return this.#canEditReview && !!this.#batchId;
+  }
+
+  get #canSubmit(): boolean {
+    return this.#canNavigate && !!this.#session && !!this.#draft.label && !this.#comparisonItem;
+  }
+
+  get #canDiscardDraft(): boolean {
+    return this.#canEditReview && !this.#draft.pendingSubmission;
+  }
+
+  get #canChangeBatch(): boolean {
+    return !this.#disposed && !!this.#session && !this.#busy && this.#state !== 'loading_batches';
   }
 
   async start(): Promise<void> {
@@ -295,7 +319,7 @@ export class VeriTaxaApp {
   }
 
   #changeImageMode(mode: ImageMode): void {
-    if (!this.#currentItem || this.#state === 'saving' || this.#state === 'loading_image') return;
+    if (!this.#canEditReview) return;
     const previousState = this.#state;
     this.#prepareCurrentImage(mode);
     if (previousState === 'save_error' || previousState === 'navigation_error')
@@ -354,13 +378,7 @@ export class VeriTaxaApp {
 
   #discardCurrentDraft(): void {
     const current = this.#currentItem;
-    if (
-      !current ||
-      this.#draft.pendingSubmission ||
-      this.#state === 'saving' ||
-      this.#state === 'loading_image'
-    )
-      return;
+    if (!current || !this.#canDiscardDraft) return;
     this.#drafts.delete(current.id);
     this.#draft = createReviewDraft(current);
     this.#comparisonItem = null;
@@ -374,7 +392,7 @@ export class VeriTaxaApp {
   async #navigate(direction: 'next' | 'previous'): Promise<void> {
     const current = this.#currentItem;
     const batchId = this.#batchId;
-    if (!current || !batchId || this.#state === 'saving' || this.#state === 'loading_image') return;
+    if (!current || !batchId || !this.#canNavigate) return;
     if (!this.#rememberCurrentDraft()) return;
     await this.#loadCursor(batchId, current.position, direction);
     this.#focusClassification();
@@ -382,17 +400,7 @@ export class VeriTaxaApp {
 
   async #submit(): Promise<void> {
     const current = this.#currentItem;
-    if (
-      !current ||
-      !this.#batchId ||
-      !this.#draft.label ||
-      !this.#session ||
-      this.#state === 'saving' ||
-      this.#state === 'loading_image'
-    ) {
-      return;
-    }
-    if (this.#comparisonItem) return;
+    if (!current || !this.#batchId || !this.#session || !this.#canSubmit) return;
     if (this.#draft.conflicted) {
       await this.#compareSavedReview();
       return;
@@ -511,12 +519,7 @@ export class VeriTaxaApp {
   }
 
   #resolveConflict(latest: ReviewItem, useSaved: boolean): void {
-    if (
-      this.#comparisonItem !== latest ||
-      this.#state === 'loading_image' ||
-      this.#state === 'saving'
-    )
-      return;
+    if (this.#comparisonItem !== latest || !this.#canEditReview) return;
     this.#currentItem = latest;
     this.#draft = useSaved
       ? createReviewDraft(latest)
@@ -562,10 +565,7 @@ export class VeriTaxaApp {
   readonly #handleKeydown = (event: KeyboardEvent): void => {
     if (this.#disposed) return;
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      if (!this.#isEditableEmailOrSelector(event.target)) {
-        event.preventDefault();
-        void this.#submit();
-      } else if (event.target instanceof HTMLTextAreaElement) {
+      if (!this.#blocksSubmitShortcut(event.target)) {
         event.preventDefault();
         void this.#submit();
       }
@@ -574,28 +574,24 @@ export class VeriTaxaApp {
 
     if (event.ctrlKey || event.metaKey || event.altKey || this.#isEditable(event.target)) return;
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      if (!this.#currentItem || this.#state === 'saving' || this.#state === 'loading_image') {
-        return;
-      }
+      if (!this.#canNavigate) return;
       event.preventDefault();
       void this.#navigate(event.key === 'ArrowLeft' ? 'previous' : 'next');
       return;
     }
 
     const label = LABEL_BY_SHORTCUT.get(event.key.toLowerCase());
-    if (
-      !label ||
-      !this.#currentItem ||
-      this.#state === 'saving' ||
-      this.#state === 'loading_image'
-    ) {
-      return;
-    }
-    if (label === 'target_scientific_name' && !this.#currentItem.targetScientificName) return;
-    event.preventDefault();
+    if (label && this.#selectLabel(label)) event.preventDefault();
+  };
+
+  #selectLabel(label: ReviewLabelCode): boolean {
+    if (!this.#canEditReview) return false;
+    if (label === 'target_scientific_name' && !this.#currentItem?.targetScientificName)
+      return false;
     this.#draft.label = label;
     this.#render();
-  };
+    return true;
+  }
 
   #isEditable(target: EventTarget | null): boolean {
     return (
@@ -606,7 +602,7 @@ export class VeriTaxaApp {
     );
   }
 
-  #isEditableEmailOrSelector(target: EventTarget | null): boolean {
+  #blocksSubmitShortcut(target: EventTarget | null): boolean {
     return (
       target instanceof HTMLInputElement ||
       target instanceof HTMLSelectElement ||
@@ -651,7 +647,6 @@ export class VeriTaxaApp {
       );
     } else {
       this.#reviewView ??= this.#createReviewView();
-      const busy = this.#state === 'saving' || this.#state === 'loading_image';
       this.#reviewView.update({
         item: this.#currentItem,
         draft: this.#draft,
@@ -662,15 +657,11 @@ export class VeriTaxaApp {
         imageMode: this.#imageMode,
         originalAvailable: !!this.#imagePolicy?.original,
         previewTooLarge: this.#previewTooLarge,
-        busy,
+        canEdit: this.#canEditReview,
+        canNavigate: this.#canNavigate,
+        canDiscardDraft: this.#canDiscardDraft,
         saving: this.#state === 'saving',
-        canSubmit:
-          !busy &&
-          !this.#comparisonItem &&
-          !!this.#draft.label &&
-          !!this.#batchId &&
-          !!this.#currentItem &&
-          !!this.#session,
+        canSubmit: this.#canSubmit,
         errorMessage: this.#errorMessage,
         isError: this.#state === 'save_error' || this.#state === 'navigation_error',
         complete: this.#batches.find((batch) => batch.id === this.#batchId)?.complete ?? false,
@@ -693,12 +684,10 @@ export class VeriTaxaApp {
     const owns = (): boolean => this.#ownsSession(epoch) && this.#reviewView === view;
     const view: ReviewView = new ReviewView({
       selectLabel: (label) => {
-        if (!owns()) return;
-        this.#draft.label = label;
-        this.#render();
+        if (owns()) this.#selectLabel(label);
       },
       editComment: (comment) => {
-        if (!owns()) return;
+        if (!owns() || !this.#canEditReview) return;
         this.#draft.comment = limitCodePoints(comment, MAX_COMMENT_LENGTH).value;
         this.#render();
       },
@@ -760,8 +749,7 @@ export class VeriTaxaApp {
     const select = element('select', 'batch-select');
     select.id = 'batch-select';
     select.addEventListener('change', () => {
-      if (!this.#disposed && this.#session && !select.disabled)
-        void this.#selectBatch(select.value);
+      if (this.#canChangeBatch) void this.#selectBatch(select.value);
     });
     const progress = element('span', 'header-progress');
     const saveState = element('span', 'save-state');
@@ -782,10 +770,7 @@ export class VeriTaxaApp {
       header.classList.toggle('site-header--active', !!this.#session);
       controls.hidden = !this.#session;
       select.hidden = selectLabel.hidden = this.#batches.length === 0;
-      select.disabled =
-        this.#state === 'saving' ||
-        this.#state === 'loading_batches' ||
-        this.#state === 'loading_image';
+      select.disabled = !this.#canChangeBatch;
       while (select.options.length > this.#batches.length) select.remove(select.options.length - 1);
       this.#batches.forEach((batch, index) => {
         let option = select.options[index];
