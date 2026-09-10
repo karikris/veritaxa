@@ -26,7 +26,7 @@
     "browser:memory:gate": "tsc -p tsconfig.browser-memory.json && node node_modules/.tmp/browser-memory/browser_suite.js",
     "test:db": "supabase test db supabase/tests --local",
     "data:check": "node --test scripts/check-no-review-data.test.mjs && node scripts/check-no-review-data.mjs",
-    "bundle:check": "node scripts/check-bundle-size.mjs"
+    "bundle:check": "node --test scripts/check-bundle-size.test.mjs && node scripts/check-bundle-size.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

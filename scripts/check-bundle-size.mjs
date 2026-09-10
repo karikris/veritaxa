@@ -4,13 +4,17 @@ import { gzipSync } from 'node:zlib';
 import console from 'node:console';
 import process from 'node:process';
 
-const limit = 250 * 1024;
+const limit = 70 * 1024;
 const assets = resolve(process.cwd(), 'dist', 'assets');
 let files;
 try {
   files = readdirSync(assets).filter((file) => file.endsWith('.js'));
 } catch {
   console.error('Bundle-size check requires a completed production build.');
+  process.exit(1);
+}
+if (!files.length) {
+  console.error('Bundle-size check requires at least one production JavaScript asset.');
   process.exit(1);
 }
 
