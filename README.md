@@ -101,7 +101,8 @@ The versioned definitions and pipeline mappings are in
   in `scientificName`.
 - `list_review_batches`, `get_review_cursor`, and `save_image_review_v2` are the
   current browser-facing data operations. The original queue and submit RPCs
-  remain temporarily available to authenticated deployed clients.
+  remain temporarily available to authenticated deployed clients; see the
+  [compatibility and retirement conditions](docs/compatibility.md).
 
 All exposed tables have RLS enabled and direct access is revoked from browser
 roles. Functions derive the reviewer UUID from the authenticated JWT, use a
