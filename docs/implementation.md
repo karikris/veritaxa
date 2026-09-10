@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                      |
-| ----- | ----------------------------------------------------------------------------------------------------------- | --------------------------- |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed         |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed         |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed         |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Local gates passed; CI next |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | In progress: stable views   |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                     |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                     |
+| Phase | Required result                                                                                             | Status                    |
+| ----- | ----------------------------------------------------------------------------------------------------------- | ------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed       |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed       |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed       |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed       |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | In progress: stable views |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                   |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                   |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -216,6 +216,15 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   fixture path now names a fixed temporary directory on the disposable runner;
   generation still refuses to overwrite any existing fixture. This focused CI
   correction requires a new push/run, not a passing claim for the rejected run.
+- Phase 3 correction `cf32f8d` is pushed. [CI 34483467128](https://github.com/karikris/veritaxa/actions/runs/34483467128)
+  passed all four jobs: application, Supabase security, full export memory and
+  full import memory. The downloaded import artifact confirms 42 fresh-process
+  runs passed on Python 3.12.3 / PostgreSQL 17.11: largest RSS 215.79 MiB and
+  largest median growth 18.51 MiB. For 100,000-row Parquet, pipeline took a
+  43.74-second median and COPY 44.33 seconds; CI showed no COPY speed advantage.
+  [Pages 34485932827](https://github.com/karikris/veritaxa/actions/runs/34485932827)
+  passed at the same pushed commit. Phase 3 is verified and deployed; phase 4
+  commits below remain local until that phase's remaining gates pass.
 - Phase 4 stable-view foundation: the application shell, batch selector, review
   controls and classification inputs persist through ordinary edits and status
   updates. An owned image node persists through label/comment/save-status changes
