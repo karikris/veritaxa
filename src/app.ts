@@ -28,7 +28,6 @@ import {
 } from './data/reviewRepository';
 
 export type AppStateName =
-  | 'config_error'
   | 'auth_loading'
   | 'signed_out'
   | 'loading_batches'

@@ -198,8 +198,3 @@ function requiredReviewLabel(value: unknown, label: string) {
   if (!isReviewLabelCode(value)) throw new Error(`The ${label} response was not valid.`);
   return value;
 }
-
-export function assertCanonicalSubmission(value: unknown): asserts value is ReviewSubmission {
-  const row = asRecord(value, 'submission');
-  if (!isReviewLabelCode(row.label)) throw new Error('The review label was not valid.');
-}
