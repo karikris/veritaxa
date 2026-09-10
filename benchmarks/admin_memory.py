@@ -1,4 +1,4 @@
-"""Synthetic-only profiling of unchanged VeriTaxa admin functions. No database I/O."""
+"""Synthetic compatibility-API profiling. No database I/O; not the streaming CLI gate."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from tools.export_reviews import (
     fetch_export_frame,
 )
 from tools.import_candidates import build_import_plan, read_candidate_frame
+from tools.tabular_output import write_records
 
 ROOT = Path(os.environ["VERITAXA_AUDIT_FIXTURES"]).resolve()
 METADATA_BYTES = 20_480
@@ -68,9 +69,19 @@ def generate(count: int):
         }
         for index in range(count)
     )
-    frame = pl.DataFrame(records)
-    frame.write_parquet(ROOT / f"synthetic-{count}.parquet", row_group_size=500)
-    output("fixture", count=count, logical_mib=round(frame.estimated_size("mb"), 2))
+    schema = pl.Schema(
+        {
+            column: pl.String
+            for column in (
+                "image_id",
+                "image_url",
+                "source_provider",
+                "pipeline_metadata",
+            )
+        }
+    )
+    write_records(records, schema, ROOT / f"synthetic-{count}.parquet")
+    output("fixture", count=count, metadata_mib=round(count * METADATA_BYTES / 1024**2, 2))
 
 
 def export_row(index: int):
@@ -105,11 +116,9 @@ class SyntheticCursor:
     def __exit__(self, *_):
         pass
 
-    def execute(self, *_):
-        pass
-
-    def fetchall(self):
-        return [export_row(index) for index in range(self.count)]
+    def stream(self, *_, size=1):
+        assert size == 1
+        yield from (export_row(index) for index in range(self.count))
 
 
 class SyntheticConnection:
