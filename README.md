@@ -327,6 +327,8 @@ git diff --check
 
 Browser tests use only fictional metadata and intercepted synthetic SVG
 responses; they do not require a real image host or task database.
+The [September verification map](docs/verification.md) links the implementation,
+preservation tests, complete memory gates and outstanding compatibility cutoff.
 
 ## Export reviews
 
@@ -400,8 +402,9 @@ the Python tools. Exact JavaScript and Python resolutions are committed in
   requires boxes, masks, accepted pseudo-localisation, or another localisation
   process.
 - Source-host availability, hotlink policy, and bandwidth are external to
-  VeriTaxa. A failed display URL is tried once with its fallback, then the human
-  reviewer decides whether to use `image_unavailable`.
+  VeriTaxa. A failed preview may fall back only to another supplied bounded
+  rendition. Source-image inspection is explicit, never an automatic fallback;
+  the reviewer can instead classify the image as `image_unavailable`.
 - GitHub Pages and Supabase do not proxy or cache source image bytes.
 - A name-only session cannot be recovered after sign-out, browser-data
   deletion, or moving to another device.

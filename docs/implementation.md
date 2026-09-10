@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                         |
-| ----- | ----------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed            |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed            |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed            |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed            |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed            |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed            |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Locally verified; push pending |
+| Phase | Required result                                                                                             | Status                                 |
+| ----- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                    |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed                    |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed                    |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed                    |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed                    |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed                    |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Local core verified; cutoff unresolved |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -407,12 +407,13 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   intact. RPC retirement is conditional in the plan and is **not** claimed done.
 - Final frontend checks pass 93 unit tests, 24 desktop/mobile interaction tests,
   eight memory-harness tests, type/lint/format checks, a production build and the
-  70 KiB bundle gate. Production JavaScript is 62.03 KiB gzip. The complete
+  70 KiB bundle gate. After the final recovery correction below, production
+  JavaScript is 62.05 KiB gzip. The complete
   [phase 6 browser soak](../benchmarks/results/browser-phase6-2026-09-11.json)
   passes all nine fresh-process runs and all 99 checkpoints. Each run retains
-  stable document/node/listener counts; maximum post-GC JS heap is 0.978 MiB and
+  stable document/node/listener counts; maximum post-GC JS heap is 0.980 MiB and
   maximum fitted heap growth is 0.068 MiB. Whole-browser post-GC PSS reaches
-  1,064.32 MiB and decoded-image accounting reaches 514.73 MiB; the small JS heap
+  1,066.54 MiB and decoded-image accounting reaches 514.73 MiB; the small JS heap
   is not a claim of small total browser memory. Native growth remains within the
   original limits; the pressure profile is emulation, not a physical phone test.
 - Dependency commit `a1326aa` replaces the yanked Polars 1.43.0 pin with the
@@ -432,6 +433,31 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   dependency-speed comparison. No thread-count override or relaxed memory limit
   was needed. Oversized-record correctness remains separately tested and is not
   included in the 20 KiB-fixture memory guarantee.
-- Phase 6 is locally verified. The final private-data/whitespace checks, phase
-  push and independent CI/Pages verification follow; legacy RPC retirement remains
-  subject to the documented supported-client cutoff, not silently executed.
+- Initial phase 6 changes and local evidence were pushed through `6d4d7da`;
+  [CI 34499776087](https://github.com/karikris/veritaxa/actions/runs/34499776087)
+  tests that exact source. Later audit corrections are separate focused commits,
+  not retroactively covered by the earlier application job.
+- Completion-audit correction `daea1d4` fixes a reproduced failed-initial-cursor
+  state that kept batch selection disabled after the request had ended. Both
+  retry and batch-change regressions failed against the previous source and now
+  pass. Recovery uses the existing error state and one retry capability shared by
+  the button and handler; queued retries cannot replace an active recovery request.
+- Dead-helper correction `19d80d2` removes the uncalled submission-ID factory and
+  browser-side priority reducer plus their obsolete standalone tests. Actual
+  immutable retry identity is covered in the app suite, and every priority tie is
+  covered at the Python exporter that uses it. Existing schema parity remains.
+  Production JavaScript was byte-for-byte identical before/after these deletions
+  (SHA-256 `8aad6395d149e8d43f0d31ec909f95602cf0b39d9e6ae4fad66edeb483d8372c`),
+  so they are source cleanup, not a claimed bundle or memory saving.
+- The refreshed nine-run browser soak includes `daea1d4` and passes all gates;
+  the aggregate records its source and the bundle-equivalent dead-code commit.
+  It supersedes the earlier phase 6 browser measurements retained in Git at
+  `6d4d7da`. The final source passes 93 frontend tests, 24 desktop/mobile browser
+  cases, type/lint/format/data-leak/whitespace checks and the 62.05 KiB bundle gate.
+  Admin source, dependencies and SQL have not changed since their full phase 6
+  verification. The [requirement-by-requirement map](verification.md) distinguishes
+  complete-path memory evidence, correctness tests and retained limitations.
+- Remote release verification must use the exact final CI and Pages checkout
+  commits, not merely the latest run's displayed branch SHA. Legacy RPC retirement
+  remains unresolved until the documented supported-client cutoff is established;
+  it has not been silently executed or claimed complete.
