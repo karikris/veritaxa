@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                               |
-| ----- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                  |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Local checks passed; CI follows push |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Pending                              |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Pending                              |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                              |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                              |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                              |
+| Phase | Required result                                                                                             | Status                             |
+| ----- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed                |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | In progress: atomic bounded writer |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Pending                            |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                            |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                            |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                            |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -111,3 +111,25 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
 - Phase 1 final local gates also passed: 22 Python tests, TypeScript, ESLint,
   Prettier, Ruff and whitespace checks. Production JavaScript is 59.46 KiB gzip;
   synthetic conflict/retry fixtures are absent from the built output.
+- Phase 1 commit `d4e798f` and its two preceding focused commits pushed;
+  [CI 34474319234](https://github.com/karikris/veritaxa/actions/runs/34474319234)
+  and [Pages 34474539177](https://github.com/karikris/veritaxa/actions/runs/34474539177)
+  both passed at the pushed commit.
+- Phase 2 started with a bounded atomic writer, integrated into the existing
+  exporter. Null/empty-string distinctions, schema, order, batch byte/row limits,
+  oversized-row handling and late/publication failure tests pass. **The existing
+  database fetch and consensus still materialize complete results; phase 2 is
+  not complete and total export RSS is not yet bounded.**
+- Added pinned PyArrow 25.0.1 for incremental Parquet writing after measuring the
+  existing-stack NDJSON/Polars sink at 629 MiB for 10,000 rows (295 MiB even with
+  one thread). This follows the plan's dependency decision gate. The Arrow writer
+  uses at most 1,000 rows or 4 MiB per batch; a row up to 16 MiB is written alone,
+  larger rows fail without replacing completed output. CSV does not import Arrow.
+- Writer-only fresh-process probes (20 KiB synthetic metadata per row): CSV
+  44.94 MiB at 10,000 rows and 44.93 MiB at 100,000; Parquet three-run medians
+  133.67 and 133.96 MiB, ranges 133.53–133.67 and 133.81–134.09 MiB. These include
+  output writing but exclude database/JSON decoding and consensus. Full pipeline
+  gates, nested metadata and driver-backed runs remain required.
+- Dependency follow-up for phase 6: the existing Polars 1.43.0 pin is now yanked
+  on PyPI without a supplied reason. It was retained for baseline equivalence;
+  assess a tested replacement or removal as the bounded pipelines supersede it.

@@ -11,6 +11,7 @@ import polars as pl
 import psycopg
 
 from tools.common import AdminError, database_url
+from tools.tabular_output import write_records
 
 SCHEMA_VERSION = "veritaxa-review-label-v3"
 EXPORT_COLUMNS = [
@@ -195,13 +196,7 @@ def build_consensus_export(frame: pl.DataFrame) -> pl.DataFrame:
 
 
 def write_export(frame: pl.DataFrame, output: Path) -> None:
-    output.parent.mkdir(parents=True, exist_ok=True)
-    if output.suffix.lower() == ".parquet":
-        frame.write_parquet(output)
-    elif output.suffix.lower() == ".csv":
-        frame.write_csv(output)
-    else:
-        raise AdminError("Output must use .parquet or .csv.")
+    write_records(frame.iter_rows(named=True), frame.schema, output)
 
 
 def _canonical_json(value: object) -> str | None:

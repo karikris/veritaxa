@@ -25,3 +25,18 @@ The `bounded-validator-probe` checks count and identifier order only: it is not 
 complete streaming importer and does not preserve cross-chunk batch numbering.
 Final gates must exercise real end-to-end paths, multiple votes, nested metadata,
 oversized rows and failure handling; these baseline probes are not substitutes.
+
+## Bounded writer probe
+
+```sh
+uv run python -m benchmarks.writer_memory 10000
+uv run python -m benchmarks.writer_memory 100000
+uv run python -m benchmarks.writer_memory 100000 --format csv
+```
+
+Each invocation generates synthetic rows lazily, writes a complete file in a
+private temporary directory and removes it on exit. It requires no database or
+credentials. Run each size at least three times in fresh processes; compare RSS
+ranges and medians, not just an individual peak. Runtime: Python 3.14.5, Polars
+1.43.0 (18 threads), PyArrow 25.0.1, Linux for the initial September measurements.
+This measures the writer only, not the entire export or import pipeline.
