@@ -10,10 +10,9 @@ export function countCodePoints(value: string): number {
 export function limitCodePoints(value: string, limit: number): { value: string; length: number } {
   let length = 0;
   let end = 0;
-  for (const character of value) {
-    if (length === limit) break;
+  while (end < value.length && length !== limit) {
     length += 1;
-    end += character.length;
+    end += (value.codePointAt(end) ?? 0) > 0xffff ? 2 : 1;
   }
   return { value: value.slice(0, end), length };
 }

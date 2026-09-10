@@ -4,6 +4,7 @@ import { VeriTaxaApp } from './app';
 import type { ReviewBatch, ReviewItem } from './domain/reviewQueue';
 import type { AuthEventHandler, ReviewRepository } from './data/reviewRepository';
 import { ReviewConflictError, ReviewerAccessDisabledError } from './data/reviewRepository';
+import * as text from './domain/text';
 
 const batch: ReviewBatch = {
   id: '30000000-0000-0000-0000-000000000001',
@@ -1040,5 +1041,40 @@ describe('VeriTaxa application', () => {
     await vi.waitFor(() => expect(repo.getCursor).toHaveBeenCalledTimes(2));
     expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2');
     app.dispose();
+  });
+
+  it('counts Unicode once per edit and only recounts a changed restored draft', async () => {
+    const repo = repository({
+      getCursor: (_batch, _anchor, direction) =>
+        Promise.resolve(direction === 'next' ? secondItem : firstItem),
+    });
+    const app = createApp(repo);
+    await app.start();
+    const count = vi.spyOn(text, 'countCodePoints');
+    const limit = vi.spyOn(text, 'limitCodePoints');
+    try {
+      const comment = document.querySelector<HTMLTextAreaElement>('#review-comment');
+      if (!comment) throw new Error('Missing comment');
+      comment.value = '🦋'.repeat(1005);
+      comment.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(comment.value).toBe('🦋'.repeat(1000));
+      expect(document.querySelector('.comment-count')?.textContent).toBe('0 remaining');
+      expect(limit).toHaveBeenCalledOnce();
+      expect(count).not.toHaveBeenCalled();
+      document.querySelector<HTMLInputElement>('input[value="moth"]')?.click();
+      document.querySelector<HTMLButtonElement>('.image-source-button')?.click();
+      expect(count).not.toHaveBeenCalled();
+      document.querySelector<HTMLButtonElement>('[aria-label="Next image"]')?.click();
+      await vi.waitFor(() => expect(comment.value).toBe(''));
+      expect(count).toHaveBeenCalledOnce();
+      document.querySelector<HTMLButtonElement>('[aria-label="Previous image"]')?.click();
+      await vi.waitFor(() => expect(comment.value).toBe('🦋'.repeat(1000)));
+      expect(count).toHaveBeenCalledTimes(2);
+      expect(document.querySelector('.comment-count')?.textContent).toBe('0 remaining');
+    } finally {
+      count.mockRestore();
+      limit.mockRestore();
+      app.dispose();
+    }
   });
 });

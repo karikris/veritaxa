@@ -1,7 +1,7 @@
 import { REVIEW_LABEL_GROUPS, REVIEW_LABELS, type ReviewLabelCode } from '../domain/reviewLabels';
 import type { ReviewDraft } from '../domain/reviewDraft';
 import { MAX_COMMENT_LENGTH, type ReviewItem } from '../domain/reviewQueue';
-import { countCodePoints } from '../domain/text';
+import { countCodePoints, limitCodePoints } from '../domain/text';
 import type { ImageMode } from '../image/imageLoader';
 
 type ReviewViewActions = {
@@ -86,6 +86,8 @@ export class ReviewView {
   #image: HTMLImageElement | null = null;
   #sources: readonly string[] | null = null;
   #zoom = 1;
+  #countedComment: string | null = null;
+  #commentLength = 0;
 
   constructor(actions: ReviewViewActions) {
     this.#actions = actions;
@@ -211,7 +213,11 @@ export class ReviewView {
     this.#send.addEventListener('click', actions.submit);
     this.#discardDraft.addEventListener('click', actions.discardDraft);
     this.#comment.addEventListener('input', () => {
-      if (!this.#comment.disabled) actions.editComment(this.#comment.value);
+      if (this.#comment.disabled) return;
+      const comment = limitCodePoints(this.#comment.value, MAX_COMMENT_LENGTH);
+      this.#countedComment = comment.value;
+      this.#commentLength = comment.length;
+      actions.editComment(comment.value);
     });
     find('.use-saved', HTMLButtonElement).addEventListener('click', () =>
       actions.resolveConflict(true),
@@ -277,7 +283,13 @@ export class ReviewView {
     this.#comment.disabled = !canEdit;
     // Assigning an unchanged textarea value can disturb selection/IME composition.
     if (this.#comment.value !== draft.comment) this.#comment.value = draft.comment;
-    const remaining = MAX_COMMENT_LENGTH - countCodePoints(draft.comment);
+    // Typing already counted while truncating. Restored/server drafts are counted
+    // once when their value changes, never again for label/status/image updates.
+    if (this.#countedComment !== draft.comment) {
+      this.#countedComment = draft.comment;
+      this.#commentLength = countCodePoints(draft.comment);
+    }
+    const remaining = MAX_COMMENT_LENGTH - this.#commentLength;
     this.#counter.textContent = remaining <= 100 ? `${String(remaining)} remaining` : '';
     this.#send.textContent = draft.conflicted
       ? 'Compare saved answer'

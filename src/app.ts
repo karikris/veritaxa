@@ -2,10 +2,8 @@ import { ReviewView } from './view/reviewView';
 import { MAX_PREVIEW_EDGE } from './image/imagePolicy';
 import { DraftStore } from './domain/draftStore';
 import { createReviewDraft, submissionForDraft } from './domain/reviewDraft';
-import { limitCodePoints } from './domain/text';
 import { LABEL_BY_SHORTCUT, type ReviewLabelCode } from './domain/reviewLabels';
 import {
-  MAX_COMMENT_LENGTH,
   normalizeComment,
   type ReviewBatch,
   type ReviewItem,
@@ -688,7 +686,7 @@ export class VeriTaxaApp {
       },
       editComment: (comment) => {
         if (!owns() || !this.#canEditReview) return;
-        this.#draft.comment = limitCodePoints(comment, MAX_COMMENT_LENGTH).value;
+        this.#draft.comment = comment;
         this.#render();
       },
       submit: () => {
