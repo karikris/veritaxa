@@ -1,0 +1,3766 @@
+{
+  "date": "2026-09-11",
+  "passed": true,
+  "limits": {
+    "heapMiB": 1,
+    "pssMiB": 64,
+    "rssMiB": 128,
+    "decodedMiB": 32,
+    "gpuMiB": 16,
+    "partitionMiB": 4
+  },
+  "notes": [
+    "Nine fresh-process real-raster soaks. Detailed methodology: benchmarks/browser-memory.md.",
+    "All values are MiB except navigation, counts and native allocator byte counts.",
+    "PSS is proportional process memory; native allocator entries overlap and are not resident totals.",
+    "Mobile is emulated with 64 MiB V8 old space and critical pressure, not a physical phone.",
+    "Detailed process-by-process samples are emitted by browser:memory:gate and retained in CI artifacts."
+  ],
+  "runs": [
+    {
+      "repeat": 1,
+      "profile": "desktop",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 48.266622844,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.8202171325683594,
+            "late": 0.8644676208496094,
+            "medianGrowth": 0.04425048828125,
+            "fittedGrowth": 0.05543994903564453,
+            "limit": 1,
+            "maximum": 0.8644828796386719
+          },
+          "pssMiB": {
+            "early": 1056.2978515625,
+            "late": 1034.4423828125,
+            "medianGrowth": -21.85546875,
+            "fittedGrowth": -24.021484375,
+            "limit": 64,
+            "maximum": 1063.083984375
+          },
+          "rssMiB": {
+            "early": 2082.78125,
+            "late": 1886.57421875,
+            "medianGrowth": -196.20703125,
+            "fittedGrowth": -255.96679687500003,
+            "limit": 128,
+            "maximum": 2090.62890625
+          },
+          "decodedMiB": {
+            "early": 514.734375,
+            "late": 514.734375,
+            "medianGrowth": 0,
+            "fittedGrowth": 0,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 10.252117156982422,
+            "late": 10.173992156982422,
+            "medianGrowth": -0.078125,
+            "fittedGrowth": -0.040364583333333336,
+            "limit": 16,
+            "maximum": 13.611492156982422
+          },
+          "partitionMiB": {
+            "early": 6.2109375,
+            "late": 5.37890625,
+            "medianGrowth": -0.83203125,
+            "fittedGrowth": -1.2301432291666667,
+            "limit": 4,
+            "maximum": 6.79296875
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0076332092285156,
+          "heapAfterGC": 0.641021728515625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1257.1328125,
+            "pssMiB": 427.0166015625
+          },
+          "process": {
+            "rssMiB": 1259.73046875,
+            "pssMiB": 428.365234375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 6832128,
+            "gpu/shared_images": 8571052,
+            "partition_alloc": 6164480,
+            "discardable": 13688832,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.206573486328125,
+          "heapAfterGC": 0.7358589172363281,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2067.2734375,
+            "pssMiB": 1051.361328125
+          },
+          "process": {
+            "rssMiB": 2056.95703125,
+            "pssMiB": 1041.044921875,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 14272684,
+            "partition_alloc": 7110656,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.3163375854492188,
+          "heapAfterGC": 0.7986717224121094,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2086.578125,
+            "pssMiB": 1061.2607421875
+          },
+          "process": {
+            "rssMiB": 2078.65625,
+            "pssMiB": 1053.3388671875,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 7122944,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.3268241882324219,
+          "heapAfterGC": 0.8202171325683594,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2076.47265625,
+            "pssMiB": 1050.4892578125
+          },
+          "process": {
+            "rssMiB": 2070.24609375,
+            "pssMiB": 1044.2626953125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6635520,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.3027992248535156,
+          "heapAfterGC": 0.8202323913574219,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2090.23828125,
+            "pssMiB": 1063.7548828125
+          },
+          "process": {
+            "rssMiB": 2082.78125,
+            "pssMiB": 1056.2978515625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6483968,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.3283843994140625,
+          "heapAfterGC": 0.8202171325683594,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2093.5,
+            "pssMiB": 1066.458984375
+          },
+          "process": {
+            "rssMiB": 2085.94921875,
+            "pssMiB": 1058.908203125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6512640,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3549041748046875,
+          "heapAfterGC": 0.8616371154785156,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2095.546875,
+            "pssMiB": 1068.001953125
+          },
+          "process": {
+            "rssMiB": 2090.62890625,
+            "pssMiB": 1063.083984375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6705152,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3216056823730469,
+          "heapAfterGC": 0.8635597229003906,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1891.82421875,
+            "pssMiB": 1039.6767578125
+          },
+          "process": {
+            "rssMiB": 1885.234375,
+            "pssMiB": 1033.0869140625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 11471020,
+            "partition_alloc": 5632000,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.33489990234375,
+          "heapAfterGC": 0.8644676208496094,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1893.66796875,
+            "pssMiB": 1041.5361328125
+          },
+          "process": {
+            "rssMiB": 1886.57421875,
+            "pssMiB": 1034.4423828125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5640192,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.336517333984375,
+          "heapAfterGC": 0.8644828796386719,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1890.12109375,
+            "pssMiB": 1037.6767578125
+          },
+          "process": {
+            "rssMiB": 1885.22265625,
+            "pssMiB": 1032.7783203125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5496832,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3338775634765625,
+          "heapAfterGC": 0.864410400390625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1893.84375,
+            "pssMiB": 1041.1494140625
+          },
+          "process": {
+            "rssMiB": 1887.34765625,
+            "pssMiB": 1034.6533203125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5656576,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1889.63671875,
+            "pssMiB": 1036.5791015625
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 6082560,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1889.54296875,
+            "pssMiB": 1036.1767578125
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 6082560,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 2,
+      "profile": "desktop",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 49.574745873,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.8202171325683594,
+            "late": 0.8644676208496094,
+            "medianGrowth": 0.04425048828125,
+            "fittedGrowth": 0.05543104807535807,
+            "limit": 1,
+            "maximum": 0.8644676208496094
+          },
+          "pssMiB": {
+            "early": 1055.4130859375,
+            "late": 1033.029296875,
+            "medianGrowth": -22.3837890625,
+            "fittedGrowth": -24.999104817708332,
+            "limit": 64,
+            "maximum": 1061.0615234375
+          },
+          "rssMiB": {
+            "early": 2086.875,
+            "late": 1888.54296875,
+            "medianGrowth": -198.33203125,
+            "fittedGrowth": -259.8473307291667,
+            "limit": 128,
+            "maximum": 2093.4609375
+          },
+          "decodedMiB": {
+            "early": 514.734375,
+            "late": 514.734375,
+            "medianGrowth": 0,
+            "fittedGrowth": 0,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 10.252117156982422,
+            "late": 10.173992156982422,
+            "medianGrowth": -0.078125,
+            "fittedGrowth": -0.040364583333333336,
+            "limit": 16,
+            "maximum": 14.361492156982422
+          },
+          "partitionMiB": {
+            "early": 6.1875,
+            "late": 5.2265625,
+            "medianGrowth": -0.9609375,
+            "fittedGrowth": -1.279296875,
+            "limit": 4,
+            "maximum": 6.79296875
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0071449279785156,
+          "heapAfterGC": 0.641021728515625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1259.8828125,
+            "pssMiB": 426.0517578125
+          },
+          "process": {
+            "rssMiB": 1262.4921875,
+            "pssMiB": 427.51171875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 6832128,
+            "gpu/shared_images": 9357484,
+            "partition_alloc": 6164480,
+            "discardable": 13688832,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.2075691223144531,
+          "heapAfterGC": 0.7358589172363281,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2072.85546875,
+            "pssMiB": 1052.224609375
+          },
+          "process": {
+            "rssMiB": 2061.28125,
+            "pssMiB": 1041.029296875,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 15059116,
+            "partition_alloc": 7098368,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.3274688720703125,
+          "heapAfterGC": 0.7986869812011719,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2090.8125,
+            "pssMiB": 1062.2314453125
+          },
+          "process": {
+            "rssMiB": 2082.69140625,
+            "pssMiB": 1054.1064453125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 7122944,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.3499832153320312,
+          "heapAfterGC": 0.8202323913574219,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2081.94921875,
+            "pssMiB": 1051.0458984375
+          },
+          "process": {
+            "rssMiB": 2075.3828125,
+            "pssMiB": 1044.4794921875,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6459392,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.3267288208007812,
+          "heapAfterGC": 0.8202171325683594,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2094.4296875,
+            "pssMiB": 1062.9677734375
+          },
+          "process": {
+            "rssMiB": 2086.875,
+            "pssMiB": 1055.4130859375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6488064,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.3277130126953125,
+          "heapAfterGC": 0.8202171325683594,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2096.94921875,
+            "pssMiB": 1065.169921875
+          },
+          "process": {
+            "rssMiB": 2089.39453125,
+            "pssMiB": 1057.615234375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6504448,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3455696105957031,
+          "heapAfterGC": 0.8616371154785156,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2099.08203125,
+            "pssMiB": 1066.6826171875
+          },
+          "process": {
+            "rssMiB": 2093.4609375,
+            "pssMiB": 1061.0615234375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6832128,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3344993591308594,
+          "heapAfterGC": 0.8635597229003906,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1893.26953125,
+            "pssMiB": 1038.3486328125
+          },
+          "process": {
+            "rssMiB": 1886.125,
+            "pssMiB": 1031.2041015625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 11471020,
+            "partition_alloc": 5623808,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.3471450805664062,
+          "heapAfterGC": 0.8644676208496094,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1893.19140625,
+            "pssMiB": 1038.4267578125
+          },
+          "process": {
+            "rssMiB": 1888.56640625,
+            "pssMiB": 1033.8017578125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5476352,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3478240966796875,
+          "heapAfterGC": 0.8644676208496094,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1893.984375,
+            "pssMiB": 1038.908203125
+          },
+          "process": {
+            "rssMiB": 1886.78125,
+            "pssMiB": 1031.705078125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5480448,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.324005126953125,
+          "heapAfterGC": 0.864410400390625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1895.4375,
+            "pssMiB": 1039.923828125
+          },
+          "process": {
+            "rssMiB": 1888.54296875,
+            "pssMiB": 1033.029296875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5492736,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1889.43359375,
+            "pssMiB": 1033.7412109375
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5951488,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1892.25390625,
+            "pssMiB": 1036.1865234375
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5951488,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 3,
+      "profile": "desktop",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 58.233258377,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.8202171325683594,
+            "late": 0.8644676208496094,
+            "medianGrowth": 0.04425048828125,
+            "fittedGrowth": 0.05543994903564453,
+            "limit": 1,
+            "maximum": 0.8644676208496094
+          },
+          "pssMiB": {
+            "early": 1052.802734375,
+            "late": 1029.83984375,
+            "medianGrowth": -22.962890625,
+            "fittedGrowth": -22.543131510416668,
+            "limit": 64,
+            "maximum": 1055.318359375
+          },
+          "rssMiB": {
+            "early": 2080.3359375,
+            "late": 1882.93359375,
+            "medianGrowth": -197.40234375,
+            "fittedGrowth": -197.130859375,
+            "limit": 128,
+            "maximum": 2083.359375
+          },
+          "decodedMiB": {
+            "early": 514.734375,
+            "late": 514.734375,
+            "medianGrowth": 0,
+            "fittedGrowth": 0,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 10.252117156982422,
+            "late": 10.252117156982422,
+            "medianGrowth": 0,
+            "fittedGrowth": -0.02994791666666667,
+            "limit": 16,
+            "maximum": 12.283367156982422
+          },
+          "partitionMiB": {
+            "early": 6.328125,
+            "late": 5.390625,
+            "medianGrowth": -0.9375,
+            "fittedGrowth": -0.9606119791666666,
+            "limit": 4,
+            "maximum": 6.48046875
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0073890686035156,
+          "heapAfterGC": 0.641021728515625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1239.80859375,
+            "pssMiB": 415.837890625
+          },
+          "process": {
+            "rssMiB": 1242.46875,
+            "pssMiB": 417.455078125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 6832128,
+            "gpu/shared_images": 5605548,
+            "partition_alloc": 6160384,
+            "discardable": 13688832,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.2799720764160156,
+          "heapAfterGC": 0.7358589172363281,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2054.7109375,
+            "pssMiB": 1034.9453125
+          },
+          "process": {
+            "rssMiB": 2045.859375,
+            "pssMiB": 1026.09375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 12880044,
+            "partition_alloc": 6512640,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.3288154602050781,
+          "heapAfterGC": 0.7986717224121094,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2081.8984375,
+            "pssMiB": 1055.1669921875
+          },
+          "process": {
+            "rssMiB": 2073.95703125,
+            "pssMiB": 1047.2255859375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6524928,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.3270339965820312,
+          "heapAfterGC": 0.8202171325683594,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2086.08984375,
+            "pssMiB": 1058.556640625
+          },
+          "process": {
+            "rssMiB": 2080.3359375,
+            "pssMiB": 1052.802734375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6795264,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.31475830078125,
+          "heapAfterGC": 0.8202171325683594,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2090.29296875,
+            "pssMiB": 1062.251953125
+          },
+          "process": {
+            "rssMiB": 2083.359375,
+            "pssMiB": 1055.318359375,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6635520,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.2681465148925781,
+          "heapAfterGC": 0.8202171325683594,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1883.08203125,
+            "pssMiB": 1031.2236328125
+          },
+          "process": {
+            "rssMiB": 1875.86328125,
+            "pssMiB": 1024.0048828125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 12077228,
+            "partition_alloc": 5427200,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3435745239257812,
+          "heapAfterGC": 0.8616371154785156,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1882.65625,
+            "pssMiB": 1031.3095703125
+          },
+          "process": {
+            "rssMiB": 1875.21484375,
+            "pssMiB": 1023.8681640625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5435392,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3125190734863281,
+          "heapAfterGC": 0.8635597229003906,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1885.23046875,
+            "pssMiB": 1033.498046875
+          },
+          "process": {
+            "rssMiB": 1879.57421875,
+            "pssMiB": 1027.841796875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5619712,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.3350448608398438,
+          "heapAfterGC": 0.8644676208496094,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1890.0625,
+            "pssMiB": 1037.8447265625
+          },
+          "process": {
+            "rssMiB": 1883.078125,
+            "pssMiB": 1030.8603515625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10668204,
+            "partition_alloc": 5627904,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3227577209472656,
+          "heapAfterGC": 0.8644676208496094,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1887.640625,
+            "pssMiB": 1034.546875
+          },
+          "process": {
+            "rssMiB": 1882.93359375,
+            "pssMiB": 1029.83984375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 11520172,
+            "partition_alloc": 5660672,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3230438232421875,
+          "heapAfterGC": 0.864410400390625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1888.66015625,
+            "pssMiB": 1035.6669921875
+          },
+          "process": {
+            "rssMiB": 1881.84375,
+            "pssMiB": 1028.8505859375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 5652480,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1885.71484375,
+            "pssMiB": 1032.4208984375
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6078464,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1885.69921875,
+            "pssMiB": 1031.9716796875
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10750124,
+            "partition_alloc": 6078464,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 1,
+      "profile": "drafts",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 58.424440095,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.8768806457519531,
+            "late": 0.9239387512207031,
+            "medianGrowth": 0.04705810546875,
+            "fittedGrowth": 0.06143315633138021,
+            "limit": 1,
+            "maximum": 0.9239540100097656
+          },
+          "pssMiB": {
+            "early": 1056.4814453125,
+            "late": 1032.466796875,
+            "medianGrowth": -24.0146484375,
+            "fittedGrowth": -22.614013671875,
+            "limit": 64,
+            "maximum": 1056.5078125
+          },
+          "rssMiB": {
+            "early": 2085.59375,
+            "late": 1885.98828125,
+            "medianGrowth": -199.60546875,
+            "fittedGrowth": -198.29069010416666,
+            "limit": 128,
+            "maximum": 2086.25
+          },
+          "decodedMiB": {
+            "early": 514.734375,
+            "late": 514.734375,
+            "medianGrowth": 0,
+            "fittedGrowth": 0,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 9.502117156982422,
+            "late": 10.004234313964844,
+            "medianGrowth": 0.5021171569824219,
+            "fittedGrowth": 0.4074850082397461,
+            "limit": 16,
+            "maximum": 11.548992156982422
+          },
+          "partitionMiB": {
+            "early": 6.33984375,
+            "late": 5.4765625,
+            "medianGrowth": -0.86328125,
+            "fittedGrowth": -0.8909505208333334,
+            "limit": 4,
+            "maximum": 6.45703125
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0076332092285156,
+          "heapAfterGC": 0.641021728515625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1241.23046875,
+            "pssMiB": 417.77734375
+          },
+          "process": {
+            "rssMiB": 1243.75,
+            "pssMiB": 419.1708984375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 6832128,
+            "gpu/shared_images": 5605548,
+            "partition_alloc": 6160384,
+            "discardable": 13688832,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.2952232360839844,
+          "heapAfterGC": 0.76275634765625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2061.234375,
+            "pssMiB": 1040.439453125
+          },
+          "process": {
+            "rssMiB": 2052.640625,
+            "pssMiB": 1031.845703125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 12109996,
+            "partition_alloc": 6508544,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.7252388000488281,
+          "heapAfterGC": 0.8561630249023438,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2088.33984375,
+            "pssMiB": 1060.0673828125
+          },
+          "process": {
+            "rssMiB": 2081.8515625,
+            "pssMiB": 1053.5791015625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6602752,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.1270751953125,
+          "heapAfterGC": 0.8705062866210938,
+          "discardedDrafts": 45,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2092.98046875,
+            "pssMiB": 1063.89453125
+          },
+          "process": {
+            "rssMiB": 2085.59375,
+            "pssMiB": 1056.5078125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6647808,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.2801551818847656,
+          "heapAfterGC": 0.8768806457519531,
+          "discardedDrafts": 145,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2091.796875,
+            "pssMiB": 1062.0283203125
+          },
+          "process": {
+            "rssMiB": 2086.25,
+            "pssMiB": 1056.4814453125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6770688,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.2802085876464844,
+          "heapAfterGC": 0.8768959045410156,
+          "discardedDrafts": 245,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1887.60546875,
+            "pssMiB": 1035.6826171875
+          },
+          "process": {
+            "rssMiB": 1881.171875,
+            "pssMiB": 1029.2490234375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10684588,
+            "partition_alloc": 5685248,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.34710693359375,
+          "heapAfterGC": 0.9196014404296875,
+          "discardedDrafts": 345,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1885.42578125,
+            "pssMiB": 1033.4619140625
+          },
+          "process": {
+            "rssMiB": 1879.04296875,
+            "pssMiB": 1027.0791015625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9881772,
+            "partition_alloc": 5537792,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3226051330566406,
+          "heapAfterGC": 0.9196014404296875,
+          "discardedDrafts": 445,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1887.953125,
+            "pssMiB": 1035.7412109375
+          },
+          "process": {
+            "rssMiB": 1882.5234375,
+            "pssMiB": 1030.3115234375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9881772,
+            "partition_alloc": 5672960,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.3274765014648438,
+          "heapAfterGC": 0.9239387512207031,
+          "discardedDrafts": 545,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1889.96875,
+            "pssMiB": 1037.259765625
+          },
+          "process": {
+            "rssMiB": 1883.89453125,
+            "pssMiB": 1031.185546875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9881772,
+            "partition_alloc": 5566464,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3274917602539062,
+          "heapAfterGC": 0.9239540100097656,
+          "discardedDrafts": 645,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1891.76953125,
+            "pssMiB": 1038.248046875
+          },
+          "process": {
+            "rssMiB": 1885.98828125,
+            "pssMiB": 1032.466796875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10733740,
+            "partition_alloc": 5742592,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3514175415039062,
+          "heapAfterGC": 0.9220352172851562,
+          "discardedDrafts": 745,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1892.62890625,
+            "pssMiB": 1039.1845703125
+          },
+          "process": {
+            "rssMiB": 1887.046875,
+            "pssMiB": 1033.6025390625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10490200,
+            "partition_alloc": 5812224,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1889.97265625,
+            "pssMiB": 1036.2705078125
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10490200,
+            "partition_alloc": 6184960,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1891.5703125,
+            "pssMiB": 1037.3056640625
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10490200,
+            "partition_alloc": 6184960,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 2,
+      "profile": "drafts",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 50.846357495,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.8768806457519531,
+            "late": 0.9239387512207031,
+            "medianGrowth": 0.04705810546875,
+            "fittedGrowth": 0.06142425537109375,
+            "limit": 1,
+            "maximum": 0.9239387512207031
+          },
+          "pssMiB": {
+            "early": 1058.435546875,
+            "late": 1033.080078125,
+            "medianGrowth": -25.35546875,
+            "fittedGrowth": -24.546223958333332,
+            "limit": 64,
+            "maximum": 1060.0029296875
+          },
+          "rssMiB": {
+            "early": 2081.1171875,
+            "late": 1882.4921875,
+            "medianGrowth": -198.625,
+            "fittedGrowth": -241.40364583333334,
+            "limit": 128,
+            "maximum": 2084.2109375
+          },
+          "decodedMiB": {
+            "early": 514.734375,
+            "late": 514.734375,
+            "medianGrowth": 0,
+            "fittedGrowth": 0,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 9.502117156982422,
+            "late": 9.423992156982422,
+            "medianGrowth": -0.078125,
+            "fittedGrowth": 0.19524542490641275,
+            "limit": 16,
+            "maximum": 13.611492156982422
+          },
+          "partitionMiB": {
+            "early": 6.453125,
+            "late": 5.32421875,
+            "medianGrowth": -1.12890625,
+            "fittedGrowth": -1.5257161458333335,
+            "limit": 4,
+            "maximum": 6.9453125
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0073890686035156,
+          "heapAfterGC": 0.641021728515625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1251.1015625,
+            "pssMiB": 424.96875
+          },
+          "process": {
+            "rssMiB": 1254.421875,
+            "pssMiB": 426.93359375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 6832128,
+            "gpu/shared_images": 8571052,
+            "partition_alloc": 6164480,
+            "discardable": 13688832,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.3162498474121094,
+          "heapAfterGC": 0.76275634765625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2066.4609375,
+            "pssMiB": 1052.31640625
+          },
+          "process": {
+            "rssMiB": 2057.5078125,
+            "pssMiB": 1043.56640625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 14272684,
+            "partition_alloc": 7282688,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.7263603210449219,
+          "heapAfterGC": 0.8561630249023438,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2085.1484375,
+            "pssMiB": 1063.8515625
+          },
+          "process": {
+            "rssMiB": 2075.4921875,
+            "pssMiB": 1054.1953125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 7041024,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.1267967224121094,
+          "heapAfterGC": 0.8705062866210938,
+          "discardedDrafts": 45,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2074.625,
+            "pssMiB": 1052.568359375
+          },
+          "process": {
+            "rssMiB": 2067.19140625,
+            "pssMiB": 1045.134765625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 7053312,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.3043212890625,
+          "heapAfterGC": 0.8768959045410156,
+          "discardedDrafts": 145,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2087.3828125,
+            "pssMiB": 1064.701171875
+          },
+          "process": {
+            "rssMiB": 2081.1171875,
+            "pssMiB": 1058.435546875,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6737920,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.3039054870605469,
+          "heapAfterGC": 0.8768806457519531,
+          "discardedDrafts": 245,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2090.1171875,
+            "pssMiB": 1065.9091796875
+          },
+          "process": {
+            "rssMiB": 2084.2109375,
+            "pssMiB": 1060.0029296875,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6766592,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3234329223632812,
+          "heapAfterGC": 0.9196014404296875,
+          "discardedDrafts": 345,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1885.9921875,
+            "pssMiB": 1037.5419921875
+          },
+          "process": {
+            "rssMiB": 1880.0234375,
+            "pssMiB": 1031.5732421875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10684588,
+            "partition_alloc": 5718016,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3465957641601562,
+          "heapAfterGC": 0.9196014404296875,
+          "discardedDrafts": 445,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1885.87890625,
+            "pssMiB": 1036.9306640625
+          },
+          "process": {
+            "rssMiB": 1879.83203125,
+            "pssMiB": 1030.9658203125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10684588,
+            "partition_alloc": 5718016,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.3274650573730469,
+          "heapAfterGC": 0.9239387512207031,
+          "discardedDrafts": 545,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1888.62890625,
+            "pssMiB": 1039.9697265625
+          },
+          "process": {
+            "rssMiB": 1882.4921875,
+            "pssMiB": 1033.8330078125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9881772,
+            "partition_alloc": 5730304,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3266639709472656,
+          "heapAfterGC": 0.9239387512207031,
+          "discardedDrafts": 645,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1886.83984375,
+            "pssMiB": 1037.744140625
+          },
+          "process": {
+            "rssMiB": 1881.3203125,
+            "pssMiB": 1032.224609375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9881772,
+            "partition_alloc": 5578752,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3265304565429688,
+          "heapAfterGC": 0.9220352172851562,
+          "discardedDrafts": 745,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1888.18359375,
+            "pssMiB": 1038.716796875
+          },
+          "process": {
+            "rssMiB": 1882.546875,
+            "pssMiB": 1033.080078125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10408280,
+            "partition_alloc": 5582848,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1885.7421875,
+            "pssMiB": 1035.341796875
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 11571544,
+            "partition_alloc": 5713920,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1887.08984375,
+            "pssMiB": 1036.376953125
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 11571544,
+            "partition_alloc": 5713920,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 3,
+      "profile": "drafts",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 48.205685395,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.8768806457519531,
+            "late": 0.9239387512207031,
+            "medianGrowth": 0.04705810546875,
+            "fittedGrowth": 0.06143315633138021,
+            "limit": 1,
+            "maximum": 0.9239540100097656
+          },
+          "pssMiB": {
+            "early": 1059.1806640625,
+            "late": 1036.1669921875,
+            "medianGrowth": -23.013671875,
+            "fittedGrowth": -24.365478515625,
+            "limit": 64,
+            "maximum": 1064.8330078125
+          },
+          "rssMiB": {
+            "early": 2082.6875,
+            "late": 1886.2890625,
+            "medianGrowth": -196.3984375,
+            "fittedGrowth": -253.85904947916669,
+            "limit": 128,
+            "maximum": 2089.08984375
+          },
+          "decodedMiB": {
+            "early": 514.734375,
+            "late": 514.734375,
+            "medianGrowth": 0,
+            "fittedGrowth": 0,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 9.502117156982422,
+            "late": 9.423992156982422,
+            "medianGrowth": -0.078125,
+            "fittedGrowth": 0.2525370915730794,
+            "limit": 16,
+            "maximum": 13.611492156982422
+          },
+          "partitionMiB": {
+            "early": 6.3359375,
+            "late": 5.3828125,
+            "medianGrowth": -0.953125,
+            "fittedGrowth": -1.2760416666666665,
+            "limit": 4,
+            "maximum": 6.7109375
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0073890686035156,
+          "heapAfterGC": 0.641021728515625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1253.48046875,
+            "pssMiB": 426.9755859375
+          },
+          "process": {
+            "rssMiB": 1256.26171875,
+            "pssMiB": 428.45703125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 6832128,
+            "gpu/shared_images": 8571052,
+            "partition_alloc": 6160384,
+            "discardable": 13688832,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.3159370422363281,
+          "heapAfterGC": 0.76275634765625,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2065.78125,
+            "pssMiB": 1051.734375
+          },
+          "process": {
+            "rssMiB": 2056.98828125,
+            "pssMiB": 1042.94140625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 14272684,
+            "partition_alloc": 6946816,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.7230224609375,
+          "heapAfterGC": 0.8561630249023438,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2087.29296875,
+            "pssMiB": 1066.400390625
+          },
+          "process": {
+            "rssMiB": 2077.59375,
+            "pssMiB": 1056.701171875,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 7036928,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.1270637512207031,
+          "heapAfterGC": 0.8705062866210938,
+          "discardedDrafts": 45,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2076.17578125,
+            "pssMiB": 1054.666015625
+          },
+          "process": {
+            "rssMiB": 2068.87890625,
+            "pssMiB": 1047.369140625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6643712,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.2800025939941406,
+          "heapAfterGC": 0.8768806457519531,
+          "discardedDrafts": 145,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2088.80078125,
+            "pssMiB": 1065.2939453125
+          },
+          "process": {
+            "rssMiB": 2082.6875,
+            "pssMiB": 1059.1806640625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6746112,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.2795562744140625,
+          "heapAfterGC": 0.8768806457519531,
+          "discardedDrafts": 245,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2090.015625,
+            "pssMiB": 1066.1962890625
+          },
+          "process": {
+            "rssMiB": 2083.7890625,
+            "pssMiB": 1059.9697265625,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6578176,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3224143981933594,
+          "heapAfterGC": 0.91961669921875,
+          "discardedDrafts": 345,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2094.23828125,
+            "pssMiB": 1069.9814453125
+          },
+          "process": {
+            "rssMiB": 2089.08984375,
+            "pssMiB": 1064.8330078125,
+            "processCount": 14
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9963692,
+            "partition_alloc": 6467584,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3468055725097656,
+          "heapAfterGC": 0.9196014404296875,
+          "discardedDrafts": 445,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1890.16015625,
+            "pssMiB": 1040.01953125
+          },
+          "process": {
+            "rssMiB": 1884.5859375,
+            "pssMiB": 1034.4453125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10684588,
+            "partition_alloc": 5705728,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.3266754150390625,
+          "heapAfterGC": 0.9239540100097656,
+          "discardedDrafts": 545,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1892.50390625,
+            "pssMiB": 1042.3818359375
+          },
+          "process": {
+            "rssMiB": 1886.2890625,
+            "pssMiB": 1036.1669921875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9881772,
+            "partition_alloc": 5644288,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3512001037597656,
+          "heapAfterGC": 0.9239387512207031,
+          "discardedDrafts": 645,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1891.171875,
+            "pssMiB": 1040.6123046875
+          },
+          "process": {
+            "rssMiB": 1885.32421875,
+            "pssMiB": 1034.7646484375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9881772,
+            "partition_alloc": 5738496,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3271598815917969,
+          "heapAfterGC": 0.9220352172851562,
+          "discardedDrafts": 745,
+          "dom": {
+            "documents": 1,
+            "nodes": 334,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1894.24609375,
+            "pssMiB": 1043.3046875
+          },
+          "process": {
+            "rssMiB": 1888.5234375,
+            "pssMiB": 1037.58203125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10408280,
+            "partition_alloc": 5578752,
+            "discardable": 1073283072,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1890.671875,
+            "pssMiB": 1039.51171875
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10408280,
+            "partition_alloc": 6246400,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1890.37109375,
+            "pssMiB": 1038.8271484375
+          },
+          "native": {
+            "cc/image_memory": 532893696,
+            "gpu/shared_images": 10408280,
+            "partition_alloc": 6246400,
+            "discardable": 1077780480,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 1,
+      "profile": "mobile-pressure",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 51.465924198,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.9142990112304688,
+            "late": 0.9613571166992188,
+            "medianGrowth": 0.04705810546875,
+            "fittedGrowth": 0.061430613199869796,
+            "limit": 1,
+            "maximum": 0.9613571166992188
+          },
+          "pssMiB": {
+            "early": 532.072265625,
+            "late": 497.7509765625,
+            "medianGrowth": -34.3212890625,
+            "fittedGrowth": -29.662597656249996,
+            "limit": 64,
+            "maximum": 532.4501953125
+          },
+          "rssMiB": {
+            "early": 1411.7109375,
+            "late": 1201.95703125,
+            "medianGrowth": -209.75390625,
+            "fittedGrowth": -249.06673177083334,
+            "limit": 128,
+            "maximum": 1411.8359375
+          },
+          "decodedMiB": {
+            "early": 26.0625,
+            "late": 26.0625,
+            "medianGrowth": 0,
+            "fittedGrowth": -1.62890625,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 5.03125,
+            "late": 4.953125,
+            "medianGrowth": -0.078125,
+            "fittedGrowth": 0.37630208333333337,
+            "limit": 16,
+            "maximum": 9.546875
+          },
+          "partitionMiB": {
+            "early": 5.52734375,
+            "late": 4.57421875,
+            "medianGrowth": -0.953125,
+            "fittedGrowth": -1.1764322916666667,
+            "limit": 4,
+            "maximum": 5.8046875
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0582809448242188,
+          "heapAfterGC": 0.6811370849609375,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1261.59765625,
+            "pssMiB": 427.466796875
+          },
+          "process": {
+            "rssMiB": 1264.3046875,
+            "pssMiB": 429.3134765625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 8544256,
+            "gpu/shared_images": 8323072,
+            "partition_alloc": 6086656,
+            "discardable": 17121280,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.3303451538085938,
+          "heapAfterGC": 0.8001594543457031,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2060.73046875,
+            "pssMiB": 1043.8994140625
+          },
+          "process": {
+            "rssMiB": 1391.1484375,
+            "pssMiB": 514.6787109375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10010624,
+            "partition_alloc": 5771264,
+            "discardable": 546578432,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.7400856018066406,
+          "heapAfterGC": 0.8935661315917969,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1414.59765625,
+            "pssMiB": 537.40625
+          },
+          "process": {
+            "rssMiB": 1398.31640625,
+            "pssMiB": 521.12890625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5857280,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.1644783020019531,
+          "heapAfterGC": 0.9079093933105469,
+          "discardedDrafts": 45,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1406.921875,
+            "pssMiB": 528.0361328125
+          },
+          "process": {
+            "rssMiB": 1393.40234375,
+            "pssMiB": 514.5205078125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5611520,
+            "discardable": 34168832,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.3181495666503906,
+          "heapAfterGC": 0.9142990112304688,
+          "discardedDrafts": 145,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1424.33203125,
+            "pssMiB": 544.9423828125
+          },
+          "process": {
+            "rssMiB": 1411.8359375,
+            "pssMiB": 532.4501953125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5795840,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.3175735473632812,
+          "heapAfterGC": 0.9142990112304688,
+          "discardedDrafts": 245,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1416.9609375,
+            "pssMiB": 537.322265625
+          },
+          "process": {
+            "rssMiB": 1411.7109375,
+            "pssMiB": 532.072265625,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5971968,
+            "discardable": 34177024,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3605003356933594,
+          "heapAfterGC": 0.9570198059082031,
+          "discardedDrafts": 345,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1207.3828125,
+            "pssMiB": 504.59765625
+          },
+          "process": {
+            "rssMiB": 1195.30078125,
+            "pssMiB": 492.42578125,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5996544,
+            "partition_alloc": 4595712,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3602867126464844,
+          "heapAfterGC": 0.9570198059082031,
+          "discardedDrafts": 445,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1216.109375,
+            "pssMiB": 513.1533203125
+          },
+          "process": {
+            "rssMiB": 1203.78515625,
+            "pssMiB": 501.0087890625,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5996544,
+            "partition_alloc": 4775936,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.3643455505371094,
+          "heapAfterGC": 0.9613571166992188,
+          "discardedDrafts": 545,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1212.47265625,
+            "pssMiB": 509.3212890625
+          },
+          "process": {
+            "rssMiB": 1199.875,
+            "pssMiB": 496.7275390625,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5193728,
+            "partition_alloc": 4468736,
+            "discardable": 34168832,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3888702392578125,
+          "heapAfterGC": 0.9613571166992188,
+          "discardedDrafts": 645,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1213.09375,
+            "pssMiB": 509.8173828125
+          },
+          "process": {
+            "rssMiB": 1207.50390625,
+            "pssMiB": 504.2275390625,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5193728,
+            "partition_alloc": 4796416,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3642807006835938,
+          "heapAfterGC": 0.9594383239746094,
+          "discardedDrafts": 745,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1214.05078125,
+            "pssMiB": 509.8408203125
+          },
+          "process": {
+            "rssMiB": 1201.95703125,
+            "pssMiB": 497.7509765625,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 6045696,
+            "partition_alloc": 4829184,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1230.484375,
+            "pssMiB": 526.0869140625
+          },
+          "native": {
+            "cc/image_memory": 34148352,
+            "gpu/shared_images": 6045696,
+            "partition_alloc": 4947968,
+            "discardable": 68313088,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1229.8359375,
+            "pssMiB": 525.0009765625
+          },
+          "native": {
+            "cc/image_memory": 34148352,
+            "gpu/shared_images": 6045696,
+            "partition_alloc": 4947968,
+            "discardable": 68313088,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 2,
+      "profile": "mobile-pressure",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 51.695054157,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.9142990112304688,
+            "late": 0.9613571166992188,
+            "medianGrowth": 0.04705810546875,
+            "fittedGrowth": 0.061430613199869796,
+            "limit": 1,
+            "maximum": 0.9613571166992188
+          },
+          "pssMiB": {
+            "early": 530.3779296875,
+            "late": 499.96484375,
+            "medianGrowth": -30.4130859375,
+            "fittedGrowth": -34.630533854166664,
+            "limit": 64,
+            "maximum": 530.4716796875
+          },
+          "rssMiB": {
+            "early": 1408.47265625,
+            "late": 1204.45703125,
+            "medianGrowth": -204.015625,
+            "fittedGrowth": -252.18359375,
+            "limit": 128,
+            "maximum": 1408.82421875
+          },
+          "decodedMiB": {
+            "early": 26.0625,
+            "late": 19.546875,
+            "medianGrowth": -6.515625,
+            "fittedGrowth": -0.54296875,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 5.03125,
+            "late": 4.953125,
+            "medianGrowth": -0.078125,
+            "fittedGrowth": 0.5221354166666666,
+            "limit": 16,
+            "maximum": 9.546875
+          },
+          "partitionMiB": {
+            "early": 5.55078125,
+            "late": 4.609375,
+            "medianGrowth": -0.94140625,
+            "fittedGrowth": -1.2412109375,
+            "limit": 4,
+            "maximum": 5.8828125
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0523872375488281,
+          "heapAfterGC": 0.6784248352050781,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1258.81640625,
+            "pssMiB": 427.060546875
+          },
+          "process": {
+            "rssMiB": 1262.07421875,
+            "pssMiB": 428.958984375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 8544256,
+            "gpu/shared_images": 7274496,
+            "partition_alloc": 6168576,
+            "discardable": 17121280,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.3342933654785156,
+          "heapAfterGC": 0.8001594543457031,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2060.2421875,
+            "pssMiB": 1045.3564453125
+          },
+          "process": {
+            "rssMiB": 1397.79296875,
+            "pssMiB": 523.376953125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 10010624,
+            "partition_alloc": 6111232,
+            "discardable": 553418752,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.7406120300292969,
+          "heapAfterGC": 0.8935661315917969,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1403.64453125,
+            "pssMiB": 526.1103515625
+          },
+          "process": {
+            "rssMiB": 1390.57421875,
+            "pssMiB": 513.0439453125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 13664256,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5337088,
+            "discardable": 20504576,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.1644783020019531,
+          "heapAfterGC": 0.9079093933105469,
+          "discardedDrafts": 45,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1414.7578125,
+            "pssMiB": 537.03125
+          },
+          "process": {
+            "rssMiB": 1401.09375,
+            "pssMiB": 523.37109375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5705728,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.3177108764648438,
+          "heapAfterGC": 0.9142990112304688,
+          "discardedDrafts": 145,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1414.54296875,
+            "pssMiB": 536.1904296875
+          },
+          "process": {
+            "rssMiB": 1408.82421875,
+            "pssMiB": 530.4716796875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 6070272,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.3181343078613281,
+          "heapAfterGC": 0.9142990112304688,
+          "discardedDrafts": 245,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1421.05859375,
+            "pssMiB": 542.9599609375
+          },
+          "process": {
+            "rssMiB": 1408.47265625,
+            "pssMiB": 530.3779296875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5820416,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3605003356933594,
+          "heapAfterGC": 0.9570198059082031,
+          "discardedDrafts": 345,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1213.27734375,
+            "pssMiB": 511.03515625
+          },
+          "process": {
+            "rssMiB": 1201.8203125,
+            "pssMiB": 499.58203125,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5996544,
+            "partition_alloc": 5492736,
+            "discardable": 34177024,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.3592071533203125,
+          "heapAfterGC": 0.9570198059082031,
+          "discardedDrafts": 445,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1215.48046875,
+            "pssMiB": 512.6015625
+          },
+          "process": {
+            "rssMiB": 1203.484375,
+            "pssMiB": 500.609375,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5996544,
+            "partition_alloc": 4976640,
+            "discardable": 34177024,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.3643684387207031,
+          "heapAfterGC": 0.9613571166992188,
+          "discardedDrafts": 545,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1210.96484375,
+            "pssMiB": 507.65625
+          },
+          "process": {
+            "rssMiB": 1205.92578125,
+            "pssMiB": 502.6171875,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5193728,
+            "partition_alloc": 5197824,
+            "discardable": 34177024,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3877677917480469,
+          "heapAfterGC": 0.9613571166992188,
+          "discardedDrafts": 645,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1212.2890625,
+            "pssMiB": 508.79296875
+          },
+          "process": {
+            "rssMiB": 1200.0703125,
+            "pssMiB": 496.578125,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5193728,
+            "partition_alloc": 4644864,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3643417358398438,
+          "heapAfterGC": 0.9594383239746094,
+          "discardedDrafts": 745,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1222.50390625,
+            "pssMiB": 518.00390625
+          },
+          "process": {
+            "rssMiB": 1204.45703125,
+            "pssMiB": 499.96484375,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 6307840,
+            "partition_alloc": 4833280,
+            "discardable": 34168832,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1231.19140625,
+            "pssMiB": 526.3212890625
+          },
+          "native": {
+            "cc/image_memory": 34148352,
+            "gpu/shared_images": 6307840,
+            "partition_alloc": 5304320,
+            "discardable": 68313088,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1231.04296875,
+            "pssMiB": 525.7978515625
+          },
+          "native": {
+            "cc/image_memory": 34148352,
+            "gpu/shared_images": 6307840,
+            "partition_alloc": 5304320,
+            "discardable": 68313088,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 3,
+      "profile": "mobile-pressure",
+      "browser": "Chrome/151.0.7922.34",
+      "node": "v22.22.1",
+      "seconds": 51.748762289,
+      "navigations": 1000,
+      "networkRecording": false,
+      "requests": {
+        "preview": 1001,
+        "original": 1
+      },
+      "requestsBeforeInspection": {
+        "preview": 1001,
+        "original": 0
+      },
+      "validation": {
+        "passed": true,
+        "issues": [],
+        "plateau": {
+          "heapMiB": {
+            "early": 0.9142837524414062,
+            "late": 0.9613418579101562,
+            "medianGrowth": 0.04705810546875,
+            "fittedGrowth": 0.061430613199869796,
+            "limit": 1,
+            "maximum": 0.9613418579101562
+          },
+          "pssMiB": {
+            "early": 523.064453125,
+            "late": 503.7431640625,
+            "medianGrowth": -19.3212890625,
+            "fittedGrowth": -28.50651041666667,
+            "limit": 64,
+            "maximum": 528.5458984375
+          },
+          "rssMiB": {
+            "early": 1395.04296875,
+            "late": 1202.5703125,
+            "medianGrowth": -192.47265625,
+            "fittedGrowth": -244.16438802083337,
+            "limit": 128,
+            "maximum": 1399.9921875
+          },
+          "decodedMiB": {
+            "early": 19.546875,
+            "late": 26.0625,
+            "medianGrowth": 6.515625,
+            "fittedGrowth": 6.515625,
+            "limit": 32,
+            "maximum": 514.734375
+          },
+          "gpuMiB": {
+            "early": 5.03125,
+            "late": 4.953125,
+            "medianGrowth": -0.078125,
+            "fittedGrowth": 0.7044270833333334,
+            "limit": 16,
+            "maximum": 9.3125
+          },
+          "partitionMiB": {
+            "early": 5.5390625,
+            "late": 4.97265625,
+            "medianGrowth": -0.56640625,
+            "fittedGrowth": -0.6526692708333334,
+            "limit": 4,
+            "maximum": 5.87109375
+          }
+        }
+      },
+      "samples": [
+        {
+          "navigation": 0,
+          "heapBeforeGC": 1.0521888732910156,
+          "heapAfterGC": 0.6784248352050781,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1252.04296875,
+            "pssMiB": 427.4111328125
+          },
+          "process": {
+            "rssMiB": 1254.32421875,
+            "pssMiB": 428.7607421875,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 8544256,
+            "gpu/shared_images": 6504448,
+            "partition_alloc": 6156288,
+            "discardable": 17121280,
+            "web_cache/Image_resources": 143851
+          }
+        },
+        {
+          "navigation": 100,
+          "heapBeforeGC": 1.331207275390625,
+          "heapAfterGC": 0.8001747131347656,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 2052.59375,
+            "pssMiB": 1044.568359375
+          },
+          "process": {
+            "rssMiB": 1383.13671875,
+            "pssMiB": 515.5302734375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 539738112,
+            "gpu/shared_images": 9764864,
+            "partition_alloc": 5926912,
+            "discardable": 546578432,
+            "web_cache/Image_resources": 143852
+          }
+        },
+        {
+          "navigation": 200,
+          "heapBeforeGC": 1.744171142578125,
+          "heapAfterGC": 0.8935661315917969,
+          "discardedDrafts": 0,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1389.84375,
+            "pssMiB": 518.7763671875
+          },
+          "process": {
+            "rssMiB": 1383.76171875,
+            "pssMiB": 512.6943359375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5312512,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 300,
+          "heapBeforeGC": 1.1642112731933594,
+          "heapAfterGC": 0.9079093933105469,
+          "discardedDrafts": 45,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1413.77734375,
+            "pssMiB": 542.3271484375
+          },
+          "process": {
+            "rssMiB": 1399.9921875,
+            "pssMiB": 528.5458984375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5853184,
+            "discardable": 34177024,
+            "web_cache/Image_resources": 143854
+          }
+        },
+        {
+          "navigation": 400,
+          "heapBeforeGC": 1.3173599243164062,
+          "heapAfterGC": 0.9142837524414062,
+          "discardedDrafts": 145,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1413.91015625,
+            "pssMiB": 541.943359375
+          },
+          "process": {
+            "rssMiB": 1395.0234375,
+            "pssMiB": 523.064453125,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5627904,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 500,
+          "heapBeforeGC": 1.3173065185546875,
+          "heapAfterGC": 0.9142837524414062,
+          "discardedDrafts": 245,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1407.8359375,
+            "pssMiB": 535.748046875
+          },
+          "process": {
+            "rssMiB": 1395.04296875,
+            "pssMiB": 522.958984375,
+            "processCount": 12
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5275648,
+            "partition_alloc": 5808128,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 600,
+          "heapBeforeGC": 1.3599929809570312,
+          "heapAfterGC": 0.9570045471191406,
+          "discardedDrafts": 345,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1209.80078125,
+            "pssMiB": 511.6982421875
+          },
+          "process": {
+            "rssMiB": 1197.484375,
+            "pssMiB": 499.3857421875,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5996544,
+            "partition_alloc": 4763648,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143855
+          }
+        },
+        {
+          "navigation": 700,
+          "heapBeforeGC": 1.36004638671875,
+          "heapAfterGC": 0.9570045471191406,
+          "discardedDrafts": 445,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1203.953125,
+            "pssMiB": 505.9365234375
+          },
+          "process": {
+            "rssMiB": 1191.90234375,
+            "pssMiB": 493.8896484375,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5996544,
+            "partition_alloc": 4616192,
+            "discardable": 34168832,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 800,
+          "heapBeforeGC": 1.363861083984375,
+          "heapAfterGC": 0.9613418579101562,
+          "discardedDrafts": 545,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1205.640625,
+            "pssMiB": 507.2490234375
+          },
+          "process": {
+            "rssMiB": 1193.53125,
+            "pssMiB": 495.1435546875,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 20496384,
+            "gpu/shared_images": 5193728,
+            "partition_alloc": 4788224,
+            "discardable": 27336704,
+            "web_cache/Image_resources": 143861
+          }
+        },
+        {
+          "navigation": 900,
+          "heapBeforeGC": 1.3651618957519531,
+          "heapAfterGC": 0.9613418579101562,
+          "discardedDrafts": 645,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1213.7734375,
+            "pssMiB": 514.9423828125
+          },
+          "process": {
+            "rssMiB": 1202.5703125,
+            "pssMiB": 503.7431640625,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 5193728,
+            "partition_alloc": 5521408,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143860
+          }
+        },
+        {
+          "navigation": 1000,
+          "heapBeforeGC": 1.3645858764648438,
+          "heapAfterGC": 0.9594383239746094,
+          "discardedDrafts": 745,
+          "dom": {
+            "documents": 1,
+            "nodes": 335,
+            "jsEventListeners": 33
+          },
+          "processBeforeGC": {
+            "rssMiB": 1210.87109375,
+            "pssMiB": 511.0048828125
+          },
+          "process": {
+            "rssMiB": 1206.05078125,
+            "pssMiB": 506.1845703125,
+            "processCount": 10
+          },
+          "native": {
+            "cc/image_memory": 27328512,
+            "gpu/shared_images": 6635520,
+            "partition_alloc": 5214208,
+            "discardable": 41009152,
+            "web_cache/Image_resources": 143851
+          }
+        }
+      ],
+      "sourceSamples": [
+        {
+          "original": true,
+          "process": {
+            "rssMiB": 1227.12109375,
+            "pssMiB": 526.9423828125
+          },
+          "native": {
+            "cc/image_memory": 40980480,
+            "gpu/shared_images": 6635520,
+            "partition_alloc": 5332992,
+            "discardable": 75145216,
+            "web_cache/Image_resources": 549740
+          }
+        },
+        {
+          "original": false,
+          "process": {
+            "rssMiB": 1227.33203125,
+            "pssMiB": 526.8408203125
+          },
+          "native": {
+            "cc/image_memory": 34148352,
+            "gpu/shared_images": 6635520,
+            "partition_alloc": 5332992,
+            "discardable": 68313088,
+            "web_cache/Image_resources": 549740
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "desktop": {
+      "repeats": 3,
+      "seconds": {
+        "median": 49.574745873,
+        "range": [48.266622844, 58.233258377]
+      },
+      "metrics": {
+        "heapMiB": {
+          "peakMedian": 0.8644676208496094,
+          "peakRange": [0.8644676208496094, 0.8644828796386719],
+          "medianGrowthRange": [0.04425048828125, 0.04425048828125],
+          "fittedGrowthRange": [0.05543104807535807, 0.05543994903564453]
+        },
+        "pssMiB": {
+          "peakMedian": 1061.0615234375,
+          "peakRange": [1055.318359375, 1063.083984375],
+          "medianGrowthRange": [-22.962890625, -21.85546875],
+          "fittedGrowthRange": [-24.999104817708332, -22.543131510416668]
+        },
+        "rssMiB": {
+          "peakMedian": 2090.62890625,
+          "peakRange": [2083.359375, 2093.4609375],
+          "medianGrowthRange": [-198.33203125, -196.20703125],
+          "fittedGrowthRange": [-259.8473307291667, -197.130859375]
+        },
+        "decodedMiB": {
+          "peakMedian": 514.734375,
+          "peakRange": [514.734375, 514.734375],
+          "medianGrowthRange": [0, 0],
+          "fittedGrowthRange": [0, 0]
+        },
+        "gpuMiB": {
+          "peakMedian": 13.611492156982422,
+          "peakRange": [12.283367156982422, 14.361492156982422],
+          "medianGrowthRange": [-0.078125, 0],
+          "fittedGrowthRange": [-0.040364583333333336, -0.02994791666666667]
+        },
+        "partitionMiB": {
+          "peakMedian": 6.79296875,
+          "peakRange": [6.48046875, 6.79296875],
+          "medianGrowthRange": [-0.9609375, -0.83203125],
+          "fittedGrowthRange": [-1.279296875, -0.9606119791666666]
+        }
+      }
+    },
+    "drafts": {
+      "repeats": 3,
+      "seconds": {
+        "median": 50.846357495,
+        "range": [48.205685395, 58.424440095]
+      },
+      "metrics": {
+        "heapMiB": {
+          "peakMedian": 0.9239540100097656,
+          "peakRange": [0.9239387512207031, 0.9239540100097656],
+          "medianGrowthRange": [0.04705810546875, 0.04705810546875],
+          "fittedGrowthRange": [0.06142425537109375, 0.06143315633138021]
+        },
+        "pssMiB": {
+          "peakMedian": 1060.0029296875,
+          "peakRange": [1056.5078125, 1064.8330078125],
+          "medianGrowthRange": [-25.35546875, -23.013671875],
+          "fittedGrowthRange": [-24.546223958333332, -22.614013671875]
+        },
+        "rssMiB": {
+          "peakMedian": 2086.25,
+          "peakRange": [2084.2109375, 2089.08984375],
+          "medianGrowthRange": [-199.60546875, -196.3984375],
+          "fittedGrowthRange": [-253.85904947916669, -198.29069010416666]
+        },
+        "decodedMiB": {
+          "peakMedian": 514.734375,
+          "peakRange": [514.734375, 514.734375],
+          "medianGrowthRange": [0, 0],
+          "fittedGrowthRange": [0, 0]
+        },
+        "gpuMiB": {
+          "peakMedian": 13.611492156982422,
+          "peakRange": [11.548992156982422, 13.611492156982422],
+          "medianGrowthRange": [-0.078125, 0.5021171569824219],
+          "fittedGrowthRange": [0.19524542490641275, 0.4074850082397461]
+        },
+        "partitionMiB": {
+          "peakMedian": 6.7109375,
+          "peakRange": [6.45703125, 6.9453125],
+          "medianGrowthRange": [-1.12890625, -0.86328125],
+          "fittedGrowthRange": [-1.5257161458333335, -0.8909505208333334]
+        }
+      }
+    },
+    "mobile-pressure": {
+      "repeats": 3,
+      "seconds": {
+        "median": 51.695054157,
+        "range": [51.465924198, 51.748762289]
+      },
+      "metrics": {
+        "heapMiB": {
+          "peakMedian": 0.9613571166992188,
+          "peakRange": [0.9613418579101562, 0.9613571166992188],
+          "medianGrowthRange": [0.04705810546875, 0.04705810546875],
+          "fittedGrowthRange": [0.061430613199869796, 0.061430613199869796]
+        },
+        "pssMiB": {
+          "peakMedian": 530.4716796875,
+          "peakRange": [528.5458984375, 532.4501953125],
+          "medianGrowthRange": [-34.3212890625, -19.3212890625],
+          "fittedGrowthRange": [-34.630533854166664, -28.50651041666667]
+        },
+        "rssMiB": {
+          "peakMedian": 1408.82421875,
+          "peakRange": [1399.9921875, 1411.8359375],
+          "medianGrowthRange": [-209.75390625, -192.47265625],
+          "fittedGrowthRange": [-252.18359375, -244.16438802083337]
+        },
+        "decodedMiB": {
+          "peakMedian": 514.734375,
+          "peakRange": [514.734375, 514.734375],
+          "medianGrowthRange": [-6.515625, 6.515625],
+          "fittedGrowthRange": [-1.62890625, 6.515625]
+        },
+        "gpuMiB": {
+          "peakMedian": 9.546875,
+          "peakRange": [9.3125, 9.546875],
+          "medianGrowthRange": [-0.078125, -0.078125],
+          "fittedGrowthRange": [0.37630208333333337, 0.7044270833333334]
+        },
+        "partitionMiB": {
+          "peakMedian": 5.87109375,
+          "peakRange": [5.8046875, 5.8828125],
+          "medianGrowthRange": [-0.953125, -0.56640625],
+          "fittedGrowthRange": [-1.2412109375, -0.6526692708333334]
+        }
+      }
+    }
+  },
+  "runtime": {
+    "platform": "linux",
+    "node": "v22.22.1",
+    "chromium": "151.0.7922.34",
+    "playwright": "1.62.0",
+    "vite": "8.1.5",
+    "typescript": "6.0.3"
+  }
+}

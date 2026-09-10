@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                    |
-| ----- | ----------------------------------------------------------------------------------------------------------- | ------------------------- |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed       |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed       |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed       |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed       |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | In progress: stable views |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                   |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                   |
+| Phase | Required result                                                                                             | Status                         |
+| ----- | ----------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed            |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed            |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed            |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed            |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Locally verified; push pending |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                        |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                        |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -271,3 +271,49 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   fixture tests that distinction and the retained private-data markers. No task
   URLs, original-image binaries, live database changes or image mirror are added.
   The real-raster long-session memory gate remains required before phase 4 ends.
+- Phase 4 browser-memory harness `5ed5409` exercises the production application
+  with a synthetic on-demand repository and real, distinct 1,600 × 1,067 PNGs.
+  The gate runs 1,000 navigations in each of nine fresh browser processes:
+  three desktop, three draft-heavy and three mobile-pressure. It checks retained
+  heap/DOM, all browser descendant process RSS/PSS, detailed decoded-image/GPU
+  allocations, explicit original inspection and cached return to preview.
+  Each draft-heavy run resolves capacity explicitly 745 times without evicting
+  older drafts. The CI job repeats the gate independently of interaction tests.
+- Controlled investigation found that network recording itself caused native
+  allocation growth even in an image-only page: direct CDP plus `Network.enable`
+  grew partition allocations from 70.70 to 202.31 MiB between navigations 300
+  and 1,000. Without recording this pool stayed around 5–7 MiB. The measured
+  harness therefore avoids network recording while leaving HTTP/image caches
+  enabled. The negative control remains available and cannot count as a pass.
+- The first nine-run suite had passing memory measurements but failed overall
+  because one browser profile directory was still being written during cleanup.
+  Graceful `Browser.close`, bounded shutdown fallbacks and retrying removal of
+  the owned temporary directory fixed that race. A thread-exit sampling regression
+  also ensures a closing child cannot erase a live parent's process footprint.
+  The complete rerun passed all nine processes with clean shutdowns. The eight
+  harness tests include invalid/missing evidence and native-growth failure cases.
+- Final local [browser measurements](../benchmarks/results/browser-2026-09-11.json)
+  preserve all 99 checkpoints, source calibrations, versions, individual gates,
+  three-run medians and ranges. Maximum retained JS heap was 0.962 MiB; maximum
+  fitted post-warm-up heap growth was 0.062 MiB. Decoded-image fitted growth was
+  at most 6.516 MiB; process PSS median and fitted growth were negative in every
+  run. Retained document/node/listener counts stayed fixed. These are bounded
+  growth results, **not** a small total-RAM claim: desktop decoded-image accounting
+  reached 514.73 MiB and whole-browser post-GC PSS reached 1,064.83 MiB on this
+  host. Mobile viewport/touch emulation, a 64 MiB V8 old-space limit and synthetic
+  critical pressure are not a physical low-RAM phone or total-process RAM cap.
+  [Methodology and limitations](../benchmarks/browser-memory.md) distinguish
+  allocation accounting, resident memory, pre-GC peaks and original-image limits.
+- Final phase 4 local checks pass 87 frontend tests, 24 desktop/mobile interaction
+  tests, eight harness tests, 137 Python tests using disposable local databases,
+  type/lint/format/Ruff/data-leak/whitespace checks and the production build.
+  JavaScript is 61.96 KiB gzip. The bundle checker now actually enforces the
+  planned 70 KiB ceiling (previously 250 KiB), with a regression test that also
+  rejects a missing or empty build. Remote CI and deployment remain unverified
+  until the phase is pushed and those runs finish.
+- Phase 5 preparation only: all nine existing migrations and all 54 existing
+  pgTAP assertions passed on a disposable PostgreSQL 18.3 database with a minimal
+  local Auth table/claim-function fixture. Supabase CLI advisors reported no
+  issues. This is SQL-only verification, not an Auth service test or a live
+  Supabase migration. Cursor optimization and its new regression tests remain
+  to be implemented.
