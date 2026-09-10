@@ -16,9 +16,9 @@ reproduction artifacts remain outside this public-code repository.
 | 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed            |
 | 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed            |
 | 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed            |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pushed; CI pending             |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Locally verified; push pending |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                        |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed            |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed            |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Locally verified; push pending |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -320,12 +320,14 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
 - Phase 4 focused commits `5ed5409` (browser-memory harness), `7d492bc` (bundle
   ceiling) and `a1adf75` (measurements) are pushed. In
   [CI 34493992268](https://github.com/karikris/veritaxa/actions/runs/34493992268),
-  application, Supabase security, browser-memory and export-memory jobs have
-  passed; import-memory remains running. The downloaded browser artifact was
+  all five jobs passed. The downloaded browser artifact was
   independently revalidated: all nine runs passed on Node 24.20.0 / Chromium
   151.0.7922.34, retained heap at most 0.962 MiB, post-GC PSS at most 1,039.87 MiB
-  and fitted decoded-image growth at most 2.715 MiB. The phase's overall CI and
-  Pages deployment cannot yet be called complete.
+  and fitted decoded-image growth at most 2.715 MiB. The import artifact also
+  passed all 42 runs: peak 214.29 MiB and maximum median growth 17.90 MiB.
+  [Pages 34496516291](https://github.com/karikris/veritaxa/actions/runs/34496516291)
+  passed. Its checkout log confirms deployed source `a1adf75`; the workflow-run
+  metadata lists the later main SHA because main advanced before deployment.
 - Phase 5 migration `594dbc5` replaces next/previous CASE sorting with strict
   indexed position ranges and explicit wrap fallback. Existing indexes suffice.
   Removing the redundant ID tie-breaker avoids even the incremental sort found
@@ -361,5 +363,75 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
 - Phase 5 local verification also passes all 141 Python tests, Ruff and format
   checks, the private-data scan and whitespace checks. The application has no
   frontend changes in this phase; its prior 87 unit/24 browser checks and
-  61.96 KiB gzip production result remain applicable. Phase push and remote
-  migration/CI verification follow.
+  61.96 KiB gzip production result remain applicable.
+- Phase 5 is pushed through `9ceebaa`.
+  [CI 34496312255](https://github.com/karikris/veritaxa/actions/runs/34496312255)
+  passed all five jobs, including migrations and pgTAP on the actual local
+  Supabase service. Its downloaded import artifact contains 42 passing runs,
+  peak 216.77 MiB and maximum median growth 19.20 MiB on Python 3.12.3 /
+  PostgreSQL 17.11. [Pages 34499226921](https://github.com/karikris/veritaxa/actions/runs/34499226921)
+  passed; its checkout log confirms source `9ceebaa`.
+- Phase 6 dead-code commit `d623e17` removes the unused prefetch implementation
+  and its standalone tests, an uncalled submission assertion, and the unreachable
+  `config_error` app state. These were verified by repository-wide references;
+  actual repository-boundary validation remains. The removed files are recoverable
+  in Git. No bundle-size reduction is claimed for already tree-shaken code.
+- Capability commit `fec81c2` shares allocation-free app predicates between event
+  handlers and mounted controls, including save, navigation, draft discard, image
+  inspection and batch changes. Programmatic/queued events cannot grant actions
+  merely by changing a disabled DOM property. It also removes the unreachable
+  textarea-submit branch and renames the stale email-oriented shortcut helper.
+  Session reset was already consolidated in phase 1 and remains the single owner
+  for clearing session, requests, image state and parked drafts.
+- Unicode commit `14bb30c` bounds/counts each input once in the view and reuses the
+  current count during ordinary updates. Restored/server comments are counted only
+  when their value changes. The truncation loop no longer creates per-character
+  iterator strings. The view retains only its current comment/count, not a history.
+  Normalization at the independent submit/response trust boundaries remains.
+- Schema-parity commit `385312a` checks all retained label versions against Python
+  priority ordering and export mappings, including every pairwise tie and the
+  legacy Flickr mapping. Eager and incremental derived flags agree; tied outcomes
+  remain excluded from automatic training. Existing TypeScript/schema parity tests
+  are reused, not duplicated, and runtime schema-file loading is not introduced.
+- Trigger commit `178c43d` renames the stale append-only guard with a forward
+  migration, without replacing its enforcement function or changing records,
+  grants, RLS or earlier migrations. All 107 SQL assertions pass, including five
+  added guard-name/version/time checks. A fresh SQL-only PostgreSQL 18.3 cluster
+  applied all eleven migrations, passed both suites and retained zero fixture
+  campaigns/items/reviews before being stopped. Supabase advisors reported no
+  issues on the disposable upgraded database. Live Supabase was not changed.
+- Compatibility commit `e693d7a` records the actual current RPC consumers and
+  [retirement conditions](compatibility.md). No complete production usage window
+  or supported-client cutoff is established. The old RPCs, eager small-frame
+  helpers, historical schemas/migrations and private records remain deliberately
+  intact. RPC retirement is conditional in the plan and is **not** claimed done.
+- Final frontend checks pass 93 unit tests, 24 desktop/mobile interaction tests,
+  eight memory-harness tests, type/lint/format checks, a production build and the
+  70 KiB bundle gate. Production JavaScript is 62.03 KiB gzip. The complete
+  [phase 6 browser soak](../benchmarks/results/browser-phase6-2026-09-11.json)
+  passes all nine fresh-process runs and all 99 checkpoints. Each run retains
+  stable document/node/listener counts; maximum post-GC JS heap is 0.978 MiB and
+  maximum fitted heap growth is 0.068 MiB. Whole-browser post-GC PSS reaches
+  1,064.32 MiB and decoded-image accounting reaches 514.73 MiB; the small JS heap
+  is not a claim of small total browser memory. Native growth remains within the
+  original limits; the pressure profile is emulation, not a physical phone test.
+- Dependency commit `a1326aa` replaces the yanked Polars 1.43.0 pin with the
+  non-yanked [1.43.2 patch](https://pypi.org/project/polars/1.43.2/) on the same
+  minor line, updating only Polars and its matching runtime in the lockfile.
+  All 143 Python tests pass with both disposable database suites enabled, without
+  skips, and Ruff/lint/format checks pass. Polars remains needed for compatible
+  input type inference and small-frame APIs; removing it was not proven safe.
+- The complete phase 6 [import](../benchmarks/results/import-phase6-2026-09-11.json)
+  and [export](../benchmarks/results/export-phase6-2026-09-11.json) memory gates
+  pass all 42 and 48 fresh-process runs on Python 3.14.5 / PostgreSQL 18.3 /
+  Polars 1.43.2 / PyArrow 25.0.1. Maximum import RSS is 180.51 MiB, with no
+  positive median growth between 10,000 and 100,000 rows in any case. Maximum
+  export RSS is 189.42 MiB and maximum median growth is 38.48 MiB. Reports retain
+  every run and independently rechecked three-run medians/ranges. The two suites
+  ran concurrently against separate databases; these timings are not an isolated
+  dependency-speed comparison. No thread-count override or relaxed memory limit
+  was needed. Oversized-record correctness remains separately tested and is not
+  included in the 20 KiB-fixture memory guarantee.
+- Phase 6 is locally verified. The final private-data/whitespace checks, phase
+  push and independent CI/Pages verification follow; legacy RPC retirement remains
+  subject to the documented supported-client cutoff, not silently executed.
