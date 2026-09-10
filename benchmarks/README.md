@@ -148,3 +148,8 @@ end-to-end benefit is measured against the complete path, not assumed from a
 microbenchmark. PostgreSQL also [restricts COPY FROM with row-level security](https://www.postgresql.org/docs/current/sql-copy.html);
 the comparison runs as the owner of disposable synthetic tables, never by relaxing
 application policies.
+
+## Cursor SQL
+
+See [cursor selection and complete RPC timing](cursor-database.md) for the
+synthetic before/after comparison, local-only guard and preservation tests.
