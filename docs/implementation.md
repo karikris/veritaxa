@@ -10,20 +10,21 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                                 |
-| ----- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                    |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed                    |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed                    |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed                    |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed                    |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed                    |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Local core verified; cutoff unresolved |
+| Phase | Required result                                                                                             | Status                                                         |
+| ----- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                                            |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed                                            |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed                                            |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed                                            |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed                                            |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed                                            |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Core pushed; retirement locally verified; live rollout pending |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
-history and private records must remain intact. Legacy RPC retirement requires
-consumer/cutoff evidence; do not silently remove compatibility still in use.
+history and private records must remain intact. The owner has explicitly ended
+legacy-client support; the minimum supported deployed client is `05e7dec`.
+Stale browser bundles must refresh and external clients must migrate to current RPCs.
 
 ## Acceptance gates
 
@@ -459,5 +460,45 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   complete-path memory evidence, correctness tests and retained limitations.
 - Remote release verification must use the exact final CI and Pages checkout
   commits, not merely the latest run's displayed branch SHA. Legacy RPC retirement
-  remains unresolved until the documented supported-client cutoff is established;
-  it has not been silently executed or claimed complete.
+  was unresolved at that verification point. The owner subsequently established
+  the cutoff recorded below; no inactivity or source-absence assumption is used.
+
+### Owner-approved legacy API retirement
+
+- The owner ended legacy-client support on 11 September 2026 and selected the
+  deployed `05e7dec54a3ae5ef1d5c5c2fa21347eaf984553f` release as the minimum
+  supported client. Stale browser bundles must refresh before continuing.
+- The core refactor's final CI `34501383925` passed all five jobs. Pages run
+  `34503930381` checked out that exact commit; served HTML/JS/CSS matched its
+  artifact byte-for-byte. Independent report checks passed 42 import runs
+  (212.48 MiB peak RSS), 48 export runs (207.13 MiB peak RSS) and nine browser
+  soaks/99 checkpoints. The deployed bundle was 62.13 KiB gzip.
+- Added a forward migration for only `get_review_queue(uuid, integer)` and
+  `submit_image_review(uuid, public.review_label, text, uuid, text)`, using
+  one atomic `DROP FUNCTION ... RESTRICT` statement. Removed their database
+  type declarations and moved retained security behavior tests to the current
+  versioned save API, with catalog assertions that no legacy overload remains.
+- Historical reviews, schema versions, label meanings, client-version history,
+  source metadata and applied migrations are explicitly out of deletion scope.
+  No current RPC, grant or data definition is changed by the retirement.
+- The two new absence assertions failed before removal while all 55 retained
+  security behaviors passed. After removal, 57 security and 48 cursor assertions
+  passed on both the existing local fixture and a fresh PostgreSQL 18.3 cluster
+  with all 12 migrations. Supabase advisors reported no issues.
+- An upgrade rehearsal seeded seven synthetic reviews, including an original
+  legacy Flickr-label row, four metadata-bearing items and their Auth/profile/
+  campaign/batch records. Every row, relation/grant, column, constraint, policy,
+  trigger, type, enum label and non-retired function definition/grant matched
+  before and after removal. A deliberate dependency on the second API caused
+  the single statement to fail without removing either API. Rehearsal data and
+  the temporary dependency were rolled back; no real records were read or changed.
+- Live rollout remains unverified: this session has no authenticated Supabase
+  CLI/connector or linked project. Local verification, commit and CI evidence
+  are recorded separately from live database application.
+- Release checks passed: 93 frontend tests, 24 desktop/mobile browser tests,
+  143 Python tests including real-driver suites, TypeScript, lint, formatting,
+  private-data scan and whitespace checks. Production JavaScript remains
+  byte-identical to the verified minimum client under the same build configuration
+  (SHA-256 `8aad6395d149e8d43f0d31ec909f95602cf0b39d9e6ae4fad66edeb483d8372c`),
+  at 62.05 KiB gzip. Only API definitions/types, tests and documentation changed;
+  no new frontend behavior or memory-saving claim is attached to this removal.

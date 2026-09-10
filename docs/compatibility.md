@@ -1,46 +1,59 @@
 # Compatibility and retirement
 
-The September efficiency refactor removes unused application code, not review
-history or support for unidentified deployed clients. The following compatibility
-surface remains deliberately supported until its retirement conditions are met.
+The September efficiency refactor removes obsolete APIs and unused application
+code, not review history, provenance or historical label meanings.
 
 ## Review RPCs
 
-The current browser calls `list_review_batches`, `get_review_cursor`, and
-`save_image_review_v2`. The following older endpoints remain in the database:
+On 11 September 2026 the owner explicitly ended support for older deployed
+clients. The deployed release at commit `05e7dec54a3ae5ef1d5c5c2fa21347eaf984553f`
+is the minimum supported client. **Users of stale browser bundles must refresh
+the application before continuing.** External clients must migrate to the current
+RPCs: `list_review_batches`, `get_review_cursor`, and `save_image_review_v2`.
+
+The [forward retirement migration](../supabase/migrations/20260910212342_retire_legacy_review_rpcs.sql)
+removes only these two exact API signatures:
 
 - `public.get_review_queue(uuid, integer)`
 - `public.submit_image_review(uuid, public.review_label, text, uuid, text)`
 
-Repository searches find no current browser calls to either legacy endpoint.
-Their generated database types describe the actual database and are not runtime
-calls. The security suite still exercises authenticated legacy submissions,
-idempotent retries, authorization and restricted queue responses.
+This is an explicit support-policy cutoff, not an inference of zero legacy use.
+The minimum release has no calls to the retired APIs; its successful
+[deployment](https://github.com/karikris/veritaxa/actions/runs/34503930381) checked
+out that exact commit, and the served assets matched the deployment artifact.
+`client_version` values remain historical data, not evidence that all old tabs
+have closed. Retirement does not depend on proving zero usage because older
+clients are now explicitly unsupported.
 
-Source absence and a successful deployment do **not** establish a usage cutoff.
-An already open browser tab can retain an older bundle; external clients are not
-enumerated by this repository. No complete production request-log window or
-owner-approved minimum-client policy has been established by this refactor.
-Current review rows and their `client_version` are not an access log: they cannot
-show queue reads, failed calls or inactive clients that will return later.
+The migration uses one atomic `DROP FUNCTION ... RESTRICT` statement, without
+`CASCADE`. Unexpected dependencies must abort removal, not be deleted. Current
+RPCs, grants, RLS and ownership/version checks remain unchanged. Database types
+omit the removed endpoints. Security tests assert their absence and exercise
+normalization, identity, retry, validation and correction through the current API.
 
-Retirement requires:
+### Data-preservation boundary
 
-1. An explicit supported-client cutoff and a refresh/migration notice for affected
-   reviewers and external clients. Do not assume a particular inactivity period
-   proves that a browser tab no longer exists.
-2. Verification that supported deployments use the current RPCs, plus a reviewed
-   observation window for both legacy endpoints if continued compatibility is
-   required. Record coverage gaps and errors; absent or reset statistics are not
-   evidence of zero use. Keep raw request logs and reviewer data private.
-3. A new forward migration dropping only the exact retired signatures, without
-   `CASCADE`. Update generated types and replace the legacy execution tests with
-   absence assertions. Run the current auth, ownership, retry, correction and
-   cursor suites against a freshly migrated database before release.
-4. A separately reviewed rollout and recovery procedure. Do not edit applied
-   migrations, delete reviews, or revoke current RPC grants to perform retirement.
+Do not remove or rewrite historical `image_reviews`, old schema versions, old
+label meanings, `client_version` history, source metadata or applied migrations.
+Existing review rows remain current/versioned records; this retirement neither
+deletes them nor invents a revision history that the database never stored.
 
-No legacy endpoint is removed merely to make this checklist appear complete.
+### Rollout and recovery
+
+1. Publish this refresh/migration notice and verify the minimum supported client
+   uses only current RPCs. Do not force-refresh a user's unsaved draft.
+2. Test the complete migration chain and current auth, ownership, retry,
+   correction and cursor suites. Check an upgrade against existing synthetic
+   records, definitions and grants before touching the live database.
+3. Verify the live project's identity, migration history and exact signatures.
+   Apply the retirement migration only after those checks; a Git push or Pages
+   deployment does not apply database migrations. Do not automatically apply
+   unrelated pending migrations as part of retiring these endpoints.
+4. Confirm both legacy endpoints are absent and current RPCs/grants remain intact.
+   Recovery is refresh/migration to the supported client. If the owner later
+   reverses the support policy, restore only the required definitions and exact
+   grants from retained migration history in a new reviewed forward migration;
+   never roll back or delete review data or edit applied migrations.
 
 ## Python helpers and historical data
 

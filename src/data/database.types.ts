@@ -79,19 +79,6 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      get_review_queue: {
-        Args: { p_batch_id: string; p_limit?: number };
-        Returns: {
-          display_url: string | null;
-          fallback_image_url: string;
-          image_id: string;
-          item_id: string;
-          position: number;
-          reviewed_count: number;
-          target_scientific_name: string | null;
-          total_count: number;
-        }[];
-      };
       get_review_cursor: {
         Args: {
           p_anchor_position: number | null;
@@ -125,20 +112,6 @@ export type Database = {
           complete: boolean;
           reviewed_count: number;
           reviewer_name: string;
-          total_count: number;
-        }[];
-      };
-      submit_image_review: {
-        Args: {
-          p_client_version: string;
-          p_comment: string | null;
-          p_item_id: string;
-          p_label: Database['public']['Enums']['review_label'];
-          p_submission_id: string;
-        };
-        Returns: {
-          complete: boolean;
-          reviewed_count: number;
           total_count: number;
         }[];
       };

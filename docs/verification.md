@@ -49,11 +49,15 @@ independent results; check the exact tested and checked-out source commit.
   RPC or resume speedup is claimed. Native cache accounting is not additive to
   process memory. Runtime versions, individual runs and ranges remain in reports.
 
-## Outstanding compatibility decision
+## Legacy API retirement
 
-Legacy RPC retirement is not complete. No owner-approved supported-client cutoff
-or complete usage window has been established. [Compatibility conditions](compatibility.md)
-explain the exact retained signatures, required consumer checks and later forward
-migration. Historical data, label meanings and applied migrations must not be
-removed to satisfy a code-cleanup checklist. No live Supabase migration or review
-data mutation is performed by these local verification procedures.
+The owner established the deployed `05e7dec` release as the minimum supported
+client and ended legacy-client support on 11 September 2026. Stale browser bundles
+must refresh before continuing; external clients must migrate to current RPCs.
+The [retirement migration](../supabase/migrations/20260910212342_retire_legacy_review_rpcs.sql)
+drops only the exact old queue/submit signatures without `CASCADE`. Security tests
+assert their absence and preserve useful validation/retry checks on the current
+save API. [Compatibility policy](compatibility.md) records rollout, recovery and
+the explicit boundary preserving reviews, schema/label versions, client-version
+history, source metadata and applied migrations. Live application must be verified
+separately; local checks and Pages deployment do not change the live database.

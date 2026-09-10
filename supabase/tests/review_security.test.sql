@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(59);
+select plan(57);
 
 select is(
   (
@@ -306,30 +306,21 @@ select
     'batch-list result omits internal campaign context'
   );
 
-select
-  ok(
-    position(
-      'target_scientific_name' in pg_get_function_result(
-        'public.get_review_queue(uuid,integer)'::regprocedure
-      )
-    ) > 0,
-    'queue result exposes the campaign target scientific name'
-  );
+select is(
+  (select count(*) from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_review_queue'),
+  0::bigint,
+  'the legacy queue API has no remaining overloads'
+);
 
-select
-  ok(
-    position(
-      'source_labels' in pg_get_function_result(
-        'public.get_review_queue(uuid,integer)'::regprocedure
-      )
-    ) = 0
-    and position(
-      'flickr' in pg_get_function_result(
-        'public.get_review_queue(uuid,integer)'::regprocedure
-      )
-    ) = 0,
-    'queue result omits Flickr and other source or pipeline metadata'
-  );
+select is(
+  (select count(*) from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'submit_image_review'),
+  0::bigint,
+  'the legacy submit API has no remaining overloads'
+);
 
 select
   ok(
@@ -543,34 +534,24 @@ select
 select
   is(
     (
-      select count(*)
-      from public.get_review_queue('30000000-0000-0000-0000-000000000001', 99)
-    ),
-    2::bigint,
-    'review queue clamps its limit to two'
-  );
-
-select
-  is(
-    (
       select target_scientific_name
-      from public.get_review_queue('30000000-0000-0000-0000-000000000001', 2)
-      where item_id = '40000000-0000-0000-0000-000000000001'
+      from public.get_review_cursor('30000000-0000-0000-0000-000000000001', null, 'resume')
     ),
     'Taxon example'::text,
-    'the queue returns the campaign target scientific name'
+    'the current cursor returns the campaign target scientific name'
   );
 
 select
   throws_ok(
     $$
       select *
-      from public.submit_image_review(
+      from public.save_image_review_v2(
         '40000000-0000-0000-0000-000000000001',
         'not_a_label'::public.review_label,
         null,
         '50000000-0000-0000-0000-000000000001',
-        'test-client'
+        'test-client',
+        0
       )
     $$,
     '22P02',
@@ -582,15 +563,16 @@ select
   lives_ok(
     $$
       select *
-      from public.submit_image_review(
+      from public.save_image_review_v2(
         '40000000-0000-0000-0000-000000000001',
         'target_scientific_name',
         '   ',
         '50000000-0000-0000-0000-000000000001',
-        'test-client'
+        'test-client',
+        0
       )
     $$,
-    'an active reviewer can submit a review'
+    'an active reviewer can submit a versioned review'
   );
 
 reset role;
@@ -650,12 +632,13 @@ select
   lives_ok(
     $$
       select *
-      from public.submit_image_review(
+      from public.save_image_review_v2(
         '40000000-0000-0000-0000-000000000001',
         'target_scientific_name',
         '',
         '50000000-0000-0000-0000-000000000001',
-        'test-client'
+        'test-client',
+        0
       )
     $$,
     'an identical submission ID retry is idempotent'
@@ -665,12 +648,13 @@ select
   throws_ok(
     $$
       select *
-      from public.submit_image_review(
+      from public.save_image_review_v2(
         '40000000-0000-0000-0000-000000000001',
         'moth',
         null,
         '50000000-0000-0000-0000-000000000001',
-        'test-client'
+        'test-client',
+        0
       )
     $$,
     '23505',
@@ -682,29 +666,31 @@ select
   throws_ok(
     $$
       select *
-      from public.submit_image_review(
+      from public.save_image_review_v2(
         '40000000-0000-0000-0000-000000000001',
         'target_scientific_name',
         null,
         '50000000-0000-0000-0000-000000000002',
-        'test-client'
+        'test-client',
+        0
       )
     $$,
-    '23505',
-    'Item has already been reviewed',
-    'one reviewer cannot review the same item twice'
+    '40001',
+    'Review version is stale',
+    'a second initial save cannot overwrite an existing answer'
   );
 
 select
   throws_ok(
     $$
       select *
-      from public.submit_image_review(
+      from public.save_image_review_v2(
         '40000000-0000-0000-0000-000000000002',
         'moth',
         repeat('x', 1001),
         '50000000-0000-0000-0000-000000000003',
-        'test-client'
+        'test-client',
+        0
       )
     $$,
     '22001',
@@ -716,34 +702,18 @@ select
   throws_ok(
     $$
       select *
-      from public.submit_image_review(
+      from public.save_image_review_v2(
         '40000000-0000-0000-0000-000000000002',
         'flickr_keyword_match',
         null,
         '50000000-0000-0000-0000-000000000005',
-        'test-client'
+        'test-client',
+        0
       )
     $$,
     '22023',
     'Flickr keyword classification is no longer supported',
     'legacy Flickr keyword classifications are rejected'
-  );
-
-select
-  throws_ok(
-    $$
-      select *
-      from public.submit_image_review(
-        '40000000-0000-0000-0000-000000000004',
-        'uncertain',
-        null,
-        '50000000-0000-0000-0000-000000000004',
-        'test-client'
-      )
-    $$,
-    '22023',
-    'Item is not available for review',
-    'closed batches reject new reviews'
   );
 
 select

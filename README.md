@@ -100,9 +100,11 @@ The versioned definitions and pipeline mappings are in
   that reviewer’s row. Target-name reviews snapshot the database-derived name
   in `scientificName`.
 - `list_review_batches`, `get_review_cursor`, and `save_image_review_v2` are the
-  current browser-facing data operations. The original queue and submit RPCs
-  remain temporarily available to authenticated deployed clients; see the
-  [compatibility and retirement conditions](docs/compatibility.md).
+  supported browser-facing data operations. The original queue and submit RPCs
+  are retired by a forward migration. Stale browser bundles must refresh before
+  continuing; external clients must migrate to the current APIs. Historical
+  reviews, labels and source metadata are preserved. See the
+  [supported-client cutoff and retirement procedure](docs/compatibility.md).
 
 All exposed tables have RLS enabled and direct access is revoked from browser
 roles. Functions derive the reviewer UUID from the authenticated JWT, use a
@@ -328,7 +330,7 @@ git diff --check
 Browser tests use only fictional metadata and intercepted synthetic SVG
 responses; they do not require a real image host or task database.
 The [September verification map](docs/verification.md) links the implementation,
-preservation tests, complete memory gates and outstanding compatibility cutoff.
+preservation tests, complete memory gates and the explicit supported-client cutoff.
 
 ## Export reviews
 
