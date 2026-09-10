@@ -21,6 +21,9 @@
     "check": "tsc -b",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "browser:memory": "tsc -p tsconfig.browser-memory.json && node node_modules/.tmp/browser-memory/browser_memory.js",
+    "browser:memory:check": "tsc -p tsconfig.browser-memory.json && node node_modules/.tmp/browser-memory/browser_fixture.test.js && node node_modules/.tmp/browser-memory/browser_gates.test.js",
+    "browser:memory:gate": "tsc -p tsconfig.browser-memory.json && node node_modules/.tmp/browser-memory/browser_suite.js",
     "test:db": "supabase test db supabase/tests --local",
     "data:check": "node --test scripts/check-no-review-data.test.mjs && node scripts/check-no-review-data.mjs",
     "bundle:check": "node scripts/check-bundle-size.mjs"

@@ -5,6 +5,7 @@
     "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
@@ -12,5 +13,5 @@
     "skipLibCheck": true,
     "types": ["node", "@playwright/test"]
   },
-  "include": ["playwright.config.ts", "tests/e2e/**/*.ts", "scripts/**/*.mjs"]
+  "include": ["playwright.config.ts", "tests/e2e/**/*.ts", "scripts/**/*.mjs", "benchmarks/**/*.ts"]
 }

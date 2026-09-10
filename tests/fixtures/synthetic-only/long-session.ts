@@ -7,6 +7,15 @@ import { SyntheticReviewRepository } from '../../../src/data/mockReviewRepositor
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('Missing test root');
 const repository = new SyntheticReviewRepository();
+// The benchmark supplies a disposable loopback HTTPS image server so real HTTP
+// and decoded-image caches stay enabled (request interception disables caching).
+const imagePort = new URLSearchParams(location.search).get('image-port');
+if (
+  imagePort !== null &&
+  (!/^\d+$/.test(imagePort) || Number(imagePort) < 1 || Number(imagePort) > 65535)
+)
+  throw new Error('Invalid synthetic image port');
+const imageOrigin = imagePort ? `https://127.0.0.1:${imagePort}` : 'https://images.example.invalid';
 repository.listBatches = () =>
   Promise.resolve([
     {
@@ -27,8 +36,8 @@ repository.getCursor = (_batchId, anchor, direction) => {
     id: `40000000-0000-0000-0000-${String(position).padStart(12, '0')}`,
     imageId: `synthetic-${String(position)}`,
     targetScientificName: null,
-    displayUrl: `https://images.example.invalid/display-${String(position)}.png`,
-    fallbackImageUrl: `https://images.example.invalid/original-${String(position)}.png`,
+    displayUrl: `${imageOrigin}/display-${String(position)}.png`,
+    fallbackImageUrl: `${imageOrigin}/original-${String(position)}.png`,
     position,
     currentLabel: null,
     currentComment: null,

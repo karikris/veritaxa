@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.e2e.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "benchmarks",
+    "outDir": "node_modules/.tmp/browser-memory"
+  },
+  "include": ["benchmarks/browser_*.ts"]
+}

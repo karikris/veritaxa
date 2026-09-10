@@ -37,6 +37,8 @@ jobs:
         run: npm run check
       - name: Run unit tests
         run: npm test
+      - name: Verify browser-memory fixtures and failure gates
+        run: npm run browser:memory:check
       - name: Run browser tests
         run: npm run test:e2e
       - name: Run admin-tool tests
@@ -53,6 +55,28 @@ jobs:
         run: npm run bundle:check
       - name: Check whitespace
         run: git diff --check
+
+  browser-memory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Measure real-raster navigation in nine fresh browser processes
+        run: npm run browser:memory:gate -- --output browser-memory.json
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: synthetic-browser-memory
+          path: browser-memory.json
+          if-no-files-found: warn
 
   database:
     runs-on: ubuntu-latest

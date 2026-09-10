@@ -1,5 +1,8 @@
 # Synthetic memory checks
 
+For the 1,000-navigation real-raster browser/decoded-memory gate, see
+[browser-memory.md](browser-memory.md). The sections below cover the admin tools.
+
 Run from the repository root using the project Python environment. No credentials,
 database connection, real images or private campaigns are used. Do not commit
 generated fixture files or output captures containing non-synthetic data.
