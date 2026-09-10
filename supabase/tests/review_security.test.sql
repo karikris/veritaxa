@@ -3,7 +3,30 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(54);
+select plan(59);
+
+select is(
+  (
+    select count(*)
+    from pg_catalog.pg_trigger
+    where tgrelid = 'public.image_reviews'::regclass
+      and tgname = 'image_reviews_preserve_identity'
+      and not tgisinternal
+      and tgtype = 27
+      and tgenabled = 'O'
+      and tgfoid = 'private.prevent_review_mutation()'::regprocedure
+  ),
+  1::bigint,
+  'the renamed guard keeps its enabled before-row update/delete function'
+);
+
+select is(
+  (select count(*) from pg_catalog.pg_trigger
+    where tgrelid = 'public.image_reviews'::regclass
+      and tgname = 'image_reviews_append_only'),
+  0::bigint,
+  'the misleading append-only trigger name is retired'
+);
 
 insert into auth.users (
   instance_id,
@@ -1021,6 +1044,38 @@ select
     'Image reviews cannot be deleted',
     'review rows cannot be deleted even by a privileged table writer'
   );
+
+select throws_ok(
+  $$
+    update public.image_reviews set comment = 'invalid unversioned correction',
+      updated_at = updated_at + interval '1 second'
+    where submission_id = '50000000-0000-0000-0000-000000000001'
+  $$,
+  '55000',
+  'Image review corrections require the next version and update time',
+  'the renamed guard still rejects corrections without a version increment'
+);
+
+select throws_ok(
+  $$
+    update public.image_reviews set version = version + 2,
+      updated_at = updated_at + interval '1 second'
+    where submission_id = '50000000-0000-0000-0000-000000000001'
+  $$,
+  '55000',
+  'Image review corrections require the next version and update time',
+  'the renamed guard still rejects skipped versions'
+);
+
+select throws_ok(
+  $$
+    update public.image_reviews set version = version + 1
+    where submission_id = '50000000-0000-0000-0000-000000000001'
+  $$,
+  '55000',
+  'Image review corrections require the next version and update time',
+  'the renamed guard still requires a later correction timestamp'
+);
 
 select
   throws_ok(
