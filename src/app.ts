@@ -1,7 +1,7 @@
-import type { ReviewLabelGroup } from './domain/reviewLabels';
+import { ReviewView } from './view/reviewView';
 import { createReviewDraft, submissionForDraft, type ReviewDraft } from './domain/reviewDraft';
-import { countCodePoints, limitCodePoints } from './domain/text';
-import { LABEL_BY_SHORTCUT, REVIEW_LABEL_GROUPS, REVIEW_LABELS } from './domain/reviewLabels';
+import { limitCodePoints } from './domain/text';
+import { LABEL_BY_SHORTCUT } from './domain/reviewLabels';
 import {
   MAX_COMMENT_LENGTH,
   normalizeComment,
@@ -42,9 +42,6 @@ type AppOptions = {
 
 const LAST_BATCH_KEY = 'veritaxa:last-batch-id';
 const REVIEWER_NAME_KEY = 'veritaxa:reviewer-name';
-const MIN_IMAGE_ZOOM = 1;
-const MAX_IMAGE_ZOOM = 4;
-const IMAGE_ZOOM_STEP = 0.25;
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -66,6 +63,10 @@ export class VeriTaxaApp {
   readonly #root: HTMLElement;
   readonly #repository: ReviewRepository;
   readonly #storage: Storage | undefined;
+  readonly #shell = element('div', 'app-shell');
+  #main: HTMLElement | null = null;
+  #reviewView: ReviewView | null = null;
+  #updateHeader: (() => void) | null = null;
 
   #state: AppStateName = 'auth_loading';
   #session: ReviewerSession | null = null;
@@ -76,7 +77,6 @@ export class VeriTaxaApp {
   #draft = createReviewDraft();
   #comparisonItem: ReviewItem | null = null;
   #imageAttempt: ImageAttempt | null = null;
-  #imageZoom = MIN_IMAGE_ZOOM;
   #errorMessage = '';
   #authMessage = '';
   #requestId = 0;
@@ -129,6 +129,11 @@ export class VeriTaxaApp {
     this.#unsubscribeAuth?.();
     this.#unsubscribeAuth = null;
     document.removeEventListener('keydown', this.#handleKeydown);
+    this.#updateHeader?.();
+    this.#updateHeader = null;
+    this.#main = null;
+    this.#shell.replaceChildren();
+    this.#root.replaceChildren();
   }
 
   async #handleSession(session: ReviewerSession | null): Promise<void> {
@@ -147,6 +152,8 @@ export class VeriTaxaApp {
 
   #resetSession(session: ReviewerSession | null): void {
     this.#sessionEpoch += 1;
+    this.#reviewView?.dispose();
+    this.#reviewView = null;
     this.#cancelRequests();
     this.#session = session;
     this.#batches = [];
@@ -224,6 +231,7 @@ export class VeriTaxaApp {
     this.#storage?.setItem(LAST_BATCH_KEY, batchId);
     this.#currentItem = null;
     this.#clearDraft();
+    this.#imageAttempt = null;
     await this.#loadCursor(batchId, null, 'resume');
   }
 
@@ -259,7 +267,6 @@ export class VeriTaxaApp {
   }
 
   #prepareCurrentImage(): void {
-    this.#imageZoom = MIN_IMAGE_ZOOM;
     const current = this.#currentItem;
     if (!current) {
       this.#state = 'empty_batch';
@@ -483,27 +490,6 @@ export class VeriTaxaApp {
     this.#focusClassification();
   }
 
-  #buildConflictComparison(latest: ReviewItem): HTMLElement {
-    const section = element('section', 'conflict-comparison');
-    section.setAttribute('aria-label', 'Saved answer comparison');
-    const heading = element('h3');
-    heading.textContent = `Your saved answer (version ${String(latest.currentVersion)})`;
-    const label = element('p');
-    label.textContent =
-      latest.currentLabel === 'target_scientific_name'
-        ? latest.targetScientificName
-        : (REVIEW_LABELS.find((candidate) => candidate.code === latest.currentLabel)
-            ?.displayLabel ?? 'No classification');
-    const comment = element('p');
-    comment.textContent = latest.currentComment ?? 'No comment';
-    const useSaved = button('Use saved answer', 'secondary-button');
-    useSaved.addEventListener('click', () => this.#resolveConflict(latest, true));
-    const reapply = button('Reapply my changes', 'secondary-button');
-    reapply.addEventListener('click', () => this.#resolveConflict(latest, false));
-    section.append(heading, label, comment, useSaved, reapply);
-    return section;
-  }
-
   #updateBatchProgressValues(
     batchId: string,
     reviewedCount: number,
@@ -581,72 +567,138 @@ export class VeriTaxaApp {
 
   #render(): void {
     if (this.#disposed) return;
-    this.#root.replaceChildren();
-    const shell = element('div', 'app-shell');
-    shell.append(this.#buildHeader());
-
-    if (this.#state === 'auth_loading') {
-      shell.append(this.#buildCentredStatus('Checking sign-in…'));
-    } else if (this.#state === 'signed_out') {
-      shell.append(this.#buildLogin());
-    } else {
-      shell.append(this.#buildAuthenticatedMain());
+    if (!this.#updateHeader) {
+      this.#shell.append(this.#buildHeader());
+      this.#root.replaceChildren(this.#shell);
     }
+    this.#updateHeader?.();
+    let main: HTMLElement;
+    if (this.#state === 'auth_loading') {
+      main = this.#buildCentredStatus('Checking sign-in…');
+    } else if (this.#state === 'signed_out') {
+      main = this.#main?.classList.contains('login-shell') ? this.#main : this.#buildLogin();
+      const status = main.querySelector<HTMLElement>('.status-text');
+      if (status) {
+        status.textContent =
+          this.#errorMessage ||
+          this.#authMessage ||
+          'Your name, session, and review progress will be remembered on this device.';
+        status.classList.toggle('status-text--error', !!this.#errorMessage);
+        status.setAttribute('role', this.#errorMessage ? 'alert' : 'status');
+      }
+      const submit = main.querySelector<HTMLButtonElement>('[type="submit"]');
+      if (submit) submit.disabled = !!this.#authMessage;
+    } else if (
+      this.#state === 'loading_batches' ||
+      this.#state === 'no_batches' ||
+      this.#state === 'empty_batch'
+    ) {
+      main = this.#buildCentredStatus(
+        this.#state === 'loading_batches'
+          ? 'Loading review batches…'
+          : this.#state === 'empty_batch'
+            ? 'This batch has no images to review.'
+            : this.#errorMessage || 'No review batches are available.',
+      );
+    } else {
+      this.#reviewView ??= this.#createReviewView();
+      const busy = this.#state === 'saving' || this.#state === 'loading_image';
+      this.#reviewView.update({
+        item: this.#currentItem,
+        draft: this.#draft,
+        comparison: this.#comparisonItem,
+        sources: this.#imageAttempt?.sources ?? null,
+        source: this.#imageAttempt ? currentImageSource(this.#imageAttempt) : null,
+        busy,
+        saving: this.#state === 'saving',
+        canSubmit:
+          !busy &&
+          !this.#comparisonItem &&
+          !!this.#draft.label &&
+          !!this.#batchId &&
+          !!this.#currentItem &&
+          !!this.#session,
+        errorMessage: this.#errorMessage,
+        isError: this.#state === 'save_error' || this.#state === 'navigation_error',
+        complete: this.#batches.find((batch) => batch.id === this.#batchId)?.complete ?? false,
+      });
+      main = this.#reviewView.element;
+    }
+    if (this.#reviewView && main !== this.#reviewView.element) {
+      this.#reviewView.dispose();
+      this.#reviewView = null;
+    }
+    if (main !== this.#main) {
+      this.#main?.remove();
+      this.#shell.append(main);
+      this.#main = main;
+    }
+  }
 
-    this.#root.append(shell);
+  #createReviewView(): ReviewView {
+    const epoch = this.#sessionEpoch;
+    const owns = (): boolean => this.#ownsSession(epoch) && this.#reviewView === view;
+    const view: ReviewView = new ReviewView({
+      selectLabel: (label) => {
+        if (!owns()) return;
+        this.#draft.label = label;
+        this.#render();
+      },
+      editComment: (comment) => {
+        if (!owns()) return;
+        this.#draft.comment = limitCodePoints(comment, MAX_COMMENT_LENGTH).value;
+        this.#render();
+      },
+      submit: () => {
+        if (owns()) void this.#submit();
+      },
+      navigate: (direction) => {
+        if (owns()) void this.#navigate(direction);
+      },
+      retryImage: () => {
+        if (!owns()) return;
+        if (!this.#currentItem) {
+          if (this.#batchId) void this.#loadCursor(this.#batchId, null, 'resume');
+          return;
+        }
+        if (this.#state === 'saving' || this.#state === 'loading_image') return;
+        this.#prepareCurrentImage();
+        this.#render();
+      },
+      resolveConflict: (useSaved) => {
+        if (owns() && this.#comparisonItem) this.#resolveConflict(this.#comparisonItem, useSaved);
+      },
+      imageError: (sources) => {
+        const attempt = this.#imageAttempt;
+        if (!owns() || attempt?.sources !== sources) return;
+        this.#imageAttempt = advanceImageAttempt(attempt);
+        if (!this.#imageAttempt && this.#state === 'reviewing') this.#state = 'image_error';
+        this.#render();
+      },
+    });
+    return view;
   }
 
   #buildHeader(): HTMLElement {
-    const header = element('header', `site-header ${this.#session ? 'site-header--active' : ''}`);
+    const header = element('header', 'site-header');
     const brand = element('span', 'wordmark');
     brand.textContent = 'VeriTaxa';
-    header.append(brand);
-
-    if (!this.#session) return header;
-
     const controls = element('div', 'header-controls');
-    if (this.#batches.length > 0) {
-      const selectLabel = element('label', 'visually-hidden');
-      selectLabel.htmlFor = 'batch-select';
-      selectLabel.textContent = 'Review batch';
-      const select = element('select', 'batch-select');
-      select.id = 'batch-select';
-      select.disabled =
-        this.#state === 'saving' ||
-        this.#state === 'loading_batches' ||
-        this.#state === 'loading_image';
-      for (const batch of this.#batches) {
-        const option = element('option');
-        option.value = batch.id;
-        option.selected = batch.id === this.#batchId;
-        option.textContent = `${batch.code} · ${batch.name}`;
-        select.append(option);
-      }
-      select.addEventListener('change', () => {
+    const selectLabel = element('label', 'visually-hidden');
+    selectLabel.htmlFor = 'batch-select';
+    selectLabel.textContent = 'Review batch';
+    const select = element('select', 'batch-select');
+    select.id = 'batch-select';
+    select.addEventListener('change', () => {
+      if (!this.#disposed && this.#session && !select.disabled)
         void this.#selectBatch(select.value);
-      });
-      controls.append(selectLabel, select);
-    }
-
+    });
     const progress = element('span', 'header-progress');
-    const activeBatch = this.#batches.find((batch) => batch.id === this.#batchId);
-    progress.textContent = activeBatch
-      ? `${String(activeBatch.reviewedCount)} / ${String(activeBatch.totalCount)}`
-      : '— / —';
-
     const saveState = element('span', 'save-state');
     saveState.setAttribute('role', 'status');
-    saveState.textContent =
-      this.#state === 'saving'
-        ? 'Saving…'
-        : this.#state === 'save_error'
-          ? 'Save failed'
-          : this.#lastSaveSucceeded
-            ? 'Saved'
-            : '';
-
     const signOut = button('Sign out', 'text-button');
     signOut.addEventListener('click', () => {
+      if (this.#disposed || !this.#session) return;
       const epoch = this.#sessionEpoch;
       void this.#repository.signOut().catch(() => {
         if (!this.#ownsSession(epoch)) return;
@@ -654,9 +706,41 @@ export class VeriTaxaApp {
         this.#render();
       });
     });
-
-    controls.append(progress, saveState, signOut);
-    header.append(controls);
+    controls.append(selectLabel, select, progress, saveState, signOut);
+    header.append(brand, controls);
+    this.#updateHeader = () => {
+      header.classList.toggle('site-header--active', !!this.#session);
+      controls.hidden = !this.#session;
+      select.hidden = selectLabel.hidden = this.#batches.length === 0;
+      select.disabled =
+        this.#state === 'saving' ||
+        this.#state === 'loading_batches' ||
+        this.#state === 'loading_image';
+      while (select.options.length > this.#batches.length) select.remove(select.options.length - 1);
+      this.#batches.forEach((batch, index) => {
+        let option = select.options[index];
+        if (!option) {
+          option = element('option');
+          select.add(option);
+        }
+        if (option.value !== batch.id) option.value = batch.id;
+        const text = `${batch.code} · ${batch.name}`;
+        if (option.textContent !== text) option.textContent = text;
+      });
+      select.value = this.#batchId ?? '';
+      const active = this.#batches.find((batch) => batch.id === this.#batchId);
+      progress.textContent = active
+        ? `${String(active.reviewedCount)} / ${String(active.totalCount)}`
+        : '— / —';
+      saveState.textContent =
+        this.#state === 'saving'
+          ? 'Saving…'
+          : this.#state === 'save_error'
+            ? 'Save failed'
+            : this.#lastSaveSucceeded
+              ? 'Saved'
+              : '';
+    };
     return header;
   }
 
@@ -729,309 +813,6 @@ export class VeriTaxaApp {
     );
     main.append(panel);
     return main;
-  }
-
-  #buildAuthenticatedMain(): HTMLElement {
-    if (this.#state === 'loading_batches') {
-      return this.#buildCentredStatus('Loading review batches…');
-    }
-    if (this.#state === 'no_batches') {
-      return this.#buildCentredStatus(this.#errorMessage || 'No review batches are available.');
-    }
-    if (this.#state === 'empty_batch') {
-      return this.#buildCentredStatus('This batch has no images to review.');
-    }
-
-    const main = element('main', 'review-main');
-    if (this.#state === 'loading_image' && !this.#currentItem) {
-      main.append(this.#buildImageSkeleton());
-      if (this.#errorMessage) {
-        const retry = button('Retry image', 'secondary-button retry-queue');
-        retry.addEventListener('click', () => {
-          if (this.#batchId) void this.#loadCursor(this.#batchId, null, 'resume');
-        });
-        main.append(this.#buildLiveStatus(this.#errorMessage, true), retry);
-      }
-      return main;
-    }
-
-    const activeBatch = this.#batches.find((candidate) => candidate.id === this.#batchId);
-    if (activeBatch?.complete) {
-      const completeStatus = element('p', 'completion-status');
-      completeStatus.setAttribute('role', 'status');
-      completeStatus.textContent = 'All reviewed—answers can still be updated.';
-      main.append(completeStatus);
-    }
-    main.append(this.#buildImageStage(), this.#buildClassifier());
-    return main;
-  }
-
-  #buildImageSkeleton(): HTMLElement {
-    const stage = element('section', 'image-stage image-stage--loading');
-    stage.setAttribute('aria-label', 'Loading image');
-    const message = element('span', 'stage-message');
-    message.textContent = 'Loading image…';
-    stage.append(message);
-    return stage;
-  }
-
-  #buildImageStage(): HTMLElement {
-    const stage = element('section', 'image-stage');
-    stage.setAttribute('aria-label', 'Image under review');
-    const current = this.#currentItem;
-    const source = this.#imageAttempt ? currentImageSource(this.#imageAttempt) : null;
-
-    if (this.#state === 'image_error' || !current || !source) {
-      stage.classList.add('image-stage--error');
-      const marker = element('span', 'image-error-marker');
-      marker.setAttribute('aria-hidden', 'true');
-      marker.textContent = '!';
-      const heading = element('h2');
-      heading.textContent = 'Image unavailable';
-      const copy = element('p');
-      copy.textContent = 'The source image could not be loaded.';
-      const retry = button('Retry image', 'secondary-button');
-      retry.disabled = this.#state === 'saving' || this.#state === 'loading_image';
-      retry.addEventListener('click', () => {
-        if (this.#state === 'saving' || this.#state === 'loading_image') return;
-        this.#prepareCurrentImage();
-        this.#render();
-      });
-      stage.append(marker, heading, copy, retry);
-      if (current) stage.append(this.#buildImageNavigation(current));
-      return stage;
-    }
-
-    const image = element('img', 'review-image');
-    image.alt = 'Image under review';
-    image.loading = 'eager';
-    image.decoding = 'async';
-    image.fetchPriority = 'high';
-    image.referrerPolicy = 'no-referrer';
-    image.src = source;
-    const epoch = this.#sessionEpoch;
-    let attempt = this.#imageAttempt;
-    image.addEventListener('error', () => {
-      if (
-        !this.#ownsSession(epoch) ||
-        this.#currentItem !== current ||
-        !this.#root.contains(image) ||
-        !attempt ||
-        this.#imageAttempt !== attempt
-      )
-        return;
-      const next = advanceImageAttempt(attempt);
-      if (next) {
-        attempt = next;
-        this.#imageAttempt = next;
-        const nextSource = currentImageSource(next);
-        if (nextSource) image.src = nextSource;
-      } else {
-        this.#imageAttempt = null;
-        if (this.#state === 'reviewing') this.#state = 'image_error';
-        this.#render();
-      }
-    });
-
-    const controls = element('div', 'image-zoom-controls');
-    controls.setAttribute('role', 'group');
-    controls.setAttribute('aria-label', 'Image zoom controls');
-    const zoomOut = button('−', 'image-zoom-button');
-    zoomOut.setAttribute('aria-label', 'Zoom out');
-    zoomOut.title = 'Zoom out';
-    const resetZoom = button('100%', 'image-zoom-button image-zoom-level');
-    resetZoom.setAttribute('aria-label', 'Reset image zoom');
-    resetZoom.title = 'Reset image zoom';
-    const zoomIn = button('+', 'image-zoom-button');
-    zoomIn.setAttribute('aria-label', 'Zoom in');
-    zoomIn.title = 'Zoom in';
-
-    const applyZoom = (): void => {
-      const percentage = Math.round(this.#imageZoom * 100);
-      image.style.setProperty('--image-zoom', String(this.#imageZoom));
-      image.dataset.zoom = String(this.#imageZoom);
-      zoomOut.disabled = this.#imageZoom <= MIN_IMAGE_ZOOM;
-      zoomIn.disabled = this.#imageZoom >= MAX_IMAGE_ZOOM;
-      resetZoom.disabled = this.#imageZoom === MIN_IMAGE_ZOOM;
-      resetZoom.textContent = `${String(percentage)}%`;
-      resetZoom.setAttribute('aria-label', `Reset image zoom from ${String(percentage)}%`);
-    };
-
-    zoomOut.addEventListener('click', () => {
-      this.#imageZoom = Math.max(MIN_IMAGE_ZOOM, this.#imageZoom - IMAGE_ZOOM_STEP);
-      applyZoom();
-    });
-    resetZoom.addEventListener('click', () => {
-      this.#imageZoom = MIN_IMAGE_ZOOM;
-      applyZoom();
-    });
-    zoomIn.addEventListener('click', () => {
-      this.#imageZoom = Math.min(MAX_IMAGE_ZOOM, this.#imageZoom + IMAGE_ZOOM_STEP);
-      applyZoom();
-    });
-    applyZoom();
-    controls.append(zoomOut, resetZoom, zoomIn);
-    stage.append(image, controls, this.#buildImageNavigation(current));
-    return stage;
-  }
-
-  #buildImageNavigation(current: ReviewItem): HTMLElement {
-    const disabled = this.#state === 'saving' || this.#state === 'loading_image';
-    const navigation = element('nav', 'image-navigation');
-    navigation.setAttribute('aria-label', 'Review image navigation');
-    const previous = button('Previous', 'image-navigation-button');
-    previous.setAttribute('aria-label', 'Previous image');
-    previous.disabled = disabled;
-    previous.addEventListener('click', () => void this.#navigate('previous'));
-    const position = element('span', 'image-position');
-    position.textContent = `${String(current.position)} / ${String(current.totalCount)}`;
-    const next = button('Next', 'image-navigation-button');
-    next.setAttribute('aria-label', 'Next image');
-    next.disabled = disabled;
-    next.addEventListener('click', () => void this.#navigate('next'));
-    navigation.append(previous, position, next);
-    return navigation;
-  }
-
-  #buildClassifier(): HTMLElement {
-    const disabled = this.#state === 'saving' || this.#state === 'loading_image';
-    const section = element('section', 'classification-panel');
-    section.tabIndex = -1;
-    section.setAttribute('aria-labelledby', 'classification-heading');
-    const headingRow = element('div', 'classification-heading-row');
-    const heading = element('h2');
-    heading.id = 'classification-heading';
-    heading.textContent = 'How should this image be classified?';
-    const instruction = element('p');
-    instruction.textContent = 'Choose the best matching option.';
-    headingRow.append(heading, instruction);
-
-    const group = element('div', 'label-groups');
-    group.setAttribute('role', 'radiogroup');
-    group.setAttribute('aria-labelledby', 'classification-heading');
-    for (const definition of REVIEW_LABEL_GROUPS) {
-      if (definition.code === 'target_taxon' && !this.#currentItem?.targetScientificName) continue;
-      group.append(this.#buildLabelGroup(definition.code, definition.heading, disabled));
-    }
-
-    const form = element('div', 'submission-panel');
-    const commentHeader = element('div', 'comment-heading');
-    const commentLabel = element('label');
-    commentLabel.htmlFor = 'review-comment';
-    commentLabel.textContent = 'Comment';
-    const optional = element('span');
-    optional.textContent = 'optional';
-    commentHeader.append(commentLabel, optional);
-    const textarea = element('textarea');
-    textarea.id = 'review-comment';
-    textarea.rows = 2;
-    textarea.disabled = disabled;
-    textarea.value = this.#draft.comment;
-    textarea.addEventListener('input', () => {
-      const limited = limitCodePoints(textarea.value, MAX_COMMENT_LENGTH);
-      textarea.value = limited.value;
-      this.#draft.comment = textarea.value;
-      const remaining = MAX_COMMENT_LENGTH - limited.length;
-      const counter = this.#root.querySelector<HTMLElement>('.comment-count');
-      if (counter) {
-        counter.textContent = remaining <= 100 ? `${String(remaining)} remaining` : '';
-      }
-    });
-    const counter = element('span', 'comment-count');
-    const initialRemaining = MAX_COMMENT_LENGTH - countCodePoints(this.#draft.comment);
-    counter.textContent = initialRemaining <= 100 ? `${String(initialRemaining)} remaining` : '';
-
-    const send = element('button', 'send-button');
-    send.type = 'button';
-    send.textContent = this.#draft.conflicted
-      ? 'Compare saved answer'
-      : this.#draft.pendingSubmission
-        ? 'Retry save'
-        : 'Send';
-    send.setAttribute(
-      'aria-label',
-      this.#draft.conflicted
-        ? 'Compare saved answer'
-        : this.#draft.pendingSubmission
-          ? 'Retry original save'
-          : 'Save this classification and advance',
-    );
-    send.disabled =
-      disabled ||
-      !!this.#comparisonItem ||
-      !this.#draft.label ||
-      !this.#batchId ||
-      !this.#currentItem ||
-      !this.#session;
-    send.addEventListener('click', () => void this.#submit());
-
-    const action = element('div', 'submission-action');
-    action.append(
-      this.#buildLiveStatus(
-        this.#errorMessage ||
-          (this.#state === 'saving'
-            ? 'Saving classification…'
-            : 'Select one label, then send when ready.'),
-        this.#state === 'save_error' || this.#state === 'navigation_error',
-      ),
-      send,
-    );
-    form.append(commentHeader, textarea, counter, action);
-    if (this.#draft.pendingSubmission && this.#state !== 'saving') {
-      form.append(
-        this.#buildLiveStatus(
-          'Retry sends the original request. Any newer edits will remain unsaved until you send them separately.',
-          false,
-        ),
-      );
-    }
-    if (this.#comparisonItem) form.append(this.#buildConflictComparison(this.#comparisonItem));
-    section.append(headingRow, group, form);
-    return section;
-  }
-
-  #buildLabelGroup(
-    groupCode: ReviewLabelGroup,
-    headingText: string,
-    disabled: boolean,
-  ): HTMLElement {
-    const section = element('section', 'label-group');
-    if (groupCode === 'target_taxon') section.classList.add('label-group--target-taxon');
-    const heading = element('h3');
-    heading.textContent = headingText;
-    const grid = element('div', 'label-grid');
-    for (const label of REVIEW_LABELS.filter((candidate) => candidate.group === groupCode)) {
-      const wrapper = element('label', 'label-option');
-      const input = element('input');
-      input.type = 'radio';
-      input.name = 'review-label';
-      input.value = label.code;
-      input.checked = this.#draft.label === label.code;
-      input.disabled = disabled;
-      input.addEventListener('change', () => {
-        if (input.checked) {
-          this.#draft.label = label.code;
-          this.#render();
-        }
-      });
-      const card = element('span', 'label-card');
-      const check = element('span', 'label-check');
-      check.setAttribute('aria-hidden', 'true');
-      check.textContent = '✓';
-      const text = element('span', 'label-text');
-      text.textContent =
-        label.code === 'target_scientific_name'
-          ? (this.#currentItem?.targetScientificName ?? '')
-          : label.displayLabel;
-      const shortcut = element('kbd');
-      shortcut.textContent = label.shortcut;
-      shortcut.setAttribute('aria-hidden', 'true');
-      card.append(check, text, shortcut);
-      wrapper.append(input, card);
-      grid.append(wrapper);
-    }
-    section.append(heading, grid);
-    return section;
   }
 
   #buildCentredStatus(message: string): HTMLElement {

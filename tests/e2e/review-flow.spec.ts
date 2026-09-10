@@ -96,6 +96,53 @@ test('reviewer fallback, save retry, progress, and completion flow', async ({ pa
   expect(new Set(nextImageRequests).size).toBeLessThanOrEqual(1);
 });
 
+test('ordinary edits preserve real browser nodes, focus, caret and the loaded image', async ({
+  page,
+}) => {
+  const images: string[] = [];
+  await routeSyntheticImages(page, images);
+  await page.goto('/veritaxa/?repository=synthetic');
+  const image = page.locator('img.review-image');
+  await expect(image).toHaveAttribute('src', /review-001\.svg/);
+  await expect
+    .poll(() => image.evaluate((node: HTMLImageElement) => node.complete && node.naturalWidth > 0))
+    .toBe(true);
+  const count = images.length;
+  const nodes = await page.evaluateHandle(() =>
+    Array.from(
+      document.querySelectorAll(
+        '.app-shell, .site-header, #batch-select, .review-main, img.review-image, .classification-panel, input[name="review-label"], #review-comment, .send-button',
+      ),
+    ),
+  );
+  try {
+    await page.getByRole('button', { name: 'Zoom in' }).click();
+    const radio = page.locator('input[value="plant"]');
+    await radio.focus();
+    await page.keyboard.press('Space');
+    await expect(radio).toBeChecked();
+    await expect(radio).toBeFocused();
+    const comment = page.getByLabel('Comment');
+    await comment.fill('Synthetic edit');
+    await comment.evaluate((node: HTMLTextAreaElement) => node.setSelectionRange(5, 5));
+    await page.keyboard.type('🦋');
+    await expect(comment).toBeFocused();
+    expect(
+      await comment.evaluate((node: HTMLTextAreaElement) => [
+        node.selectionStart,
+        node.selectionEnd,
+      ]),
+    ).toEqual([7, 7]);
+    await expect(image).toHaveAttribute('data-zoom', '1.25');
+    expect(
+      await page.evaluate((retained) => retained.every((node) => node.isConnected), nodes),
+    ).toBe(true);
+    expect(images).toHaveLength(count);
+  } finally {
+    await nodes.dispose();
+  }
+});
+
 test('previous and next skip without saving and restore unsaved drafts', async ({ page }) => {
   await routeSyntheticImages(page, []);
   await page.goto('/veritaxa/?repository=synthetic');

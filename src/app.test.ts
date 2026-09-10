@@ -230,6 +230,108 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it('preserves the mounted review nodes, focus, selection and zoom through edits and save status', async () => {
+    const save = deferred<ReviewItem>();
+    const app = createApp(repository({ save: () => save.promise }));
+    await app.start();
+    const selectors = [
+      '.app-shell',
+      '.site-header',
+      '#batch-select',
+      '.review-main',
+      '.image-stage',
+      'img.review-image',
+      '.image-zoom-controls',
+      '.classification-panel',
+      'input[value="plant"]',
+      '#review-comment',
+      '.send-button',
+    ];
+    const nodes = selectors.map((selector) => document.querySelector(selector));
+    const image = document.querySelector<HTMLImageElement>('img');
+    const radio = document.querySelector<HTMLInputElement>('input[value="plant"]');
+    const comment = document.querySelector<HTMLTextAreaElement>('#review-comment');
+    if (!image || !radio || !comment) throw new Error('Review controls are missing');
+    const setSource = vi.spyOn(image, 'src', 'set');
+    const replaceRoot = vi.spyOn(getRoot(), 'replaceChildren');
+    document.querySelector<HTMLButtonElement>('[aria-label="Zoom in"]')?.click();
+    radio.focus();
+    radio.click();
+    expect(document.activeElement).toBe(radio);
+    comment.focus();
+    comment.value = 'Synthetic 🦋 comment';
+    comment.setSelectionRange(3, 7);
+    comment.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.activeElement).toBe(comment);
+    expect([comment.selectionStart, comment.selectionEnd]).toEqual([3, 7]);
+    expect(image.dataset.zoom).toBe('1.25');
+    document.querySelector<HTMLButtonElement>('.send-button')?.click();
+    expect(app.state).toBe('saving');
+    selectors.forEach((selector, index) =>
+      expect(document.querySelector(selector)).toBe(nodes[index]),
+    );
+    save.reject(new Error('Synthetic failure'));
+    await vi.waitFor(() => expect(app.state).toBe('save_error'));
+    selectors.forEach((selector, index) =>
+      expect(document.querySelector(selector)).toBe(nodes[index]),
+    );
+    expect(setSource).not.toHaveBeenCalled();
+    expect(replaceRoot).not.toHaveBeenCalled();
+    app.dispose();
+  });
+
+  it('keeps classification and navigation controls across items but releases replaced image sources', async () => {
+    const repo = repository({
+      getCursor: (_batch, _anchor, direction) =>
+        Promise.resolve(direction === 'next' ? secondItem : firstItem),
+    });
+    const app = createApp(repo);
+    await app.start();
+    const original = document.querySelector('img');
+    const target = document.querySelector('input[value="target_scientific_name"]');
+    const plant = document.querySelector('input[value="plant"]');
+    const next = document.querySelector<HTMLButtonElement>('[aria-label="Next image"]');
+    next?.click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2'),
+    );
+    expect(document.querySelector('img')).not.toBe(original);
+    expect(original?.getAttribute('src')).toBeNull();
+    expect(original?.onerror).toBeNull();
+    expect(document.querySelector('input[value="target_scientific_name"]')).toBeNull();
+    expect(document.querySelector('input[value="plant"]')).toBe(plant);
+    expect(document.querySelector('[aria-label="Next image"]')).toBe(next);
+    document.querySelector<HTMLButtonElement>('[aria-label="Previous image"]')?.click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('1 / 2'),
+    );
+    expect(document.querySelector('input[value="target_scientific_name"]')).toBe(target);
+    const image = document.querySelector('img');
+    await repo.signOut();
+    expect(image?.getAttribute('src')).toBeNull();
+    expect(document.querySelector('img')).toBeNull();
+    app.dispose();
+  });
+
+  it('shows an initial cursor error and retries without mounting duplicate review controls', async () => {
+    const repo = repository();
+    repo.getCursor.mockRejectedValueOnce(new Error('Synthetic queue error'));
+    const app = createApp(repo);
+    await app.start();
+    const error = document.querySelector<HTMLElement>('.queue-error');
+    expect(error?.hidden).toBe(false);
+    expect(error?.textContent).toBe('Synthetic queue error');
+    const retry = document.querySelector<HTMLButtonElement>('.retry-image');
+    expect(retry?.hidden).toBe(false);
+    expect(retry?.disabled).toBe(false);
+    retry?.click();
+    await vi.waitFor(() => expect(app.state).toBe('reviewing'));
+    expect(document.querySelectorAll('.classification-panel')).toHaveLength(1);
+    expect(error?.hidden).toBe(true);
+    expect(error?.textContent).toBe('');
+    app.dispose();
+  });
+
   it.each(['resolve', 'reject'] as const)('ignores a save %s after sign-out', async (outcome) => {
     const save = deferred<ReviewItem>();
     const repo = repository({ save: () => save.promise });

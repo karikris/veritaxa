@@ -16,7 +16,7 @@ reproduction artifacts remain outside this public-code repository.
 | 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed         |
 | 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed         |
 | 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Local gates passed; CI next |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                     |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | In progress: stable views   |
 | 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                     |
 | 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                     |
 
@@ -216,3 +216,17 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   fixture path now names a fixed temporary directory on the disposable runner;
   generation still refuses to overwrite any existing fixture. This focused CI
   correction requires a new push/run, not a passing claim for the rejected run.
+- Phase 4 stable-view foundation: the application shell, batch selector, review
+  controls and classification inputs persist through ordinary edits and status
+  updates. An owned image node persists through label/comment/save-status changes
+  and fallback URLs; a genuinely new attempt gets a new node, and the previous
+  source and error handler are explicitly released. Session reset and disposal
+  release the view. Task values enter static markup only through text/value
+  properties or the existing validated image URL path, never HTML interpolation.
+- Stable-view checks pass 61 frontend tests and 16 desktop/mobile browser tests,
+  including exact node identity, retained focus/caret/zoom, no new image requests
+  from ordinary edits, detached-image errors, retries, conflicts and initial
+  cursor-error recovery. Lint/type/format checks and the 60.53 KiB gzip bundle gate
+  pass. These are correctness/allocation-churn regressions, **not** the required
+  1,000-navigation heap/process-memory soak. Bounded dirty drafts and explicit
+  preview/original policy are still required before phase 4 is complete.

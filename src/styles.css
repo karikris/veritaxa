@@ -867,3 +867,6 @@ kbd {
     animation-iteration-count: 1 !important;
   }
 }
+[hidden] {
+  display: none !important;
+}
