@@ -71,7 +71,16 @@ def _write_parquet(records: Iterable[dict[str, object]], schema: pl.Schema, resu
     count = 0
     pending: list[dict[str, object]] = []
     pending_bytes = 0
-    with pq.ParquetWriter(result, arrow_schema, compression="zstd", use_dictionary=False) as writer:
+    # Min/max statistics on bulky JSON/comment fields are not useful for filtering
+    # and would retain large values in every row-group footer until the file closes.
+    statistics = [
+        column
+        for column in schema
+        if column not in {"source_labels", "pipeline_metadata", "comment"}
+    ]
+    with pq.ParquetWriter(
+        result, arrow_schema, compression="zstd", use_dictionary=False, write_statistics=statistics
+    ) as writer:
         for record in records:
             byte_count = _check_record(record, schema)
             if pending and (

@@ -86,6 +86,20 @@ def test_parquet_batches_are_bounded_by_rows_and_bytes(tmp_path: Path) -> None:
     assert [metadata.row_group(i).num_rows for i in range(metadata.num_row_groups)] == [1, 1, 1]
 
 
+def test_parquet_footer_does_not_retain_bulky_column_statistics(tmp_path: Path) -> None:
+    output = tmp_path / "reviews.parquet"
+    schema = pl.Schema(
+        {"image_id": pl.String, "pipeline_metadata": pl.String, "comment": pl.String}
+    )
+    write_records(
+        iter([{"image_id": "synthetic", "pipeline_metadata": "{}", "comment": ""}]), schema, output
+    )
+    metadata = pq.read_metadata(output).row_group(0)
+    assert metadata.column(0).statistics is not None
+    assert metadata.column(1).statistics is None
+    assert metadata.column(2).statistics is None
+
+
 @pytest.mark.parametrize("suffix", ["csv", "parquet"])
 def test_publication_failure_preserves_previous_file(
     tmp_path: Path, suffix: str, monkeypatch: pytest.MonkeyPatch
