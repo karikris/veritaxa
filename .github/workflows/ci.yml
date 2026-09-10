@@ -71,3 +71,43 @@ jobs:
         run: npx supabase db lint --local --level warning
       - name: Run database security tests
         run: npm run test:db
+
+  export-memory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: veritaxa_synthetic
+          POSTGRES_USER: synthetic
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synthetic -d veritaxa_synthetic"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      VERITAXA_SYNTHETIC_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_synthetic user=synthetic password=synthetic-ci-only
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+      - name: Install Python dependencies
+        run: uv sync --frozen --group dev
+      - name: Prepare disposable synthetic database
+        run: |
+          uv run python -m benchmarks.export_database init
+          uv run python -m benchmarks.export_database seed 10000
+          uv run python -m benchmarks.export_database seed 100000
+      - name: Verify database-to-file correctness and interruption handling
+        run: uv run pytest tools/tests/test_export_database.py
+      - name: Measure complete export paths in fresh processes
+        run: uv run python -m benchmarks.export_gate --report export-memory.json
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: synthetic-export-memory
+          path: export-memory.json
+          if-no-files-found: warn

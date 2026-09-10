@@ -289,6 +289,10 @@ comment, reviewer UUID, `identifiedBy`, most recent answer time, schema
 version, and client version. `--derived` adds pipeline group columns while
 preserving the canonical label.
 
+Use `--lean` to omit only `source_labels` and `pipeline_metadata` from either
+export. This opt-in projection removes those fields in SQL before decoding;
+the default full export continues to retain provenance.
+
 Use `--consensus` for one row per reviewed image:
 
 ```text
@@ -303,15 +307,32 @@ flags, and latest correction time. Ties use the canonical expected-result
 priority while remaining marked as tied. Reviewer identity and comments stay
 exclusive to the default individual export.
 
+With `--derived`, tied consensus is always marked
+`excluded_from_automatic_training`, even if the priority winner is a positive
+label. Raw rows retain batch/item position, then review creation/ID order;
+consensus rows sort lexically by campaign code, batch code and image ID.
+
+Exports stream through one read-only, repeatable-read database snapshot. Keep
+the admin connection available until completion; long exports retain that
+snapshot while writing. CSV retains one row; Parquet writes batches of at most
+1,000 rows or 4 MiB of field payload. A single row above that batch budget is
+written alone, up to a 16 MiB UTF-8 field-payload limit. Larger rows fail; this
+limit is checked after database decoding and is not a bound on arbitrary JSON
+decoder allocations. Full and lean exports never silently truncate fields.
+Each completed file is staged privately alongside its destination and atomically
+replaces it only after success. Interrupted exports leave any previous completed
+file intact. See [synthetic end-to-end memory gates](benchmarks/README.md).
+
 ## Dependencies
 
 The only runtime package is the pinned Supabase JavaScript client, required for
 Auth and typed RPC transport. Vite and TypeScript build the framework-free
 frontend; Vitest and Playwright cover domain, state, browser, keyboard, and
 responsive behaviour. The pinned Supabase CLI runs local migration tests.
-Polars provides streaming-friendly tabular import/export, Psycopg provides
-transactional admin writes, and pytest plus Ruff test and check the Python
-tools. Exact JavaScript and Python resolutions are committed in
+Polars provides import and small-frame compatibility operations; Psycopg provides
+transactional writes and incremental database reads. PyArrow writes bounded
+Parquet batches and is not loaded for CSV exports. pytest and Ruff test and check
+the Python tools. Exact JavaScript and Python resolutions are committed in
 `package-lock.json` and `uv.lock`.
 
 ## Known limitations

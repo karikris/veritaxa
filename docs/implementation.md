@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                             |
-| ----- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed                |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | In progress: atomic bounded writer |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Pending                            |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                            |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                            |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                            |
+| Phase | Required result                                                                                             | Status                           |
+| ----- | ----------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed              |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed              |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Local gates passed; push pending |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Pending                          |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                          |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                          |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                          |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -115,11 +115,11 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   [CI 34474319234](https://github.com/karikris/veritaxa/actions/runs/34474319234)
   and [Pages 34474539177](https://github.com/karikris/veritaxa/actions/runs/34474539177)
   both passed at the pushed commit.
-- Phase 2 started with a bounded atomic writer, integrated into the existing
-  exporter. Null/empty-string distinctions, schema, order, batch byte/row limits,
-  oversized-row handling and late/publication failure tests pass. **The existing
-  database fetch and consensus still materialize complete results; phase 2 is
-  not complete and total export RSS is not yet bounded.**
+- Phase 2 started with a bounded atomic writer (`163e981`), integrated into the
+  existing exporter. Null/empty-string distinctions, schema, order, batch byte/row
+  limits, oversized-row handling and late/publication failure tests passed.
+  At that point the database reader and consensus were still eager; the later
+  streaming commit below replaces those CLI paths.
 - Added pinned PyArrow 25.0.1 for incremental Parquet writing after measuring the
   existing-stack NDJSON/Polars sink at 629 MiB for 10,000 rows (295 MiB even with
   one thread). This follows the plan's dependency decision gate. The Arrow writer
@@ -133,3 +133,27 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
 - Dependency follow-up for phase 6: the existing Polars 1.43.0 pin is now yanked
   on PyPI without a supplied reason. It was retained for baseline equivalence;
   assess a tested replacement or removal as the bounded pipelines supersede it.
+- Phase 2 commits `e050bbb` and `0a14ed1`: omit bulky Parquet footer statistics;
+  stream one libpq result row at a time; aggregate label counts in SQL before
+  fetching item metadata once per consensus row. Full provenance remains the
+  default, with explicit SQL-level `--lean` projection. Existing eager helpers
+  are compatibility APIs only, not called by the CLI. Tied consensus is now
+  explicitly excluded from automatic training when derived flags are requested.
+- Phase 2 correctness evidence: 89 Python tests passed, including a disposable
+  local PostgreSQL 18.3 driver-backed suite for all eight export combinations,
+  exact columns/types/nulls/canonical JSON, distinct raw/consensus order,
+  read-only repeatable-read transactions, concurrent edits, cancellation,
+  slow/late writer failure, and 8 MiB accepted / 17 MiB rejected metadata. Timestamp
+  assertions preserve the database's zone representation and compare instants.
+  No live Supabase data or schema was changed. The row limit is post-decode;
+  arbitrary single-row JSON decoder allocation is not covered by the RSS bound.
+- Phase 2 complete export-memory gate passed all 48 fresh-process cases (three
+  runs each at 10,000 and 100,000 items, full/lean, raw/consensus, CSV/Parquet).
+  Raw output contains 22,500 and 225,000 reviews; metadata is 20 KiB plus nested
+  JSON per item. Full raw CSV medians: 60.01 / 60.15 MiB; full raw Parquet:
+  148.81 / 188.30 MiB (large-case range 187.72–189.11). Full consensus Parquet:
+  147.27 / 154.70 MiB. Every run stayed below 256 MiB; largest median growth
+  was 39.49 MiB, below 64 MiB. The driver/decoder/writer are included, server
+  memory excluded. [Full aggregate measurements](../benchmarks/results/export-2026-09-10.json)
+  retain versions, medians, ranges and individual runs. A separate CI job repeats
+  this gate on disposable PostgreSQL 17 and publishes aggregate metrics only.
