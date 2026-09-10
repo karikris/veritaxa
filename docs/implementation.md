@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                       |
-| ----- | ----------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed          |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed          |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed          |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | In progress: validated spool |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                      |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                      |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                      |
+| Phase | Required result                                                                                             | Status                      |
+| ----- | ----------------------------------------------------------------------------------------------------------- | --------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed         |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed         |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed         |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Local gates passed; CI next |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Pending                     |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Pending                     |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Pending                     |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -179,6 +179,35 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   These **exclude file readers and database insertion**. A direct-shell probe
   initially reported an inherited launcher high-water mark around 155 MiB before
   validation even began; the probe now forks explicitly and records its initial
-  high-water mark. Export CI already uses fresh child processes. **The import
-  CLI is still eager: reader/spool/inserter integration, transactional failure
-  tests and full import RSS/COPY comparisons remain required before phase 3 ends.**
+  high-water mark. Export CI already uses fresh child processes. These were
+  staging-only measurements; the complete importer results below supersede them.
+- Phase 3 commits `56c54e1` and `2d89c46` integrate bounded CSV/Parquet/NDJSON
+  readers with the validated spool and one atomic publication transaction. CLI
+  dry-run never resolves credentials or connects. Known types retain legacy
+  inference; late unknown NDJSON fields are preserved, including nested keys.
+  Reader equivalence, large-record limits, changed-file detection, shuffle and
+  byte-chunk positions are tested. Real PostgreSQL tests use the production
+  table constraints, check all candidate fields and prove rollback after a late
+  uniqueness violation, interrupted input or mismatched final count. A second
+  connection cannot see the partially inserted campaign. No live data or schema
+  was changed, and no RLS/grants were relaxed for tests.
+- Phase 3 complete import gate passed all 42 fresh-process cases: three runs at
+  both 10,000 and 100,000 rows, each with 20 KiB plus nested metadata. CSV,
+  Parquet and NDJSON pipeline paths run both unshuffled and with seed 0; six
+  additional Parquet runs compare COPY. Largest peak: 179.68 MiB; all median
+  growth values were negative, passing the 256 MiB / 64 MiB gates. Unshuffled
+  pipeline medians at the two sizes: CSV 179.25 / 175.52 MiB, Parquet
+  124.45 / 122.50 MiB, NDJSON 165.09 / 161.50 MiB. Measurements include readers,
+  validation, spool, JSON adaptation, driver and commit, excluding server memory.
+  [Aggregate results and individual runs](../benchmarks/results/import-2026-09-10.json)
+  record exact versions, ranges and timings. The new isolated CI job repeats
+  the complete gate and publishes aggregate-only evidence.
+- COPY's 100,000-row Parquet median was 17.46 seconds versus 18.60 for pipeline
+  inserts (about 6% faster). Pipeline remains the CLI default: the end-to-end
+  gain is modest and COPY FROM is not compatible with applicable row-level
+  security. The benchmark uses only disposable synthetic tables owned by its
+  test role, not weakened application permissions.
+- Phase 3 final local checks: 137 Python tests (including both real-database
+  suites), 58 frontend tests and 14 desktop/mobile browser tests passed; type,
+  lint, format, data-leak and whitespace checks passed. The frontend is unchanged
+  at 59.46 KiB gzip. Phase push and remote CI/deployment verification follow.

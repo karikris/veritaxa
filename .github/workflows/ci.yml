@@ -111,3 +111,47 @@ jobs:
           name: synthetic-export-memory
           path: export-memory.json
           if-no-files-found: warn
+
+  import-memory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: veritaxa_import_synthetic
+          POSTGRES_USER: synthetic
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synthetic -d veritaxa_import_synthetic"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      VERITAXA_IMPORT_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_import_synthetic user=synthetic password=synthetic-ci-only
+      VERITAXA_IMPORT_FIXTURES: ${{ runner.temp }}/veritaxa-import-fixtures
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+      - name: Install Python dependencies
+        run: uv sync --frozen --group dev
+      - name: Prepare isolated database and bounded synthetic fixtures
+        run: |
+          uv run python -m benchmarks.import_database init
+          for size in 10000 100000; do
+            for format in csv parquet ndjson; do
+              uv run python -m benchmarks.import_database generate "$size" --format "$format"
+            done
+          done
+      - name: Verify insertion parity, atomicity and reader preservation
+        run: uv run pytest tools/tests/test_import_database.py tools/tests/test_candidate_input.py
+      - name: Measure complete import paths and compare insertion methods
+        run: uv run python -m benchmarks.import_gate --report import-memory.json
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: synthetic-import-memory
+          path: import-memory.json
+          if-no-files-found: warn

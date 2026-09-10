@@ -225,8 +225,33 @@ Remove `--dry-run` only after inspecting the counts. Use `--status open` when
 the campaign should immediately be reviewer-visible, or open the campaign and
 batches administratively after validation. Input order is retained unless
 `--shuffle-seed` is explicitly supplied. The importer never downloads images,
-uses a transaction, splits batches at 1,000 rows, and omits URLs and labels from
-normal logs.
+uses one publication transaction, caps logical batches at 1,000 rows, and omits
+URLs and labels from normal logs. File reading, validation and duplicate checks
+finish before database credentials are resolved. A private SQLite spool retains
+validated records on disk; late validation or insertion failure cannot publish a
+partial campaign. `--dry-run` never resolves database credentials or connects.
+
+Insertion chunks are capped at 4 MiB without changing the requested logical
+batch size or positions. A normalized candidate larger than 16 MiB is rejected;
+a smaller candidate larger than the chunk budget is handled alone. These limits
+are checked after decoding. CSV decoder buffers grow only for large records,
+up to 64 MiB; NDJSON/JSONL encoded records are capped at 64 MiB. These exceptional
+single-record cases have separate tests, not the normal 20 KiB-row memory guarantee.
+
+CSV and NDJSON retain the original first-100-record type inference. Known field
+types remain strict; changing a known field's type later may be rejected.
+NDJSON fields first appearing after inference, including nested metadata keys,
+are now preserved instead of silently discarded. Parquet retains its declared
+schema. Unknown top-level values continue to override colliding metadata keys.
+
+Shuffling uses the explicit `sha256-v1` global ordering algorithm; seed `0` now
+shuffles normally. It is stable across input chunk sizes, but **does not reproduce
+legacy Polars seed ordering**. The chosen algorithm and seed appear in the count
+summary. See [the exact algorithm and end-to-end gates](benchmarks/README.md).
+
+Pipelined inserts remain the default. COPY is exercised by the synthetic benchmark,
+but it is not a general replacement for INSERT when row-level security applies;
+no permissions or policies are weakened for a speed comparison.
 
 ### 6–7. Deploy and review
 

@@ -91,7 +91,7 @@ uv run python -m benchmarks.import_spool 100000 --shuffle-seed 0
 
 This synthetic-only probe validates, orders and consumes a private SQLite spool;
 it does not read a candidate file or insert into Postgres. It is **not** the final
-import gate, and the existing import CLI has not yet been switched to the spool.
+import gate; use the complete gate below to measure the CLI's full processing path.
 Each invocation starts a fresh child so a shell launcher cannot contribute an
 inherited `ru_maxrss` high-water mark. It also reports initial and post-validation
 RSS. As with the export gate, use Linux and compare repeated ranges and medians.
@@ -102,3 +102,46 @@ hash ties by ordinal. The ordering is independent of insertion chunk size and
 treats seed 0 normally; it does **not** reproduce legacy Polars PRNG order. No
 metadata or full permutation is retained in a Python list. Changing byte-sized
 insertion chunks never changes the requested logical batch size or item positions.
+
+## Complete importer gate
+
+Create a new disposable local database named `veritaxa_import_synthetic` (separate
+from the export fixture database). Initialization extracts the actual campaign,
+batch and item DDL and applicable constraints from the retained migrations. It
+does not pretend to implement Supabase Auth/RLS; the separate security job covers
+those. Never use an application database or `.env.admin` for this harness.
+
+```sh
+export VERITAXA_IMPORT_DSN='host=127.0.0.1 dbname=veritaxa_import_synthetic'
+export VERITAXA_IMPORT_FIXTURES=$(mktemp -d)
+uv run python -m benchmarks.import_database init
+for size in 10000 100000; do
+  for format in csv parquet ndjson; do
+    uv run python -m benchmarks.import_database generate "$size" --format "$format"
+  done
+done
+uv run pytest tools/tests/test_import_database.py tools/tests/test_candidate_input.py
+uv run python -m benchmarks.import_gate --report /tmp/veritaxa-import-memory.json
+```
+
+Fixture generation runs separately and refuses to replace existing files. The
+gate includes source decoding, normalization, disk staging, global shuffle when
+selected, JSON adaptation, inserts and the final commit. It tests all three
+formats at 10,000 and 100,000 rows, unshuffled and seed 0, in three fresh processes
+per case. JSONL shares the NDJSON reader and is covered by equivalence tests.
+Six additional Parquet runs compare pipeline inserts and COPY using identical
+row mapping and transaction semantics. Every run must stay below 256 MiB RSS;
+median growth between sizes must stay below 64 MiB. Server memory is excluded.
+
+Each run uses a unique synthetic campaign, verifies committed item counts,
+metadata payload lengths and ordinal checksum, then removes only its own records.
+Failures during publication roll back; the integration suite also checks a real
+late uniqueness violation and verifies uncommitted batches are invisible to a
+second connection. Dry-run follows the same validation path without opening any
+database. Reports contain only aggregate metrics, not candidate rows or credentials.
+
+The CLI retains pipelined inserts and offers no insertion-method switch. COPY's
+end-to-end benefit is measured against the complete path, not assumed from a
+microbenchmark. PostgreSQL also [restricts COPY FROM with row-level security](https://www.postgresql.org/docs/current/sql-copy.html);
+the comparison runs as the owner of disposable synthetic tables, never by relaxing
+application policies.
