@@ -2,6 +2,7 @@ import { REVIEW_LABEL_GROUPS, REVIEW_LABELS, type ReviewLabelCode } from '../dom
 import type { ReviewDraft } from '../domain/reviewDraft';
 import { MAX_COMMENT_LENGTH, type ReviewItem } from '../domain/reviewQueue';
 import { countCodePoints } from '../domain/text';
+import type { ImageMode } from '../image/imageLoader';
 
 type ReviewViewActions = {
   selectLabel: (label: ReviewLabelCode) => void;
@@ -10,8 +11,10 @@ type ReviewViewActions = {
   discardDraft: () => void;
   navigate: (direction: 'previous' | 'next') => void;
   retryImage: () => void;
+  changeImageMode: () => void;
   resolveConflict: (useSaved: boolean) => void;
   imageError: (sources: readonly string[]) => void;
+  imageLoaded: (sources: readonly string[], longestEdge: number) => void;
 };
 
 export type ReviewViewState = {
@@ -21,6 +24,9 @@ export type ReviewViewState = {
   comparison: ReviewItem | null;
   sources: readonly string[] | null;
   source: string | null;
+  imageMode: ImageMode;
+  originalAvailable: boolean;
+  previewTooLarge: boolean;
   busy: boolean;
   saving: boolean;
   canSubmit: boolean;
@@ -50,7 +56,12 @@ export class ReviewView {
   readonly #loading: HTMLElement;
   readonly #queueError: HTMLElement;
   readonly #unavailable: HTMLElement;
+  readonly #unavailableHeading: HTMLElement;
+  readonly #unavailableCopy: HTMLElement;
   readonly #retry: HTMLButtonElement;
+  readonly #sourceControls: HTMLElement;
+  readonly #sourceStatus: HTMLElement;
+  readonly #sourceButton: HTMLButtonElement;
   readonly #completion: HTMLElement;
   readonly #classifier: HTMLElement;
   readonly #groups: HTMLElement;
@@ -83,7 +94,7 @@ export class ReviewView {
         <span class="stage-message" hidden>Loading image…</span>
         <div class="image-unavailable" hidden>
           <span class="image-error-marker" aria-hidden="true">!</span>
-          <h2>Image unavailable</h2><p>The source image could not be loaded.</p>
+          <h2></h2><p></p>
         </div>
         <button type="button" class="secondary-button retry-image" hidden>Retry image</button>
         <div class="image-zoom-controls" role="group" aria-label="Image zoom controls">
@@ -98,6 +109,10 @@ export class ReviewView {
         </nav>
       </section>
       <p class="status-text status-text--error queue-error" role="alert" hidden></p>
+      <div class="image-source-controls" role="group" aria-label="Image source">
+        <p class="image-source-status" role="status"></p>
+        <button type="button" class="secondary-button image-source-button">Inspect source image</button>
+      </div>
       <section class="classification-panel" tabindex="-1" aria-labelledby="classification-heading">
         <div class="classification-heading-row">
           <h2 id="classification-heading">How should this image be classified?</h2>
@@ -136,7 +151,12 @@ export class ReviewView {
     this.#loading = find('.stage-message', HTMLElement);
     this.#queueError = find('.queue-error', HTMLElement);
     this.#unavailable = find('.image-unavailable', HTMLElement);
+    this.#unavailableHeading = find('.image-unavailable h2', HTMLElement);
+    this.#unavailableCopy = find('.image-unavailable p', HTMLElement);
     this.#retry = find('.retry-image', HTMLButtonElement);
+    this.#sourceControls = find('.image-source-controls', HTMLElement);
+    this.#sourceStatus = find('.image-source-status', HTMLElement);
+    this.#sourceButton = find('.image-source-button', HTMLButtonElement);
     this.#completion = find('.completion-status', HTMLElement);
     this.#classifier = find('.classification-panel', HTMLElement);
     this.#groups = find('.label-groups', HTMLElement);
@@ -185,6 +205,7 @@ export class ReviewView {
     this.#previous.addEventListener('click', () => actions.navigate('previous'));
     this.#next.addEventListener('click', () => actions.navigate('next'));
     this.#retry.addEventListener('click', actions.retryImage);
+    this.#sourceButton.addEventListener('click', actions.changeImageMode);
     this.#send.addEventListener('click', actions.submit);
     this.#discardDraft.addEventListener('click', actions.discardDraft);
     this.#comment.addEventListener('input', () => {
@@ -214,6 +235,12 @@ export class ReviewView {
     this.#queueError.hidden = !!item || !state.errorMessage;
     this.#queueError.textContent = item ? '' : state.errorMessage;
     this.#unavailable.hidden = !item || !!source;
+    this.#unavailableHeading.textContent =
+      state.imageMode === 'preview' ? 'Preview unavailable' : 'Source image unavailable';
+    this.#unavailableCopy.textContent =
+      state.imageMode === 'preview'
+        ? 'A display-sized image is not available for automatic review.'
+        : 'The supplied source image could not be loaded.';
     this.#retry.hidden = item ? !!source : !state.errorMessage;
     this.#retry.disabled = !!item && busy;
     this.#stage.classList.toggle('image-stage--loading', !item);
@@ -221,6 +248,19 @@ export class ReviewView {
     this.#stage.setAttribute('aria-label', item ? 'Image under review' : 'Loading image');
     this.#zoomControls.hidden = !source;
     this.#updateImage(sources, source);
+    this.#sourceControls.hidden = !item;
+    this.#sourceButton.hidden = !state.originalAvailable;
+    this.#sourceButton.disabled = busy;
+    this.#sourceButton.textContent =
+      state.imageMode === 'original' ? 'Return to preview' : 'Inspect source image';
+    this.#sourceStatus.textContent =
+      state.imageMode === 'original'
+        ? 'Source image: resolution is uncontrolled. Return to preview to release it.'
+        : state.previewTooLarge
+          ? 'Preview exceeded 1,600 pixels and was released. A smaller upstream rendition is needed.'
+          : source
+            ? 'Upstream preview. Source-image inspection is optional.'
+            : 'No preview is available. Source-image inspection may use more memory.';
     if (item?.targetScientificName) {
       if (!this.#targetGroup.isConnected) this.#groups.prepend(this.#targetGroup);
       this.#targetText.textContent = item.targetScientificName;
@@ -307,6 +347,10 @@ export class ReviewView {
         if (this.#image === image && this.element.contains(image))
           this.#actions.imageError(sources);
       };
+      image.onload = () => {
+        if (this.#image === image && this.element.contains(image))
+          this.#actions.imageLoaded(sources, Math.max(image.naturalWidth, image.naturalHeight));
+      };
       this.#image = image;
       this.#stage.prepend(image);
     }
@@ -329,6 +373,7 @@ export class ReviewView {
   #releaseImage(): void {
     if (!this.#image) return;
     this.#image.onerror = null;
+    this.#image.onload = null;
     this.#image.removeAttribute('src');
     this.#image.remove();
     this.#image = null;

@@ -22,7 +22,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:db": "supabase test db supabase/tests --local",
-    "data:check": "node scripts/check-no-review-data.mjs",
+    "data:check": "node --test scripts/check-no-review-data.test.mjs && node scripts/check-no-review-data.mjs",
     "bundle:check": "node scripts/check-bundle-size.mjs"
   },
   "devDependencies": {

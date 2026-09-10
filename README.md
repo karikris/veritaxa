@@ -277,6 +277,26 @@ explicitly discards the current local edits. Other drafts are not evicted.
 An unresolved save cannot be discarded: retry its original request first,
 because a failed browser response does not prove the database write failed.
 
+Review images use a distinct supplied `display_url`, or an already display-sized
+Flickr rendition. A preview failure does not automatically download an
+uncontrolled original. **Inspect source image** loads the supplied source URL on
+request, replacing the preview; **Return to preview** releases it. Each new item
+starts in preview mode. The source URL can itself be a rendition, so this button
+does not promise a higher-resolution file than the upstream data provides.
+
+Prepare display URLs upstream with a longest edge of at most 1,600 pixels. For
+Flickr, select a permitted size from [the sizes API](https://www.flickr.com/services/api/flickr.photos.getSizes.html):
+its [URL rules](https://www.flickr.com/services/api/misc.urls.html) assign separate
+secrets to each size at or above 1,600 pixels and to originals. VeriTaxa never
+guesses a new secret or rewrites those URLs. Existing supplied small renditions
+remain usable, including documented legacy farm hosts; duplicated unknown URLs
+require explicit source inspection. No image mirror or live data rewrite is added.
+
+An oversized supplied preview is released when its decoded dimensions become
+known. This is a post-load guard, not a hard bound on the initial decoder
+allocation or on explicitly requested source images. Supply genuine smaller
+renditions rather than relying on CSS scaling to save image memory.
+
 ## Local frontend development
 
 Copy `.env.example` to `.env.local`, replace its two public placeholders, then:

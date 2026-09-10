@@ -11,10 +11,6 @@ const syntheticImage = `
 async function routeSyntheticImages(page: Page, requested: string[]): Promise<void> {
   await page.route('https://images.example.invalid/**', async (route) => {
     requested.push(route.request().url());
-    if (route.request().url().includes('display-fail')) {
-      await route.abort('failed');
-      return;
-    }
     await route.fulfill({ contentType: 'image/svg+xml', body: syntheticImage });
   });
 }
@@ -35,7 +31,7 @@ test('signed-out shell fetches no task or image data', async ({ page }) => {
   expect(requests.some((url) => url.includes('images.example.invalid'))).toBe(false);
 });
 
-test('reviewer fallback, save retry, progress, and completion flow', async ({ page }) => {
+test('reviewer save retry, progress, and completion flow', async ({ page }) => {
   const images: string[] = [];
   await routeSyntheticImages(page, images);
   await page.goto('/veritaxa/?repository=synthetic');
@@ -94,6 +90,57 @@ test('reviewer fallback, save retry, progress, and completion flow', async ({ pa
 
   const nextImageRequests = images.filter((url) => url.includes('review-002'));
   expect(new Set(nextImageRequests).size).toBeLessThanOrEqual(1);
+});
+
+test('preview failure never downloads the source until inspection is requested', async ({
+  page,
+}) => {
+  const images: string[] = [];
+  await routeSyntheticImages(page, images);
+  await page.route('https://images.example.invalid/review-001.svg', (route) =>
+    route.abort('failed'),
+  );
+  await page.goto('/veritaxa/?repository=synthetic');
+  await expect(page.getByText('No preview is available.', { exact: false })).toBeVisible();
+  expect(images.some((url) => url.includes('original'))).toBe(false);
+  await page.getByText('Plant', { exact: true }).click();
+  await page.getByLabel('Comment').fill('Synthetic retained edit');
+  await page.getByRole('button', { name: 'Inspect source image' }).click();
+  const source = page.locator('img.review-image');
+  await expect(source).toHaveAttribute('src', /review-001-original\.svg/);
+  const retained = await source.elementHandle();
+  await page.getByRole('button', { name: 'Return to preview' }).click();
+  await expect(page.locator('img')).toHaveCount(0);
+  expect(await retained.getAttribute('src')).toBeNull();
+  await retained.dispose();
+  await expect(page.getByLabel('Comment')).toHaveValue('Synthetic retained edit');
+  await expect(page.locator('input[value="plant"]')).toBeChecked();
+  await page.getByRole('button', { name: 'Next image' }).click();
+  await expect(page.locator('img')).toHaveAttribute('src', /review-002\.svg/);
+  await expect(page.getByRole('button', { name: 'Inspect source image' })).toBeVisible();
+  expect(images.filter((url) => url.includes('original'))).toHaveLength(1);
+});
+
+test('an oversized supplied preview is released but can be inspected explicitly', async ({
+  page,
+}) => {
+  await page.route('https://images.example.invalid/**', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: syntheticImage.replace('width="960" height="640"', 'width="3200" height="2400"'),
+    }),
+  );
+  await page.goto('/veritaxa/?repository=synthetic');
+  await expect(page.getByText('Preview exceeded 1,600 pixels', { exact: false })).toBeVisible();
+  await expect(page.locator('img')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Inspect source image' }).click();
+  await expect
+    .poll(() => page.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBe(3200);
+  await expect(page.locator('img')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Return to preview' }).click();
+  await expect(page.getByText('Preview exceeded 1,600 pixels', { exact: false })).toBeVisible();
+  await expect(page.locator('img')).toHaveCount(0);
 });
 
 test('ordinary edits preserve real browser nodes, focus, caret and the loaded image', async ({
@@ -270,12 +317,17 @@ test('keyboard shortcuts ignore editable fields and batch selection survives rel
   await expect(page.locator('.image-position')).toHaveText('2 / 2');
 
   await page.getByLabel('Review batch').selectOption('30000000-0000-0000-0000-000000000002');
+  await expect(page.getByText('No preview is available.', { exact: false })).toBeVisible();
+  await expect(page.locator('img.review-image')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Inspect source image' }).click();
   await expect(page.locator('img.review-image')).toHaveAttribute('src', /review-003\.svg/);
   await expect(page.locator('input[name="review-label"]:checked')).toHaveCount(0);
   await expect(page.getByLabel('Comment')).toHaveValue('');
 
   await page.reload();
   await expect(page.getByLabel('Review batch')).toHaveValue('30000000-0000-0000-0000-000000000002');
+  await expect(page.locator('img.review-image')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Inspect source image' }).click();
   await expect(page.locator('img.review-image')).toHaveCount(1);
 });
 

@@ -493,7 +493,7 @@ describe('VeriTaxa application', () => {
     expect(repo.listBatches).not.toHaveBeenCalled();
   });
 
-  it('ignores errors from a detached image while preserving the active fallback', async () => {
+  it('ignores detached image errors while source inspection remains explicitly owned', async () => {
     const repo = repository({
       getCursor: (_batchId, _anchor, direction) =>
         Promise.resolve(direction === 'next' ? secondItem : firstItem),
@@ -502,17 +502,68 @@ describe('VeriTaxa application', () => {
     await app.start();
     const firstImage = document.querySelector<HTMLImageElement>('img');
     firstImage?.dispatchEvent(new Event('error'));
-    expect(firstImage?.src).toBe(firstItem.fallbackImageUrl);
+    expect(document.querySelector('img')).toBeNull();
+    document.querySelector<HTMLButtonElement>('.image-source-button')?.click();
+    const firstOriginal = document.querySelector<HTMLImageElement>('img');
+    expect(firstOriginal?.src).toBe(firstItem.fallbackImageUrl);
     document.querySelector<HTMLButtonElement>('[aria-label="Next image"]')?.click();
     await vi.waitFor(() =>
       expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2'),
     );
     const currentImage = document.querySelector('img');
+    expect(currentImage).toBeNull();
+    document.querySelector<HTMLButtonElement>('.image-source-button')?.click();
+    const inspectedImage = document.querySelector('img');
     firstImage?.dispatchEvent(new Event('error'));
+    firstOriginal?.dispatchEvent(new Event('error'));
     expect(app.state).toBe('reviewing');
-    expect(document.querySelector('img')).toBe(currentImage);
-    currentImage?.dispatchEvent(new Event('error'));
+    expect(document.querySelector('img')).toBe(inspectedImage);
+    inspectedImage?.dispatchEvent(new Event('error'));
     expect(app.state).toBe('image_error');
+    app.dispose();
+  });
+
+  it('falls back on the same node only when the source is a supplied bounded rendition', async () => {
+    const bounded = 'https://live.' + 'staticflickr.com' + '/1/1_0000000000_b.jpg';
+    const app = createApp(repository({ cursor: { ...firstItem, fallbackImageUrl: bounded } }));
+    await app.start();
+    const image = document.querySelector('img');
+    image?.dispatchEvent(new Event('error'));
+    expect(document.querySelector('img')).toBe(image);
+    expect(image?.src).toBe(bounded);
+    image?.dispatchEvent(new Event('error'));
+    expect(document.querySelector('img')).toBeNull();
+    app.dispose();
+  });
+
+  it('releases an oversized preview, permits explicit source inspection and ignores its detached load callback', async () => {
+    const app = createApp(repository());
+    await app.start();
+    const image = document.querySelector('img');
+    if (!image) throw new Error('Preview is missing');
+    Object.defineProperty(image, 'naturalWidth', { value: 3200 });
+    Object.defineProperty(image, 'naturalHeight', { value: 2400 });
+    const staleLoad = image.onload;
+    image.dispatchEvent(new Event('load'));
+    expect(document.querySelector('img')).toBeNull();
+    expect(image.getAttribute('src')).toBeNull();
+    expect(image.onload).toBeNull();
+    expect(document.body.textContent).toContain('Preview exceeded 1,600 pixels');
+    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
+    document.querySelector<HTMLButtonElement>('.image-source-button')?.click();
+    const source = document.querySelector('img');
+    expect(source?.src).toBe(firstItem.fallbackImageUrl);
+    staleLoad?.call(image, new Event('load'));
+    expect(document.querySelector('img')).toBe(source);
+    if (!source) throw new Error('Source image is missing');
+    Object.defineProperty(source, 'naturalWidth', { value: 3200 });
+    source.dispatchEvent(new Event('load'));
+    expect(document.querySelector('img')).toBe(source);
+    document.querySelector<HTMLButtonElement>('.image-source-button')?.click();
+    expect(source.getAttribute('src')).toBeNull();
+    expect(source.onload).toBeNull();
+    expect(document.querySelector('img')?.src).toBe(firstItem.displayUrl);
+    expect(document.querySelector<HTMLInputElement>('input[value="plant"]')?.checked).toBe(true);
     app.dispose();
   });
 
@@ -527,10 +578,19 @@ describe('VeriTaxa application', () => {
     image?.dispatchEvent(new Event('error'));
     image?.dispatchEvent(new Event('error'));
     expect(app.state).toBe('saving');
+    document
+      .querySelector<HTMLButtonElement>('.image-source-button')
+      ?.dispatchEvent(new Event('click'));
+    expect(document.querySelector('img')).toBeNull();
+    expect(app.state).toBe('saving');
     document.querySelector<HTMLButtonElement>('.send-button')?.click();
     expect(repo.saveReview).toHaveBeenCalledOnce();
     save.resolve(secondItem);
-    await vi.waitFor(() => expect(app.state).toBe('reviewing'));
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2'),
+    );
+    expect(app.state).toBe('image_error');
+    expect(document.querySelector<HTMLButtonElement>('.image-source-button')?.disabled).toBe(false);
     app.dispose();
   });
 
@@ -592,6 +652,11 @@ describe('VeriTaxa application', () => {
     expect(document.querySelector('img')?.src).toContain('review-001-small.jpg');
 
     resolveSave({ ...secondItem, reviewedCount: 1 });
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2'),
+    );
+    expect(document.querySelector('img')).toBeNull();
+    document.querySelector<HTMLButtonElement>('.image-source-button')?.click();
     await vi.waitFor(() => expect(document.querySelector('img')?.src).toContain('review-002.jpg'));
     expect(repo.getCursor).toHaveBeenCalledOnce();
     expect(repo.saveReview).toHaveBeenCalledWith(

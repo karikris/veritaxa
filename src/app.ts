@@ -1,4 +1,5 @@
 import { ReviewView } from './view/reviewView';
+import { MAX_PREVIEW_EDGE } from './image/imagePolicy';
 import { DraftStore } from './domain/draftStore';
 import { createReviewDraft, submissionForDraft } from './domain/reviewDraft';
 import { limitCodePoints } from './domain/text';
@@ -13,8 +14,11 @@ import {
 import {
   advanceImageAttempt,
   createImageAttempt,
+  createImagePolicy,
   currentImageSource,
   type ImageAttempt,
+  type ImageMode,
+  type ImagePolicy,
 } from './image/imageLoader';
 import {
   ReviewConflictError,
@@ -79,6 +83,9 @@ export class VeriTaxaApp {
   #draft = createReviewDraft();
   #comparisonItem: ReviewItem | null = null;
   #imageAttempt: ImageAttempt | null = null;
+  #imagePolicy: ImagePolicy | null = null;
+  #imageMode: ImageMode = 'preview';
+  #previewTooLarge = false;
   #errorMessage = '';
   #authMessage = '';
   #requestId = 0;
@@ -162,6 +169,9 @@ export class VeriTaxaApp {
     this.#batchId = null;
     this.#currentItem = null;
     this.#imageAttempt = null;
+    this.#imagePolicy = null;
+    this.#imageMode = 'preview';
+    this.#previewTooLarge = false;
     this.#drafts.clear();
     this.#clearDraft();
     this.#lastSaveSucceeded = false;
@@ -234,6 +244,7 @@ export class VeriTaxaApp {
     this.#currentItem = null;
     this.#clearDraft();
     this.#imageAttempt = null;
+    this.#imagePolicy = null;
     await this.#loadCursor(batchId, null, 'resume');
   }
 
@@ -254,6 +265,7 @@ export class VeriTaxaApp {
       if (!item) {
         this.#state = 'empty_batch';
         this.#imageAttempt = null;
+        this.#imagePolicy = null;
       } else {
         this.#updateBatchProgress(item);
         this.#restoreDraft(item);
@@ -268,15 +280,28 @@ export class VeriTaxaApp {
     }
   }
 
-  #prepareCurrentImage(): void {
+  #prepareCurrentImage(mode: ImageMode = 'preview'): void {
     const current = this.#currentItem;
+    this.#imageMode = mode;
+    this.#previewTooLarge = false;
     if (!current) {
       this.#state = 'empty_batch';
       this.#imageAttempt = null;
+      this.#imagePolicy = null;
       return;
     }
-    this.#imageAttempt = createImageAttempt(current.displayUrl, current.fallbackImageUrl);
+    this.#imagePolicy = createImagePolicy(current.displayUrl, current.fallbackImageUrl);
+    this.#imageAttempt = createImageAttempt(this.#imagePolicy, mode);
     this.#state = currentImageSource(this.#imageAttempt) ? 'reviewing' : 'image_error';
+  }
+
+  #changeImageMode(mode: ImageMode): void {
+    if (!this.#currentItem || this.#state === 'saving' || this.#state === 'loading_image') return;
+    const previousState = this.#state;
+    this.#prepareCurrentImage(mode);
+    if (previousState === 'save_error' || previousState === 'navigation_error')
+      this.#state = previousState;
+    this.#render();
   }
 
   #beginRequest(): { id: number; signal: AbortSignal } {
@@ -635,6 +660,9 @@ export class VeriTaxaApp {
         comparison: this.#comparisonItem,
         sources: this.#imageAttempt?.sources ?? null,
         source: this.#imageAttempt ? currentImageSource(this.#imageAttempt) : null,
+        imageMode: this.#imageMode,
+        originalAvailable: !!this.#imagePolicy?.original,
+        previewTooLarge: this.#previewTooLarge,
         busy,
         saving: this.#state === 'saving',
         canSubmit:
@@ -690,9 +718,10 @@ export class VeriTaxaApp {
           if (this.#batchId) void this.#loadCursor(this.#batchId, null, 'resume');
           return;
         }
-        if (this.#state === 'saving' || this.#state === 'loading_image') return;
-        this.#prepareCurrentImage();
-        this.#render();
+        this.#changeImageMode(this.#imageMode);
+      },
+      changeImageMode: () => {
+        if (owns()) this.#changeImageMode(this.#imageMode === 'preview' ? 'original' : 'preview');
       },
       resolveConflict: (useSaved) => {
         if (owns() && this.#comparisonItem) this.#resolveConflict(this.#comparisonItem, useSaved);
@@ -702,6 +731,19 @@ export class VeriTaxaApp {
         if (!owns() || attempt?.sources !== sources) return;
         this.#imageAttempt = advanceImageAttempt(attempt);
         if (!this.#imageAttempt && this.#state === 'reviewing') this.#state = 'image_error';
+        this.#render();
+      },
+      imageLoaded: (sources, longestEdge) => {
+        if (
+          !owns() ||
+          this.#imageAttempt?.sources !== sources ||
+          this.#imageMode !== 'preview' ||
+          longestEdge <= MAX_PREVIEW_EDGE
+        )
+          return;
+        this.#previewTooLarge = true;
+        this.#imageAttempt = null;
+        if (this.#state === 'reviewing') this.#state = 'image_error';
         this.#render();
       },
     });

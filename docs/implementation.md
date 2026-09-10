@@ -254,3 +254,20 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   one item on demand instead of allocating an artificial thousand-item queue.
   Type/lint/format checks and a 61.09 KiB gzip bundle pass. Preview/original policy
   and measured long-session JS/image/process-memory gates are still pending.
+- Phase 4 image policy separates supplied previews from explicit source
+  inspection. Valid supplied Flickr renditions at most 1,600 pixels are accepted;
+  larger/original secrets are never transformed into guessed size URLs. A
+  distinct unknown-provider display URL is an upstream preview declaration, not
+  a dimension guarantee. Missing/duplicated unknown previews require explicit
+  source inspection; automatic fallback uses only a supplied bounded rendition.
+  Returning to preview, moving to another item and resetting the session release
+  the prior source/handlers. Oversized previews are released after load, with
+  their initial decode peak explicitly outside a hard memory guarantee.
+- Image-policy checks cover 87 frontend tests and 24 desktop/mobile browser
+  cases, including source inspection without losing drafts, preview retry,
+  post-load size checks, native fallback, stale load/error callbacks, and locked
+  saves. The privacy scanner now permits a bare provider configuration hostname
+  while rejecting literal/escaped/encoded source paths; an isolated synthetic Git
+  fixture tests that distinction and the retained private-data markers. No task
+  URLs, original-image binaries, live database changes or image mirror are added.
+  The real-raster long-session memory gate remains required before phase 4 ends.

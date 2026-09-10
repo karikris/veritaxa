@@ -8,10 +8,15 @@ const root = process.cwd();
 const self = 'scripts/check-no-review-data.mjs';
 /** @type {readonly (readonly [string, string])[]} */
 const forbidden = [
-  ['Flickr static image host', 'static' + 'flickr.com'],
   ['Flickr photo page', 'flickr.com' + '/photos'],
   ['real campaign filename', 'papilio' + '_demoleus_candidates'],
 ];
+// A provider hostname used by URL policy code is public configuration, not task
+// data. Continue rejecting every literal source path, including escaped URLs.
+const sourceImagePattern = new RegExp(
+  'static' + String.raw`flickr\.com\.?(?::\d+)?(?:/|\\/|%2f)`,
+  'i',
+);
 const postgresPattern = new RegExp('postgres(?:ql)?' + String.raw`:\/\/[^\s"']+`, 'i');
 const supabaseSecretPattern = new RegExp(
   String.raw`\bsb_` + String.raw`secret_[a-z0-9_-]{20,}`,
@@ -78,6 +83,7 @@ for (const path of files) {
   for (const [label, value] of forbidden) {
     if (contents.includes(value.toLowerCase())) findings.push(`${normalised}: ${label}`);
   }
+  if (sourceImagePattern.test(contents)) findings.push(`${normalised}: Flickr static image URL`);
   if (supabaseSecretPattern.test(contents)) {
     findings.push(`${normalised}: Supabase secret key`);
   }

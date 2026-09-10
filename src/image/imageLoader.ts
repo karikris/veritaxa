@@ -1,4 +1,13 @@
+import { MAX_PREVIEW_EDGE, suppliedPreviewEdge } from './imagePolicy';
+
 const MAX_URL_LENGTH = 2048;
+
+export type ImagePolicy = {
+  previews: readonly string[];
+  original: string | null;
+};
+
+export type ImageMode = 'preview' | 'original';
 
 export type ImageAttempt = {
   sources: readonly string[];
@@ -17,16 +26,34 @@ export function validateImageUrl(value: unknown): string | null {
   }
 }
 
-export function createImageAttempt(
+export function createImagePolicy(
   displayUrl: string | null,
   fallbackImageUrl: string,
-): ImageAttempt {
+): ImagePolicy {
   const display = validateImageUrl(displayUrl);
-  const fallback = validateImageUrl(fallbackImageUrl);
-  const sources = [display, fallback].filter(
-    (source, index, all): source is string => source !== null && all.indexOf(source) === index,
-  );
-  return { sources, index: 0 };
+  const original = validateImageUrl(fallbackImageUrl);
+  const previews: string[] = [];
+  if (display) {
+    const edge = suppliedPreviewEdge(display);
+    // A distinct display_url is an upstream preview declaration, not a hard
+    // dimension guarantee. A duplicated unknown source URL is not a preview.
+    if ((edge !== null && edge <= MAX_PREVIEW_EDGE) || (edge === null && display !== original)) {
+      previews.push(display);
+    }
+  }
+  if (original && !previews.includes(original)) {
+    const edge = suppliedPreviewEdge(original);
+    if (edge !== null && edge <= MAX_PREVIEW_EDGE) previews.push(original);
+  }
+  return { previews, original };
+}
+
+export function createImageAttempt(policy: ImagePolicy, mode: ImageMode = 'preview'): ImageAttempt {
+  return {
+    sources:
+      mode === 'original' ? (policy.original ? [policy.original] : []) : [...policy.previews],
+    index: 0,
+  };
 }
 
 export function currentImageSource(attempt: ImageAttempt): string | null {
