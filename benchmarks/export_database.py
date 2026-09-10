@@ -19,12 +19,14 @@ from tools.common import AdminError
 from tools.export_reviews import export_reviews
 
 
-def synthetic_dsn() -> str:
-    dsn = os.environ.get("VERITAXA_SYNTHETIC_DSN", "")
+def synthetic_dsn(
+    *, database_name: str = "veritaxa_synthetic", variable: str = "VERITAXA_SYNTHETIC_DSN"
+) -> str:
+    dsn = os.environ.get(variable, "")
     params = conninfo_to_dict(dsn)
     host = params.get("host", "")
     if (
-        params.get("dbname") != "veritaxa_synthetic"
+        params.get("dbname") != database_name
         or not (
             host in {"localhost", "127.0.0.1", "::1"}
             or re.fullmatch(r"/tmp/veritaxa-postgres-[A-Za-z0-9_-]+", host)
@@ -34,9 +36,7 @@ def synthetic_dsn() -> str:
         or os.environ.get("PGSERVICE")
         or os.environ.get("PGHOSTADDR", "") not in {"", "127.0.0.1", "::1"}
     ):
-        raise AdminError(
-            "Set VERITAXA_SYNTHETIC_DSN to a disposable local veritaxa_synthetic database."
-        )
+        raise AdminError(f"Set {variable} to a disposable local {database_name} database.")
     return dsn
 
 
