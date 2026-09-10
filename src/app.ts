@@ -128,6 +128,13 @@ export class VeriTaxaApp {
     return !this.#disposed && !!this.#session && !this.#busy && this.#state !== 'loading_batches';
   }
 
+  get #canRetryImage(): boolean {
+    return (
+      this.#canEditReview ||
+      (this.#canChangeBatch && !!this.#batchId && this.#state === 'navigation_error')
+    );
+  }
+
   async start(): Promise<void> {
     if (this.#started || this.#disposed) return;
     this.#started = true;
@@ -295,7 +302,7 @@ export class VeriTaxaApp {
       this.#render();
     } catch (error) {
       if (!this.#isCurrentRequest(id) || isAbortError(error)) return;
-      this.#state = this.#currentItem ? 'navigation_error' : 'loading_image';
+      this.#state = 'navigation_error';
       this.#errorMessage = messageFrom(error, 'Could not load the requested image.');
       this.#render();
     }
@@ -658,6 +665,7 @@ export class VeriTaxaApp {
         canEdit: this.#canEditReview,
         canNavigate: this.#canNavigate,
         canDiscardDraft: this.#canDiscardDraft,
+        canRetryImage: this.#canRetryImage,
         saving: this.#state === 'saving',
         canSubmit: this.#canSubmit,
         errorMessage: this.#errorMessage,
@@ -699,7 +707,7 @@ export class VeriTaxaApp {
         if (owns()) void this.#navigate(direction);
       },
       retryImage: () => {
-        if (!owns()) return;
+        if (!owns() || !this.#canRetryImage) return;
         if (!this.#currentItem) {
           if (this.#batchId) void this.#loadCursor(this.#batchId, null, 'resume');
           return;

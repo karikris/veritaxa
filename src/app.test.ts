@@ -333,6 +333,52 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it.each(['retry', 'change batch'] as const)(
+    'releases an initial cursor failure for %s without accepting duplicate retries',
+    async (recovery) => {
+      const repo = repository();
+      const otherBatch = { ...batch, id: '30000000-0000-0000-0000-000000000002' };
+      const pending = deferred<ReviewItem>();
+      repo.listBatches.mockResolvedValue([batch, otherBatch]);
+      repo.getCursor
+        .mockRejectedValueOnce(new Error('Synthetic initial cursor failure'))
+        .mockReturnValueOnce(pending.promise);
+      const app = createApp(repo);
+      await app.start();
+      const selector = document.querySelector<HTMLSelectElement>('#batch-select');
+      const retry = document.querySelector<HTMLButtonElement>('.retry-image');
+      if (!selector || !retry) throw new Error('Missing recovery controls');
+      expect(app.state).toBe('navigation_error');
+      expect(selector.disabled).toBe(false);
+      expect(retry.disabled).toBe(false);
+      expect(document.querySelector('img')).toBeNull();
+
+      if (recovery === 'retry') retry.click();
+      else {
+        selector.value = otherBatch.id;
+        selector.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      expect(app.state).toBe('loading_image');
+      expect(selector.disabled).toBe(true);
+      expect(retry.disabled).toBe(true);
+      expect(repo.getCursor).toHaveBeenCalledTimes(2);
+      expect(repo.getCursor.mock.lastCall?.slice(0, 3)).toEqual([
+        recovery === 'retry' ? batch.id : otherBatch.id,
+        null,
+        'resume',
+      ]);
+      retry.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(repo.getCursor).toHaveBeenCalledTimes(2);
+      expect(repo.getCursor.mock.lastCall?.[3].aborted).toBe(false);
+
+      pending.resolve(firstItem);
+      await vi.waitFor(() => expect(app.state).toBe('reviewing'));
+      expect(selector.disabled).toBe(false);
+      expect(document.querySelectorAll('.classification-panel')).toHaveLength(1);
+      app.dispose();
+    },
+  );
+
   it.each(['discard', 'save', 'retry'] as const)(
     'requires explicit %s resolution at the draft limit without evicting other work',
     async (resolution) => {

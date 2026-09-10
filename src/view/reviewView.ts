@@ -30,6 +30,7 @@ export type ReviewViewState = {
   canEdit: boolean;
   canNavigate: boolean;
   canDiscardDraft: boolean;
+  canRetryImage: boolean;
   saving: boolean;
   canSubmit: boolean;
   errorMessage: string;
@@ -250,7 +251,7 @@ export class ReviewView {
         ? 'A display-sized image is not available for automatic review.'
         : 'The supplied source image could not be loaded.';
     this.#retry.hidden = item ? !!source : !state.errorMessage;
-    this.#retry.disabled = !!item && !canEdit;
+    this.#retry.disabled = !state.canRetryImage;
     this.#stage.classList.toggle('image-stage--loading', !item);
     this.#stage.classList.toggle('image-stage--error', !!item && !source);
     this.#stage.setAttribute('aria-label', item ? 'Image under review' : 'Loading image');
