@@ -54,10 +54,24 @@ independent results; check the exact tested and checked-out source commit.
 The owner established the deployed `05e7dec` release as the minimum supported
 client and ended legacy-client support on 11 September 2026. Stale browser bundles
 must refresh before continuing; external clients must migrate to current RPCs.
-The [retirement migration](../supabase/migrations/20260910212342_retire_legacy_review_rpcs.sql)
+The [retirement migration](../supabase/migrations/20260914092659_retire_legacy_review_rpcs.sql)
 drops only the exact old queue/submit signatures without `CASCADE`. Security tests
 assert their absence and preserve useful validation/retry checks on the current
 save API. [Compatibility policy](compatibility.md) records rollout, recovery and
 the explicit boundary preserving reviews, schema/label versions, client-version
-history, source metadata and applied migrations. Live application must be verified
-separately; local checks and Pages deployment do not change the live database.
+history, source metadata and applied migrations.
+
+Live application was independently verified on 14 September 2026: the catalog
+contains neither legacy function, and public API probes using their former
+argument names return HTTP 404 / `PGRST202`. Server-side fingerprints of all
+review, item, batch and campaign rows matched before and after, including source
+metadata and historical client-version/label values. Bulky item metadata was
+checked in indexed UUID ranges without exporting records. Protected catalog
+definitions/grants and the original nine migration entries also matched. Exactly
+one new live history entry was added, `20260914092659_retire_legacy_review_rpcs`.
+The repository file now uses that server-assigned version without changing its
+SQL or any historical migration.
+
+The cursor-seek and identity-guard rename migrations remain pending on the live
+project. Their CI/local evidence is not a claim of production deployment. Existing
+live security-advisor findings were not changed by this narrowly scoped retirement.

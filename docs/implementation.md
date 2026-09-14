@@ -10,15 +10,15 @@ reproduction artifacts remain outside this public-code repository.
 
 ## Phases and evidence
 
-| Phase | Required result                                                                                             | Status                                                         |
-| ----- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                                            |
-| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed                                            |
-| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed                                            |
-| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed                                            |
-| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed                                            |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed                                            |
-| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Core pushed; retirement locally verified; live rollout pending |
+| Phase | Required result                                                                                             | Status                                        |
+| ----- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 0     | Current baseline, synthetic profiling harness, preservation contracts                                       | Verified and pushed                           |
+| 1     | Session/image ownership, versioned drafts, immutable retry payloads, typed conflicts, Unicode parity        | Verified and pushed                           |
+| 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed                           |
+| 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed                           |
+| 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed                           |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed; live migration pending   |
+| 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Verified and pushed; legacy RPCs retired live |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
 pushes, CI/deployment runs and measured gates in the work log. Applied migration
@@ -492,9 +492,9 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   before and after removal. A deliberate dependency on the second API caused
   the single statement to fail without removing either API. Rehearsal data and
   the temporary dependency were rolled back; no real records were read or changed.
-- Live rollout remains unverified: this session has no authenticated Supabase
-  CLI/connector or linked project. Local verification, commit and CI evidence
-  are recorded separately from live database application.
+- Live rollout was initially blocked by missing database authentication. The
+  authenticated rollout and preservation checks below close that blocker;
+  local checks and Pages deployment are not treated as database application.
 - Release checks passed: 93 frontend tests, 24 desktop/mobile browser tests,
   143 Python tests including real-driver suites, TypeScript, lint, formatting,
   private-data scan and whitespace checks. Production JavaScript remains
@@ -502,3 +502,35 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   (SHA-256 `8aad6395d149e8d43f0d31ec909f95602cf0b39d9e6ae4fad66edeb483d8372c`),
   at 62.05 KiB gzip. Only API definitions/types, tests and documentation changed;
   no new frontend behavior or memory-saving claim is attached to this removal.
+
+### Authenticated live retirement — 14 September 2026
+
+- Configured the project-scoped Supabase MCP connection and verified OAuth
+  authentication. Credentials remained outside the repository. Live preflight
+  verified the intended project, its nine original migration entries, both exact
+  legacy signatures and the absence of database dependents.
+- Applied only the reviewed retirement SQL from `790e9f4`. Supabase recorded
+  `20260914092659_retire_legacy_review_rpcs`; the pending source migration file
+  was renamed to match that new history entry without changing its SQL. The
+  nine already-applied migration files and their live history entries are intact.
+- Both functions are absent from the live catalog and their public API routes
+  return HTTP 404 / `PGRST202` with the former parameter names. Current RPC
+  definitions, grants, review-table definitions, constraints, policies, triggers
+  and enum meanings matched their pre-removal fingerprints.
+- Server-side fingerprints of every review, item, batch and campaign row matched
+  before and after removal. This includes historical labels, client versions and
+  source metadata; no record contents or private counts are published here. A
+  whole-metadata diagnostic exceeded its connection timeout before any DDL was
+  submitted; indexed UUID-range checks completed successfully before and after
+  the single migration application.
+- The cursor-seek and identity-guard rename migrations remain unapplied live.
+  They were not bundled into this API-only operation, and existing live security
+  advisor findings were left outside its scope. The full 12-migration local/CI
+  chain and this narrower production history are deliberately distinguished.
+- Source retirement commit `790e9f4` passed all five CI jobs in run `34533001104`;
+  Pages run `34535313062` checked out that exact commit and deployed successfully.
+  Its independently checked artifacts passed 42 import runs (211.34 MiB maximum
+  RSS), 48 export runs (206.95 MiB maximum RSS) and nine browser soaks with 99
+  checkpoints. Browser gates bound retained growth, not absolute low-RAM usage.
+  This final history/documentation alignment changes no application, admin-tool,
+  test or migration SQL behavior.

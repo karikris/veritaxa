@@ -11,7 +11,7 @@ is the minimum supported client. **Users of stale browser bundles must refresh
 the application before continuing.** External clients must migrate to the current
 RPCs: `list_review_batches`, `get_review_cursor`, and `save_image_review_v2`.
 
-The [forward retirement migration](../supabase/migrations/20260910212342_retire_legacy_review_rpcs.sql)
+The [forward retirement migration](../supabase/migrations/20260914092659_retire_legacy_review_rpcs.sql)
 removes only these two exact API signatures:
 
 - `public.get_review_queue(uuid, integer)`
@@ -30,6 +30,12 @@ The migration uses one atomic `DROP FUNCTION ... RESTRICT` statement, without
 RPCs, grants, RLS and ownership/version checks remain unchanged. Database types
 omit the removed endpoints. Security tests assert their absence and exercise
 normalization, identity, retry, validation and correction through the current API.
+
+Live retirement was verified on 14 September 2026. Both functions are absent
+from the catalog and both public API routes return HTTP 404 / `PGRST202` with
+their former argument names. Review and source-metadata fingerprints, current
+RPC definitions/grants, review-table structure and the nine prior migration
+entries matched before and after removal. No historical records were exported.
 
 ### Data-preservation boundary
 
@@ -54,6 +60,14 @@ deletes them nor invents a revision history that the database never stored.
    reverses the support policy, restore only the required definitions and exact
    grants from retained migration history in a new reviewed forward migration;
    never roll back or delete review data or edit applied migrations.
+
+Supabase assigned the retirement version `20260914092659` when applying it. The
+previously pending repository file was renamed to match that new entry, with
+identical SQL; no previously applied production migration was renamed or edited.
+The cursor-seek (`20260910151534`) and identity-guard rename (`20260910155305`) migrations
+remain unapplied on the live project. Their separate rollout must account for
+these earlier pending versions explicitly; do not repair history to pretend
+they ran, or assume a normal latest-only push will apply them.
 
 ## Python helpers and historical data
 
