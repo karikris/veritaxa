@@ -79,11 +79,14 @@ cross join generate_series(1, 2) as reviewer
 where reviewer = 2 or n <> 5;
 
 select ok(
-  (select prosecdef and proconfig = array['search_path=pg_catalog']
+  (select not prosecdef and prosqlbody is not null
+     and proconfig = array['search_path=pg_catalog']
    from pg_proc where oid = 'public.get_review_cursor(uuid,integer,text)'::regprocedure)
+  and (select prosecdef and proconfig = array['search_path=pg_catalog']
+    from pg_proc where oid = 'private.get_review_cursor(uuid,integer,text)'::regprocedure)
   and has_function_privilege('authenticated', 'public.get_review_cursor(uuid,integer,text)', 'execute')
   and not has_function_privilege('anon', 'public.get_review_cursor(uuid,integer,text)', 'execute'),
-  'cursor keeps its fixed search path and restricted definer grant'
+  'cursor keeps safe search paths and restricted execution through a bound invoker'
 );
 
 set local role authenticated;
