@@ -19,8 +19,9 @@ species-level confirmations, or verified occurrence records.
 GitHub Pages hosts only the compiled static interface. Supabase stores private
 campaigns, batches, source image URLs, hidden source metadata, the reviewer
 profiles, and versioned current reviews. Authentication, active private profiles,
-row-level security, and narrowly scoped security-definer RPC functions prevent
-anonymous or suspended users from receiving task URLs or progress.
+row-level security, and narrow public RPCs backed by private security-definer
+implementations prevent unauthenticated or suspended users from receiving task
+URLs or progress.
 
 The browser uses a normal `<img>` element to download the displayed image
 directly from its source host. There is no iframe, server image proxy, image
@@ -106,11 +107,14 @@ The versioned definitions and pipeline mappings are in
   reviews, labels and source metadata are preserved. See the
   [supported-client cutoff and retirement procedure](docs/compatibility.md).
 
-All exposed tables have RLS enabled and direct access is revoked from browser
-roles. Functions derive the reviewer UUID from the authenticated JWT, use a
-fixed safe search path, and return minimum shapes. Only the owning reviewer can
-replace an answer through the version-checked RPC; review identity and rows
-cannot be changed or deleted.
+All VeriTaxa tables have RLS enabled, explicit restrictive rejection policies,
+and no direct browser-role access. Public RPC entry points run as security
+invokers with SQL-standard bodies bound to private implementations. Reviewers
+receive neither private-schema usage nor table privileges. Private functions
+derive the reviewer UUID from the authenticated JWT, use a fixed safe search
+path, and return minimum shapes. Only the owning reviewer can replace an answer
+through the version-checked RPC; review identity is immutable and rows cannot
+be deleted. See the [security boundary and rollout evidence](docs/verification.md).
 
 ## Exact production setup order
 

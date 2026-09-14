@@ -64,10 +64,34 @@ deletes them nor invents a revision history that the database never stored.
 Supabase assigned the retirement version `20260914092659` when applying it. The
 previously pending repository file was renamed to match that new entry, with
 identical SQL; no previously applied production migration was renamed or edited.
-The cursor-seek (`20260910151534`) and identity-guard rename (`20260910155305`) migrations
-remain unapplied on the live project. Their separate rollout must account for
-these earlier pending versions explicitly; do not repair history to pretend
-they ran, or assume a normal latest-only push will apply them.
+The cursor-seek and identity-guard rename were left pending at that retirement
+step. The owner subsequently authorized their separate rollout: they were
+applied as `20260914134310` and `20260914134318`, with their pending repository
+files renamed to match and SQL unchanged. All previously applied production
+migration files and history entries were retained.
+
+## Current RPC security boundary
+
+The [security migration](../supabase/migrations/20260914134325_harden_review_rpc_boundaries.sql)
+keeps all supported public function names, arguments, results and reviewer
+authorization behavior. Privileged implementations now live in `private`;
+public functions are security-invoker entry points with definition-time-bound
+SQL bodies. The existing implementations were moved, not copied or rewritten.
+Do not replace those bodies with late-parsed strings or grant browser roles
+private-schema usage: the explicit binding lets the same API work while private
+object lookup and direct table access remain denied.
+
+All six VeriTaxa tables have explicit restrictive rejection policies for browser
+roles. These preserve the existing RPC-only access model and guard against a
+future accidental permissive policy. The optional hosted `rls_auto_enable`
+maintenance function retains its definition and event trigger, but no longer
+grants execution to `PUBLIC`, `anon` or `authenticated`.
+
+Live security advisors now report no VeriTaxa database findings. Five informational
+no-policy notices belong to separate BioMiner tables in the shared project and
+were not modified. The remaining Auth warning is leaked-password protection:
+Supabase requires Pro or higher, while this project is on Free. No billing plan,
+login provider, user record or password setting was changed to hide that warning.
 
 ## Python helpers and historical data
 

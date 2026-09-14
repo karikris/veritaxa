@@ -17,7 +17,7 @@ reproduction artifacts remain outside this public-code repository.
 | 2     | Bounded export/consensus, full and explicit lean projection, atomic output                                  | Verified and pushed                           |
 | 3     | Bounded import/validated spool, metadata preservation, deterministic shuffle, atomic publish                | Verified and pushed                           |
 | 4     | Stable DOM, bounded drafts, explicit display/full-resolution policy, browser soak                           | Verified and pushed                           |
-| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed; live migration pending   |
+| 5     | Forward cursor-seek migration, pgTAP edge cases, measured local plans                                       | Verified and pushed; live migration applied   |
 | 6     | Dead-code removal, consolidated capabilities/normalization, Python/schema parity, safe compatibility cutoff | Verified and pushed; legacy RPCs retired live |
 
 No phase is complete merely because its unit tests pass. Record commit IDs,
@@ -523,10 +523,10 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   whole-metadata diagnostic exceeded its connection timeout before any DDL was
   submitted; indexed UUID-range checks completed successfully before and after
   the single migration application.
-- The cursor-seek and identity-guard rename migrations remain unapplied live.
-  They were not bundled into this API-only operation, and existing live security
-  advisor findings were left outside its scope. The full 12-migration local/CI
-  chain and this narrower production history are deliberately distinguished.
+- At the API-retirement step, the cursor-seek and identity-guard rename migrations
+  were left unapplied live. They were not bundled into that API-only operation,
+  and existing live security-advisor findings were outside its scope. The owner
+  later authorized the follow-up rollout recorded below.
 - Source retirement commit `790e9f4` passed all five CI jobs in run `34533001104`;
   Pages run `34535313062` checked out that exact commit and deployed successfully.
   Its independently checked artifacts passed 42 import runs (211.34 MiB maximum
@@ -534,3 +534,41 @@ boundaries, historical schemas/migrations and reviewer data are not dead code.
   checkpoints. Browser gates bound retained growth, not absolute low-RAM usage.
   This final history/documentation alignment changes no application, admin-tool,
   test or migration SQL behavior.
+
+### Cursor, trigger and security follow-up — 14 September 2026
+
+- The owner authorized applying both remaining migrations and fixing the
+  security-advisor findings. Commit `08de93b` adds private privileged review
+  implementations behind definition-time-bound public SQL invokers, explicit
+  restrictive browser-denial policies on all six VeriTaxa tables, and removal
+  of browser execution on the optional hosted RLS maintenance helper.
+- All public names, arguments, result shapes, volatility, reviewer guards and
+  current-client behavior remain compatible. No private-schema usage or table
+  privilege was granted to browser roles. Existing implementation bodies were
+  moved without duplication; only the already-reviewed cursor seek changes its
+  selection logic. Historical labels, schema versions and review records remain.
+- Both fresh local database variants passed 122 pgTAP assertions; an upgrade
+  rehearsal preserved historical synthetic data and verified the RLS event
+  trigger still works. SQL linting passed for public and private schemas.
+  The source passed 93 frontend tests, formatting and the 136-file privacy scan.
+- Supabase CI database job `103996694689` passed all 122 assertions and linting;
+  the application job passed too. Run `34850430859` did not have an all-green
+  result: the browser-memory collector stopped on an incomplete native dump
+  during the third desktop repetition, after two completed passing repetitions.
+  This was not reported as a successful full soak or hidden by changing gates.
+- Live migrations were recorded as `20260914134310_seek_review_cursor_positions`,
+  `20260914134318_rename_review_identity_guard` and
+  `20260914134325_harden_review_rpc_boundaries`. Pending source filenames were
+  aligned without changing their SQL or any of the ten prior live migration
+  files/history entries. The repository and live history now contain the same
+  13 migrations.
+- Bounded before/after server-side fingerprints matched all six VeriTaxa tables,
+  including reviews, source metadata and historical reviewer records. Protected
+  table definitions, enum meanings, schema/table access, unrelated functions,
+  the RLS event trigger and all ten prior migration-history entries matched.
+  The identity guard retained its definition except for its requested rename.
+- Live authenticated-role smoke checks passed with no test records created.
+  Fresh security advisors show no remaining VeriTaxa database findings. Five
+  informational notices concern separate BioMiner tables, which were not changed.
+  The remaining Auth warning requires a Pro-or-higher plan; the current Free
+  plan and Auth providers were left unchanged, with no paid upgrade authorized.

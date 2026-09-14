@@ -24,12 +24,17 @@ For the before/after comparison, initially apply migrations only through
 uv run python -m benchmarks.cursor_database case --output /tmp/veritaxa-cursor-before.json
 ```
 
-Apply `20260910151534_seek_review_cursor_positions.sql` to that disposable
+Apply `20260914134310_seek_review_cursor_positions.sql` to that disposable
 database and run:
 
 ```sh
 uv run python -m benchmarks.cursor_database seek --output /tmp/veritaxa-cursor-after.json
 ```
+
+The seek migration was originally named `20260910151534` when these measurements
+were recorded. Its pending filename was aligned to the live deployment timestamp
+without changing the SQL. These baseline timings predate the later public-invoker/
+private-implementation split; they are not new measurements of that extra call.
 
 Do not restore an old function on a live project to obtain a baseline. Each
 output must not already exist; reports identify the installed function by hash

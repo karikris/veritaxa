@@ -24,7 +24,7 @@ independent results; check the exact tested and checked-out source commit.
 | Stable DOM and bounded drafts          | [Review view](../src/view/reviewView.ts) retains ordinary image/control nodes; [draft store](../src/domain/draftStore.ts) reserves the active editor within 256 entries and 1 MiB. Unit and [desktop/mobile browser tests](../tests/e2e/review-flow.spec.ts) cover identity, focus/caret/zoom, draft count/bytes, explicit save/discard/retry resolution and no silent eviction.                                                                                                         |
 | Display image policy                   | [Image policy](../src/image/imagePolicy.ts) and [loader](../src/image/imageLoader.ts) prefer supported bounded previews; original inspection is explicit. Tests cover provider/lookalike URLs, fallback, oversized-preview release, source/preview transitions and stale callbacks. No image mirror or automatic uncontrolled-original fallback was introduced.                                                                                                                          |
 | Browser scaling                        | [Real-raster soak](../benchmarks/browser-memory.md) checks 1,000 navigations in nine fresh browser processes: desktop, draft-heavy and mobile-pressure, three repeats each. Gates inspect JS heap, DOM, all browser-process RSS/PSS and native image/GPU allocations, plus explicit original requests and cached preview return.                                                                                                                                                         |
-| Indexed cursor selection               | The [forward seek migration](../supabase/migrations/20260910151534_seek_review_cursor_positions.sql) preserves authorization, response shape and exact progress. [48 cursor assertions](../supabase/tests/review_cursor.test.sql) cover range/gap/extreme anchors, wrap, empty/single/complete batches and independent reviewers. [Measured plans/timings](../benchmarks/cursor-database.md) separate indexed selection from full authenticated RPC p50/p95, including unchanged resume. |
+| Indexed cursor selection               | The [forward seek migration](../supabase/migrations/20260914134310_seek_review_cursor_positions.sql) preserves authorization, response shape and exact progress. [48 cursor assertions](../supabase/tests/review_cursor.test.sql) cover range/gap/extreme anchors, wrap, empty/single/complete batches and independent reviewers. [Measured plans/timings](../benchmarks/cursor-database.md) separate indexed selection from full authenticated RPC p50/p95, including unchanged resume. |
 | Schema, authorization and provenance   | All nine pre-refactor migrations and every historical label schema remain unchanged. [Security tests](../supabase/tests/review_security.test.sql) preserve authorization, narrow RPCs, current-row ownership, idempotency, identity/deletion guards and version/time requirements. The renamed guard is checked structurally and behaviorally. Fresh SQL-only migration checks complement, but do not replace, the CI Supabase-service job.                                              |
 | Legacy cleanup and label parity        | Unused prefetch, assertion, state, submission-ID and browser-priority helpers are removed; actual retry and consensus paths retain coverage. [Python parity](../tools/tests/test_label_schema.py) checks all retained labels, pairwise priority ties and eager/streaming mappings. Existing TypeScript/schema parity remains; no per-operation schema-file loading is added.                                                                                                             |
 | Bundle and private-data boundaries     | [Bundle gate](../scripts/check-bundle-size.mjs) enforces 70 KiB gzip and rejects missing/empty builds. [Data scan](../scripts/check-no-review-data.mjs) checks source and production output, including encoded private-data markers. Synthetic repository selection is development-only; the production app remains framework-free.                                                                                                                                                      |
@@ -72,6 +72,44 @@ one new live history entry was added, `20260914092659_retire_legacy_review_rpcs`
 The repository file now uses that server-assigned version without changing its
 SQL or any historical migration.
 
-The cursor-seek and identity-guard rename migrations remain pending on the live
-project. Their CI/local evidence is not a claim of production deployment. Existing
-live security-advisor findings were not changed by this narrowly scoped retirement.
+The cursor-seek, identity-guard rename and security changes were applied later,
+under the owner's separate authorization, as recorded below. They were not
+silently included in the earlier API-only retirement.
+
+## Live completion and security hardening
+
+On 14 September 2026 the live project received the cursor seek (`20260914134310`),
+identity-guard rename (`20260914134318`) and
+[RPC security-boundary migration](../supabase/migrations/20260914134325_harden_review_rpc_boundaries.sql).
+Their repository filenames match the server-assigned versions; SQL is identical
+to the reviewed source. All 13 repository migrations are now applied live.
+
+- The 57 review-security, 48 cursor and [17 boundary assertions](../supabase/tests/review_boundaries.test.sql)
+  passed on fresh PostgreSQL 18.6 databases both with and without the optional
+  hosted maintenance helper, including the actual production migration order.
+  SQL linting passed for both `public` and `private` schemas.
+- The Supabase-service database job for `08de93b` passed all 122 assertions and
+  linting in [CI run 34850430859](https://github.com/karikris/veritaxa/actions/runs/34850430859).
+  Its application job also passed. The separate browser-memory job stopped on
+  an incomplete Chrome native-memory dump; that is not a passing memory gate.
+  Neither application/harness code nor measurement thresholds changed.
+- An upgrade rehearsal preserved a historical Flickr-label review, its original
+  client version and reviewer snapshot, source metadata and profiles. It also
+  preserved private implementation bodies/OIDs/owners and the hosted RLS event
+  trigger; automatic RLS enabling still worked after revoking browser execution.
+- Live read-only authenticated-role probes exercised all four bound invokers
+  without granting private-schema usage and confirmed missing-identity rejection.
+  The private schema remains rejected by the public Data API. No test user or
+  review was created in production.
+- Server-side before/after fingerprints matched for every row in all six
+  VeriTaxa tables, including historical reviewer records and source metadata.
+  Table/column/constraint definitions, enum meanings, private-schema access and
+  the ten prior migration-history entries were unchanged. The identity guard
+  retained its function, events and enabled state under the new name.
+
+Fresh live advisors show zero publicly executable security-definer functions
+for browser roles and no remaining VeriTaxa database findings. Five informational
+no-policy notices concern separate BioMiner tables. Leaked-password protection
+remains an Auth warning because the current plan is Free; enabling it requires
+[Supabase Pro or higher](https://supabase.com/docs/guides/auth/password-security).
+No paid upgrade or unrelated table change was performed.
