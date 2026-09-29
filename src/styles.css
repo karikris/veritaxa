@@ -308,7 +308,8 @@ h1 {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 12px 24px;
+  margin-bottom: 20px;
+  padding: 12px 0;
   border-bottom: 1px solid #272b27;
 }
 
@@ -521,17 +522,22 @@ h1 {
   min-width: 0;
 }
 
-.label-group--target-taxon {
-  grid-column: 1 / -1;
+.classification-primary-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 520px) minmax(96px, max-content);
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .label-group--target-taxon .label-grid {
-  grid-template-columns: minmax(0, 520px);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .label-group--target-taxon .label-card {
   border-color: #536244;
   background: #1b2118;
+  overflow-wrap: anywhere;
 }
 
 .label-group h3 {
@@ -689,6 +695,7 @@ kbd {
 }
 
 .send-button {
+  grid-column: 2;
   min-width: 150px;
   min-height: 48px;
   padding: 0 22px;
@@ -799,7 +806,9 @@ kbd {
   }
 
   .send-button {
-    width: 100%;
+    min-width: 96px;
+    max-width: 160px;
+    padding-inline: 12px;
   }
 }
 

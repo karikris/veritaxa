@@ -68,6 +68,7 @@ export class ReviewView {
   readonly #completion: HTMLElement;
   readonly #classifier: HTMLElement;
   readonly #groups: HTMLElement;
+  readonly #primaryActions: HTMLElement;
   readonly #targetGroup: HTMLElement;
   readonly #targetText: HTMLElement;
   readonly #labels = new Map<ReviewLabelCode, HTMLInputElement>();
@@ -114,21 +115,26 @@ export class ReviewView {
         </nav>
       </section>
       <p class="status-text status-text--error queue-error" role="alert" hidden></p>
-      <div class="image-source-controls" role="group" aria-label="Image source">
-        <p class="image-source-status" role="status"></p>
-        <button type="button" class="secondary-button image-source-button">Inspect source image</button>
-      </div>
       <section class="classification-panel" tabindex="-1" aria-labelledby="classification-heading">
-        <div class="classification-heading-row">
-          <h2 id="classification-heading">How should this image be classified?</h2>
-          <p>Choose the best matching option.</p>
+        <div role="radiogroup" aria-labelledby="classification-heading">
+          <div class="classification-primary-actions">
+            <button type="button" class="send-button">Send</button>
+          </div>
+          <div class="image-source-controls" role="group" aria-label="Image source">
+            <p class="image-source-status" role="status"></p>
+            <button type="button" class="secondary-button image-source-button">Inspect source image</button>
+          </div>
+          <div class="classification-heading-row">
+            <h2 id="classification-heading">How should this image be classified?</h2>
+            <p>Choose the best matching option.</p>
+          </div>
+          <div class="label-groups"></div>
         </div>
-        <div class="label-groups" role="radiogroup" aria-labelledby="classification-heading"></div>
         <div class="submission-panel">
           <div class="comment-heading"><label for="review-comment">Comment</label><span>optional</span></div>
           <textarea id="review-comment" rows="2"></textarea><span class="comment-count"></span>
-          <div class="submission-action"><p class="status-text" aria-live="polite" role="status"></p>
-            <button type="button" class="send-button">Send</button>
+          <div class="submission-action">
+            <p class="status-text" aria-live="polite" role="status"></p>
           </div>
           <p class="status-text pending-notice" role="status" hidden>Retry sends the original request. Any newer edits will remain unsaved until you send them separately.</p>
           <section class="draft-limit" aria-label="Unsaved draft limit" hidden>
@@ -165,6 +171,7 @@ export class ReviewView {
     this.#completion = find('.completion-status', HTMLElement);
     this.#classifier = find('.classification-panel', HTMLElement);
     this.#groups = find('.label-groups', HTMLElement);
+    this.#primaryActions = find('.classification-primary-actions', HTMLElement);
     this.#comment = find('#review-comment', HTMLTextAreaElement);
     this.#counter = find('.comment-count', HTMLElement);
     this.#send = find('.send-button', HTMLButtonElement);
@@ -207,6 +214,7 @@ export class ReviewView {
     this.#targetGroup = find('[data-group="target_taxon"]', HTMLElement);
     this.#targetGroup.classList.add('label-group--target-taxon');
     this.#targetText = required(this.#targetGroup, '.label-text', HTMLElement);
+    this.#primaryActions.prepend(this.#targetGroup);
     this.#previous.addEventListener('click', () => actions.navigate('previous'));
     this.#next.addEventListener('click', () => actions.navigate('next'));
     this.#retry.addEventListener('click', actions.retryImage);
@@ -271,7 +279,7 @@ export class ReviewView {
             ? 'Upstream preview. Source-image inspection is optional.'
             : 'No preview is available. Source-image inspection may use more memory.';
     if (item?.targetScientificName) {
-      if (!this.#targetGroup.isConnected) this.#groups.prepend(this.#targetGroup);
+      if (!this.#targetGroup.isConnected) this.#primaryActions.prepend(this.#targetGroup);
       this.#targetText.textContent = item.targetScientificName;
     } else {
       this.#targetGroup.remove();
