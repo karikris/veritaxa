@@ -25,6 +25,14 @@ and PostgREST's [empty-rowset RPC test](https://github.com/PostgREST/postgrest/b
 using GitHits. Advisory locking covers the pending-save endpoint; compatibility
 clients must refresh to use this endpoint and the global queue rules.
 
+The applied migration's three `BEGIN ATOMIC` calls quote the private function
+identifiers for CLI replay compatibility. This is a lexical-only repair: the
+CLI's [statement splitter](https://github.com/supabase/cli/blob/997a1e69a4a83466964ed874d3a604c88a7b3866/apps/cli-go/pkg/parser/state.go#L197-L207)
+otherwise mistakes the `end` in `pending` for the body terminator. Quoting the
+same lowercase identifiers preserves the bound functions, schema and permissions;
+the hosted database already has those definitions. No migration version or
+historical data is changed.
+
 ### Earlier API retirement
 
 On 11 September 2026 the owner explicitly ended support for older deployed

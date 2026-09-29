@@ -162,7 +162,7 @@ returns table (
 )
 language sql stable security invoker set search_path = pg_catalog
 begin atomic
-  select * from private.list_pending_review_batches();
+  select * from private."list_pending_review_batches"();
 end;
 
 create function public.get_pending_review_cursor(p_batch_id uuid, p_anchor_position integer, p_direction text)
@@ -174,7 +174,7 @@ returns table (
 )
 language sql volatile security invoker set search_path = pg_catalog
 begin atomic
-  select * from private.get_pending_review_cursor(p_batch_id, p_anchor_position, p_direction);
+  select * from private."get_pending_review_cursor"(p_batch_id, p_anchor_position, p_direction);
 end;
 
 create function public.save_pending_image_review(p_item_id uuid, p_label public.review_label, p_comment text,
@@ -187,7 +187,7 @@ returns table (
 )
 language sql volatile security invoker set search_path = pg_catalog
 begin atomic
-  select * from private.save_pending_image_review(p_item_id, p_label, p_comment, p_submission_id, p_client_version, p_expected_version);
+  select * from private."save_pending_image_review"(p_item_id, p_label, p_comment, p_submission_id, p_client_version, p_expected_version);
 end;
 
 revoke all on function public.list_pending_review_batches() from public, anon, authenticated;
