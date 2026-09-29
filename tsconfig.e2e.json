@@ -13,5 +13,10 @@
     "skipLibCheck": true,
     "types": ["node", "@playwright/test"]
   },
-  "include": ["playwright.config.ts", "tests/e2e/**/*.ts", "scripts/**/*.mjs", "benchmarks/**/*.ts"]
+  "include": [
+    "playwright*.config.ts",
+    "tests/e2e/**/*.ts",
+    "scripts/**/*.mjs",
+    "benchmarks/**/*.ts"
+  ]
 }

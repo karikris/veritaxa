@@ -82,11 +82,13 @@ for (const [shape, width, height] of [
   ['portrait', 600, 1200],
   ['square', 800, 800],
 ] as const) {
-  test(`${shape} images reveal every corner and stop at their edges`, async ({ page }) => {
+  test(`${shape} images can move every corner to the center without disappearing`, async ({
+    page,
+  }) => {
     await openImage(page, width, height);
     await drag(page, 70, 50);
     expect(await geometry(page)).toMatchObject({ x: 0, y: 0, zoom: 1 });
-    // At 400%, every fixture overflows both axes on desktop and mobile.
+    // Even picture edges can reach the center, including with letterboxing.
     for (const [dx, dy] of [
       [1, 1],
       [-1, 1],
@@ -97,11 +99,11 @@ for (const [shape, width, height] of [
       await drag(page, dx * 10000, dy * 10000);
       const result = await geometry(page);
       expect(dx > 0 ? result.left : result.right).toBeCloseTo(
-        dx > 0 ? result.frame.left : result.frame.right,
+        (result.frame.left + result.frame.right) / 2,
         1,
       );
       expect(dy > 0 ? result.top : result.bottom).toBeCloseTo(
-        dy > 0 ? result.frame.top : result.frame.bottom,
+        (result.frame.top + result.frame.bottom) / 2,
         1,
       );
       await expect(page.locator('.image-stage')).not.toHaveClass(/dragging/);
@@ -164,10 +166,10 @@ test('resizing keeps the actual picture within its new pan limits', async ({ pag
     stage.style.width = '240px';
     stage.style.height = '400px';
   });
-  await expect.poll(async () => (await geometry(page)).x).toBeCloseTo(120, 1);
-  expect((await geometry(page)).y).toBe(0);
+  await expect.poll(async () => (await geometry(page)).x).toBeCloseTo(240, 1);
+  expect((await geometry(page)).y).toBe(120);
   await drag(page, -10000, -10000);
-  expect(await geometry(page)).toMatchObject({ x: -120, y: 0 });
+  expect(await geometry(page)).toMatchObject({ x: -240, y: -120 });
 });
 
 test('capture, cancellation and image replacement cannot leave a stuck drag', async ({ page }) => {

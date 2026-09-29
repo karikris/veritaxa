@@ -41,6 +41,8 @@ jobs:
         run: npm run browser:memory:check
       - name: Run browser tests
         run: npm run test:e2e
+      - name: Verify zoom and drag in the production build
+        run: npx playwright test --config playwright.production.config.ts
       - name: Run admin-tool tests
         run: uv run pytest
       - name: Check Python

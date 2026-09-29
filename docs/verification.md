@@ -113,3 +113,30 @@ no-policy notices concern separate BioMiner tables. Leaked-password protection
 remains an Auth warning because the current plan is Free; enabling it requires
 [Supabase Pro or higher](https://supabase.com/docs/guides/auth/password-security).
 No paid upgrade or unrelated table change was performed.
+
+## Pointer zoom and dataset refresh
+
+The production interaction suite builds the app with its production CSP and
+intercepts authentication, RPCs and images with synthetic responses. It checks
+wheel zoom at off-center points, dragging, double-click, button zoom, reset and
+source switching on desktop and mobile. Run it with:
+
+```sh
+npx playwright test --config playwright.production.config.ts
+```
+
+Set `VERITAXA_E2E_URL=https://karikris.github.io/veritaxa/` to exercise the deployed
+assets with the same synthetic responses; the test does not submit live reviews
+or create real users. Existing pan tests cover corner centering, letterboxing,
+resize, pointer cancellation, navigation and touch scrolling.
+
+Focal-point zoom and non-passive wheel handling were checked through GitHits MCP
+against [Panzoom's zoom-to-point and wheel implementation](https://github.com/timmywil/panzoom/blob/main/src/panzoom.ts#L347-L420).
+The application retains its framework-free implementation and image ownership
+rules; no image-viewer dependency is added.
+
+`supabase/tests/dataset_refresh.test.sql` replays the refresh against synthetic
+reviewed, duplicated, fully reviewed and unaffected datasets. It checks exact
+preservation of existing items/reviews, cross-provider image identity, repeated
+refreshes, series ordering and the existing RPC access boundary. All writes are
+rolled back. Run this test only against a disposable test database.

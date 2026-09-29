@@ -119,6 +119,7 @@ export class ReviewView {
           <button type="button" class="image-navigation-button" aria-label="Next image">Next</button>
         </nav>
       </section>
+      <p class="image-gesture-help">Scroll over the picture to zoom at the pointer. Drag when zoomed to move around. Double-click to zoom; use the percentage button to reset.</p>
       <p class="status-text status-text--error queue-error" role="alert" hidden></p>
       <section class="classification-panel" tabindex="-1" aria-labelledby="classification-heading">
         <div role="radiogroup" aria-labelledby="classification-heading">
@@ -242,8 +243,32 @@ export class ReviewView {
     this.#zoomOut.addEventListener('click', () => this.#setZoom(this.#zoom - 0.25));
     this.#zoomIn.addEventListener('click', () => this.#setZoom(this.#zoom + 0.25));
     this.#zoomReset.addEventListener('click', () => this.#setZoom(1));
+    this.#stage.addEventListener(
+      'wheel',
+      (event) => {
+        if (!this.#isImageTarget(event.target) || !this.#image?.naturalWidth) return;
+        const delta = event.deltaY || event.deltaX;
+        if (!delta) return;
+        event.preventDefault();
+        const unit =
+          event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.#stage.clientHeight : 1;
+        const pixels = Math.max(-240, Math.min(240, delta * unit));
+        this.#zoomAt(this.#zoom * Math.exp(-pixels * 0.002), event);
+      },
+      { passive: false },
+    );
+    this.#stage.addEventListener('dblclick', (event) => {
+      if (!this.#isImageTarget(event.target) || !this.#image?.naturalWidth) return;
+      event.preventDefault();
+      this.#zoomAt(this.#zoom === 4 ? 1 : this.#zoom * 2, event);
+    });
     this.#stage.addEventListener('pointerdown', (event) => {
-      if (event.target !== this.#image || !event.isPrimary || event.button !== 0 || this.#drag)
+      if (
+        !this.#isImageTarget(event.target) ||
+        !event.isPrimary ||
+        event.button !== 0 ||
+        this.#drag
+      )
         return;
       this.#refreshPanBounds();
       if (this.#panBounds.x === 0 && this.#panBounds.y === 0) return;
@@ -414,13 +439,26 @@ export class ReviewView {
     this.#setZoom(this.#zoom);
   }
 
-  #setZoom(value: number): void {
+  #isImageTarget(target: EventTarget | null): boolean {
+    return !!this.#image && (target === this.#image || target === this.#stage);
+  }
+
+  #zoomAt(value: number, point: { clientX: number; clientY: number }): void {
+    const frame = this.#stage.getBoundingClientRect();
+    this.#setZoom(value, {
+      x: point.clientX - frame.left - this.#stage.clientLeft - this.#stage.clientWidth / 2,
+      y: point.clientY - frame.top - this.#stage.clientTop - this.#stage.clientHeight / 2,
+    });
+  }
+
+  #setZoom(value: number, focal = { x: 0, y: 0 }): void {
     const zoom = Math.max(1, Math.min(4, value));
     if (zoom !== this.#zoom) {
       this.#endDrag();
-      // Keep the point at the frame center in view as magnification changes.
-      this.#pan.x *= zoom / this.#zoom;
-      this.#pan.y *= zoom / this.#zoom;
+      // Keep the image point under the pointer fixed as magnification changes.
+      const ratio = zoom / this.#zoom;
+      this.#pan.x = focal.x + (this.#pan.x - focal.x) * ratio;
+      this.#pan.y = focal.y + (this.#pan.y - focal.y) * ratio;
       this.#zoom = zoom;
       this.#refreshPanBounds();
     }

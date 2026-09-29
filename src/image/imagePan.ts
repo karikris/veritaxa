@@ -1,4 +1,4 @@
-/** Maximum translation in CSS pixels for a centered, object-fit: contain image. */
+/** Let every part of a zoomed picture reach the frame center without losing it. */
 export function imagePanBounds(
   imageWidth: number,
   imageHeight: number,
@@ -10,7 +10,7 @@ export function imagePanBounds(
     return { x: 0, y: 0 };
   const fit = Math.min(frameWidth / imageWidth, frameHeight / imageHeight);
   return {
-    x: Math.max(0, (imageWidth * fit * zoom - frameWidth) / 2),
-    y: Math.max(0, (imageHeight * fit * zoom - frameHeight) / 2),
+    x: (imageWidth * fit * zoom) / 2,
+    y: (imageHeight * fit * zoom) / 2,
   };
 }

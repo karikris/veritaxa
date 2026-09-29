@@ -7,6 +7,13 @@ code, not review history, provenance or historical label meanings.
 
 ### Dataset refresh with unchanged review workflow
 
+A subsequent September 29 refresh archives the next set of completed reviews
+using the same preservation checks, and publishes only their remaining unreviewed
+images. Original review rows stay in the same historical store. The chooser now
+groups dataset codes by A, B, C series before code sequence, so replacement
+datasets appear alongside their series. New answers remain navigable and editable
+until a later explicit refresh.
+
 The September 29 refresh reduces the published datasets once, excluding images
 already reviewed by anyone at publication time. Identity is source provider plus
 image ID across all campaigns and batches. Affected batches are closed and their

@@ -4,9 +4,10 @@ VeriTaxa is a minimal, authenticated, one-page tool for recording broad human
 labels against image candidates collected by BioMiner and related pipelines.
 It shows one image at a time, saves one classification and an optional comment,
 then advances atomically after Postgres confirms the write. Reviewers can move
-through unreviewed images in a batch. An image leaves all review queues once
-anyone reviews it, including copies in other batches or campaigns. Image identity
-is the pair of source provider and image ID; existing reviews are retained.
+through images in a batch and return to saved answers to correct them. Dataset
+refreshes exclude images already reviewed by anyone, including copies in other
+batches or campaigns. Image identity is the pair of source provider and image ID;
+existing reviews are retained.
 
 VeriTaxa is separate from ButterflyLens. ButterflyLens remains the
 Australia-focused evidence and species-verification application; VeriTaxa is a
@@ -105,8 +106,8 @@ The versioned definitions and pipeline mappings are in
 - `list_review_batches`, `get_review_cursor`, and `save_image_review_v2` serve
   the review workflow. Previous/Next includes saved images, completed datasets
   remain available, and reviewers can update their own answers.
-- The September 29 dataset refresh excludes images reviewed by anyone before
-  that one-time publication, matching source provider and image ID across all
+- The September 29 dataset refreshes exclude images reviewed by anyone before
+  each publication, matching source provider and image ID across all
   campaigns. Later reviews do not remove images from the published datasets.
   Historical items, reviews and source metadata are retained. See the
   [compatibility and dataset refresh notes](docs/compatibility.md).
@@ -276,10 +277,16 @@ https://karikris.github.io/veritaxa/
 ```
 
 A reviewer can then enter their name, immediately choose an open neutral batch,
-classify one image, and resume at the next unreviewed item later. Their session
-is remembered on that browser; progress reflects all reviewers. Completed batches
-disappear from the dataset chooser, and the app advances to another available
-batch. If none remain, it shows “No unreviewed images are available.”
+classify one image, and resume at their next unreviewed item later. Their session
+is remembered on that browser; progress reflects their own saved answers.
+Datasets appear in A, B, C series order, with replacement datasets in their
+original code sequence. Completed published datasets remain available for corrections.
+
+Scroll over the picture to zoom toward the pointer, or double-click to zoom.
+Once zoomed, drag to move the subject into view; even a corner can reach the
+frame center. The +/− buttons also adjust zoom, and the percentage button resets
+the view. Touch users can drag after zooming with the buttons; at 100%, a swipe
+scrolls the page normally. Image navigation resets the zoom and position.
 
 Unsaved edits remain only in the current tab's memory; they are not database
 reviews and do not survive reload or sign-out. Their retention is capped at 256
