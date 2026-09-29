@@ -28,6 +28,9 @@ return an empty cursor on completion. Earlier applied migrations are retained.
 The refresh locks review tables for its transaction to keep the selection and
 publication consistent. The locking behavior was checked using GitHits against
 PostgreSQL's [LOCK documentation](https://www.postgresql.org/docs/current/sql-lock.html).
+The lock is inside the atomic `DO` statement so CLI replay also works when
+top-level statements run in separate transactions. This placement repair does
+not change the already-applied data refresh, RPC definitions or migration version.
 
 The applied migration's three `BEGIN ATOMIC` calls quote the private function
 identifiers for CLI replay compatibility. This is a lexical-only repair: the

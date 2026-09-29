@@ -2,10 +2,6 @@
 -- membership: reviewers can navigate to saved images and correct their answers.
 -- Keep every original item and review; only close affected old batches and
 -- publish their remaining items in replacement batches.
-set local lock_timeout = '5s';
-lock table public.review_campaigns, public.review_batches,
-  public.review_items, public.image_reviews in share row exclusive mode;
-
 do $$
 declare
   original_batch public.review_batches%rowtype;
@@ -17,6 +13,12 @@ declare
   original_reviews_digest text;
   original_source_images bigint;
 begin
+  -- Keep the lock inside this atomic statement: CLI replay may execute each
+  -- top-level statement in its own transaction.
+  set local lock_timeout = '5s';
+  lock table public.review_campaigns, public.review_batches,
+    public.review_items, public.image_reviews in share row exclusive mode;
+
   -- Row versions prove that all pre-existing item fields, including private
   -- source metadata, remain untouched without exporting or copying that data.
   select array_agg(item.id), md5(string_agg(item.id::text || ':' || item.xmin::text, ',' order by item.id))
