@@ -102,19 +102,14 @@ The versioned definitions and pipeline mappings are in
   with a client submission UUID for idempotent retry. Corrections update only
   that reviewer’s row. Target-name reviews snapshot the database-derived name
   in `scientificName`.
-- `list_pending_review_batches`, `get_pending_review_cursor`, and
-  `save_pending_image_review` serve the active review workflow. Empty or fully
-  reviewed batches are hidden, navigation skips reviewed images, and saving the
-  final image returns an empty cursor so the browser refreshes the dataset list.
-  Progress counts images reviewed by anyone. Concurrent submissions for the same
-  provider/image pair are serialized; a later reviewer advances without adding
-  another review. The owner-scoped `get_review_cursor` and `save_image_review_v2`
-  remain available for conflict comparison, retry and correction compatibility.
-  The original queue and submit RPCs
-  are retired by a forward migration. Stale browser bundles must refresh before
-  continuing; external clients must migrate to the current APIs. Historical
-  reviews, labels and source metadata are preserved. See the
-  [supported-client cutoff and retirement procedure](docs/compatibility.md).
+- `list_review_batches`, `get_review_cursor`, and `save_image_review_v2` serve
+  the review workflow. Previous/Next includes saved images, completed datasets
+  remain available, and reviewers can update their own answers.
+- The September 29 dataset refresh excludes images reviewed by anyone before
+  that one-time publication, matching source provider and image ID across all
+  campaigns. Later reviews do not remove images from the published datasets.
+  Historical items, reviews and source metadata are retained. See the
+  [compatibility and dataset refresh notes](docs/compatibility.md).
 
 All VeriTaxa tables have RLS enabled, explicit restrictive rejection policies,
 and no direct browser-role access. Public RPC entry points run as security

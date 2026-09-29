@@ -3,11 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VeriTaxaApp } from './app';
 import type { ReviewBatch, ReviewItem } from './domain/reviewQueue';
 import type { AuthEventHandler, ReviewRepository } from './data/reviewRepository';
-import {
-  ImageAlreadyReviewedError,
-  ReviewConflictError,
-  ReviewerAccessDisabledError,
-} from './data/reviewRepository';
+import { ReviewConflictError, ReviewerAccessDisabledError } from './data/reviewRepository';
 import * as text from './domain/text';
 
 const batch: ReviewBatch = {
@@ -51,7 +47,7 @@ const secondItem: ReviewItem = {
 
 type RepositoryOptions = {
   signedIn?: boolean;
-  save?: () => Promise<ReviewItem | null>;
+  save?: () => Promise<ReviewItem>;
   cursor?: ReviewItem | null;
   getCursor?: ReviewRepository['getCursor'];
 };
@@ -139,49 +135,6 @@ describe('VeriTaxa application', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="app"></div>';
     window.localStorage.clear();
-  });
-
-  it('refreshes the dataset list after saving the final unreviewed image', async () => {
-    const repo = repository({ save: () => Promise.resolve(null) });
-    repo.listBatches.mockResolvedValueOnce([batch]).mockResolvedValue([]);
-    const app = createApp(repo);
-    await app.start();
-    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
-    document.querySelector<HTMLButtonElement>('.send-button')?.click();
-    await vi.waitFor(() => expect(app.state).toBe('no_batches'));
-    expect(document.body.textContent).toContain('No unreviewed images are available.');
-    expect(document.querySelector('img')).toBeNull();
-    expect(document.querySelector<HTMLSelectElement>('#batch-select')?.hidden).toBe(true);
-    expect(repo.saveReview).toHaveBeenCalledOnce();
-    app.dispose();
-  });
-
-  it('removes a dataset that becomes empty before its cursor loads', async () => {
-    const repo = repository();
-    repo.getCursor.mockResolvedValue(null);
-    const app = createApp(repo);
-    await app.start();
-    expect(app.state).toBe('no_batches');
-    expect(repo.getCursor).toHaveBeenCalledOnce();
-    expect(document.querySelector<HTMLSelectElement>('#batch-select')?.options).toHaveLength(0);
-    app.dispose();
-  });
-
-  it('advances when another reviewer has already saved the displayed image', async () => {
-    const repo = repository({ save: () => Promise.reject(new ImageAlreadyReviewedError()) });
-    repo.getCursor.mockResolvedValueOnce(firstItem).mockResolvedValue(secondItem);
-    const app = createApp(repo);
-    await app.start();
-    document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
-    document.querySelector<HTMLButtonElement>('.send-button')?.click();
-    await vi.waitFor(() =>
-      expect(document.querySelector('.image-position')?.textContent).toBe('2 / 2'),
-    );
-    expect(
-      document.querySelector<HTMLInputElement>('input[name="review-label"]:checked'),
-    ).toBeNull();
-    expect(repo.saveReview).toHaveBeenCalledOnce();
-    app.dispose();
   });
 
   it('does not request batches or images before authentication', async () => {
@@ -910,13 +863,7 @@ describe('VeriTaxa application', () => {
       expect(document.querySelector('.send-button')?.textContent).toBe('Compare saved answer');
       document.querySelector<HTMLButtonElement>('.send-button')?.click();
       await vi.waitFor(() => expect(document.querySelector('.conflict-comparison')).not.toBeNull());
-      expect(repo.getCursor).toHaveBeenLastCalledWith(
-        batch.id,
-        0,
-        'next',
-        expect.any(AbortSignal),
-        true,
-      );
+      expect(repo.getCursor).toHaveBeenLastCalledWith(batch.id, 0, 'next', expect.any(AbortSignal));
       expect(document.querySelector('.conflict-comparison')?.textContent).toContain(
         'Saved elsewhere',
       );

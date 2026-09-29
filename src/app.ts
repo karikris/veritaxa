@@ -20,7 +20,6 @@ import {
 } from './image/imageLoader';
 import {
   ReviewConflictError,
-  ImageAlreadyReviewedError,
   ReviewerAccessDisabledError,
   type ReviewerSession,
   type ReviewRepository,
@@ -216,23 +215,17 @@ export class VeriTaxaApp {
     return !this.#disposed && this.#authRevision === revision;
   }
 
-  async #loadBatches(exhaustedBatchId?: string): Promise<void> {
+  async #loadBatches(): Promise<void> {
     const { id, signal } = this.#beginRequest();
     this.#state = 'loading_batches';
     this.#errorMessage = '';
     this.#render();
 
     try {
-      const batches = (await this.#repository.listBatches(signal)).filter(
-        (batch) => batch.id !== exhaustedBatchId,
-      );
+      const batches = await this.#repository.listBatches(signal);
       if (!this.#isCurrentRequest(id)) return;
       this.#batches = batches;
       if (batches.length === 0) {
-        this.#batchId = null;
-        this.#currentItem = null;
-        this.#imageAttempt = null;
-        this.#imagePolicy = null;
         this.#state = 'no_batches';
         this.#render();
         return;
@@ -298,10 +291,9 @@ export class VeriTaxaApp {
       if (!this.#isCurrentRequest(id) || this.#batchId !== batchId) return;
       this.#currentItem = item;
       if (!item) {
+        this.#state = 'empty_batch';
         this.#imageAttempt = null;
         this.#imagePolicy = null;
-        await this.#loadBatches(batchId);
-        return;
       } else {
         this.#updateBatchProgress(item);
         this.#restoreDraft(item);
@@ -441,9 +433,9 @@ export class VeriTaxaApp {
         return;
       this.#updateBatchProgressValues(
         batchId,
-        nextItem?.reviewedCount ?? current.totalCount,
-        nextItem?.totalCount ?? current.totalCount,
-        nextItem?.complete ?? true,
+        nextItem.reviewedCount,
+        nextItem.totalCount,
+        nextItem.complete,
       );
       this.#draft.pendingSubmission = null;
       this.#drafts.delete(current.id);
@@ -453,10 +445,6 @@ export class VeriTaxaApp {
       ) {
         this.#lastSaveSucceeded = true;
         this.#currentItem = nextItem;
-        if (!nextItem) {
-          await this.#loadBatches(batchId);
-          return;
-        }
         this.#restoreDraft(nextItem);
         this.#prepareCurrentImage();
       } else {
@@ -466,9 +454,9 @@ export class VeriTaxaApp {
           currentLabel: submission.label,
           currentComment: submission.comment,
           currentVersion: submission.expectedVersion + 1,
-          reviewedCount: nextItem?.reviewedCount ?? current.totalCount,
-          totalCount: nextItem?.totalCount ?? current.totalCount,
-          complete: nextItem?.complete ?? true,
+          reviewedCount: nextItem.reviewedCount,
+          totalCount: nextItem.totalCount,
+          complete: nextItem.complete,
         };
         this.#draft.baseVersion = submission.expectedVersion + 1;
         this.#lastSaveSucceeded = false;
@@ -480,12 +468,6 @@ export class VeriTaxaApp {
     } catch (error) {
       if (!this.#ownsSession(epoch) || this.#batchId !== batchId || this.#currentItem !== current)
         return;
-      if (error instanceof ImageAlreadyReviewedError) {
-        this.#drafts.delete(current.id);
-        this.#draft.pendingSubmission = null;
-        await this.#loadCursor(batchId, current.position, 'next');
-        return;
-      }
       if (error instanceof ReviewConflictError) {
         this.#draft.pendingSubmission = null;
         this.#draft.conflicted = true;
@@ -521,7 +503,6 @@ export class VeriTaxaApp {
         current.position - 1,
         'next',
         signal,
-        true,
       );
       if (!this.#isCurrentRequest(id) || this.#currentItem !== current) return;
       if (latest?.id !== current.id) {
@@ -667,7 +648,7 @@ export class VeriTaxaApp {
           ? 'Loading review batches…'
           : this.#state === 'empty_batch'
             ? 'This batch has no images to review.'
-            : this.#errorMessage || 'No unreviewed images are available.',
+            : this.#errorMessage || 'No review batches are available.',
       );
     } else {
       this.#reviewView ??= this.#createReviewView();

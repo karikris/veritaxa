@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SupabaseReviewRepository } from './supabaseReviewRepository';
 import { normalizeComment } from '../domain/reviewQueue';
-import { ImageAlreadyReviewedError, ReviewConflictError } from './reviewRepository';
+import { ReviewConflictError } from './reviewRepository';
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ rpc }) }));
@@ -73,9 +73,9 @@ describe('review RPC response boundary', () => {
       ],
     });
     const result = await repository().saveReview(submission);
-    expect(result?.currentComment).toBe(submission.comment);
+    expect(result.currentComment).toBe(submission.comment);
     expect(result).not.toHaveProperty('hidden_metadata');
-    expect(rpc).toHaveBeenLastCalledWith('save_pending_image_review', {
+    expect(rpc).toHaveBeenLastCalledWith('save_image_review_v2', {
       p_item_id: submission.itemId,
       p_label: submission.label,
       p_comment: submission.comment,
@@ -83,25 +83,6 @@ describe('review RPC response boundary', () => {
       p_client_version: submission.clientVersion,
       p_expected_version: submission.expectedVersion,
     });
-  });
-
-  it('accepts an empty next queue after the last save and rejects malformed responses', async () => {
-    const submission = {
-      itemId: item.item_id,
-      label: 'plant' as const,
-      comment: null,
-      submissionId: '50000000-0000-0000-0000-000000000001',
-      clientVersion: 'synthetic-client',
-      expectedVersion: 0,
-    };
-    rpc.mockResolvedValueOnce({ data: [] });
-    await expect(repository().saveReview(submission)).resolves.toBeNull();
-    rpc.mockResolvedValueOnce({ data: null });
-    await expect(repository().saveReview(submission)).rejects.toThrow('response was not valid');
-    rpc.mockResolvedValueOnce({ error: { code: 'PT409', message: 'Private detail' } });
-    await expect(repository().saveReview(submission)).rejects.toBeInstanceOf(
-      ImageAlreadyReviewedError,
-    );
   });
 
   it.each([600, 1000])('reads back a valid %i-code-point comment', async (length) => {

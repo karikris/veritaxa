@@ -5,25 +5,29 @@ code, not review history, provenance or historical label meanings.
 
 ## Review RPCs
 
-### Unreviewed-only workflow
+### Dataset refresh with unchanged review workflow
 
-The September 29 update uses `list_pending_review_batches`,
-`get_pending_review_cursor` and `save_pending_image_review`. These exclude images
-already reviewed by anyone, matching source provider plus image ID across all
-campaigns and batches. Refresh the website to use the new queues; existing tabs
-are not forcibly reloaded, so their unsaved drafts are preserved.
+The September 29 refresh reduces the published datasets once, excluding images
+already reviewed by anyone at publication time. Identity is source provider plus
+image ID across all campaigns and batches. Affected batches are closed and their
+remaining images published in replacement batches; unaffected batches retain
+their IDs. Original items, metadata and review records remain intact.
 
-The earlier owner-scoped cursor and save APIs remain available for saved-answer
-comparison, pending retries and corrections. A successful pending save may return
-an empty array when the dataset is exhausted; clients must refresh the dataset
-list instead of treating that response as a failed write. No historical items,
-reviews or datasets are deleted or relabeled by this update.
+The browser uses `list_review_batches`, `get_review_cursor` and
+`save_image_review_v2`. Previous/Next visits all images in a published dataset,
+including saved answers. Progress remains per reviewer; completed datasets stay
+available and answers can still be corrected. Later reviews do not shrink the
+available data. Refresh the website to load the updated dataset list.
 
-Verified against PostgreSQL's [function snapshot rules](https://www.postgresql.org/docs/current/xfunc-volatility.html),
-[transaction advisory locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS),
-and PostgREST's [empty-rowset RPC test](https://github.com/PostgREST/postgrest/blob/33823088dab1ab2953e85c3f3cde306fec0b008b/test/spec/Feature/Query/RpcSpec.hs#L471-L478)
-using GitHits. Advisory locking covers the pending-save endpoint; compatibility
-clients must refresh to use this endpoint and the global queue rules.
+The short-lived `list_pending_review_batches`, `get_pending_review_cursor` and
+`save_pending_image_review` endpoints delegate to the original APIs through a
+forward migration, so existing browser bundles also regain the original behavior.
+They no longer filter reviewed images, reject another reviewer's submission, or
+return an empty cursor on completion. Earlier applied migrations are retained.
+
+The refresh locks review tables for its transaction to keep the selection and
+publication consistent. The locking behavior was checked using GitHits against
+PostgreSQL's [LOCK documentation](https://www.postgresql.org/docs/current/sql-lock.html).
 
 The applied migration's three `BEGIN ATOMIC` calls quote the private function
 identifiers for CLI replay compatibility. This is a lexical-only repair: the

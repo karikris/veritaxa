@@ -40,6 +40,8 @@ select ('74000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid,
   'synthetic-pending-test', 'Synthetic pending reviewer 2'
 from unnest(array[1, 5]) n;
 
+-- Compatibility aliases must retain the original workflow after the one-time
+-- data refresh. New reviews do not change membership or disable correction.
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"71000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
@@ -50,24 +52,17 @@ declare
   next_item record;
 begin
   assert (select count(*) from public.list_pending_review_batches()
-    where batch_id::text like '73000000-%') = 3, 'only nonempty open batches appear';
-  assert (select reviewed_count from public.list_pending_review_batches() where batch_id = batch) = 2,
-    'global progress includes unavailable images and reviews in closed batches';
+    where batch_id::text like '73000000-%') = 3, 'open datasets remain available';
+  assert (select reviewed_count from public.list_pending_review_batches() where batch_id = batch) = 0,
+    'progress counts the current reviewer';
   select * into next_item from public.get_pending_review_cursor(batch, null, 'resume');
-  assert next_item.position = 3 and next_item.current_label is null and next_item.current_version = 0,
-    'resume skips all previously reviewed images';
-  assert next_item.reviewed_count = 2 and next_item.total_count = 4, 'progress counts items once';
-  assert (select position from public.get_pending_review_cursor(batch, 3, 'next')) = 7,
-    'next skips reviewed images';
-  assert (select position from public.get_pending_review_cursor(batch, 7, 'next')) = 3,
-    'next wraps only through pending images';
-  assert (select position from public.get_pending_review_cursor(batch, 3, 'previous')) = 7,
-    'previous wraps only through pending images';
-  assert (select position from public.get_pending_review_cursor(batch, 7, 'previous')) = 3,
-    'previous skips reviewed images';
-  assert (select count(*) from public.get_pending_review_cursor(
-    '73000000-0000-0000-0000-000000000004', null, 'resume')) = 1,
-    'identical image IDs from different providers stay distinct';
+  assert next_item.position = 1 and next_item.current_label is null and next_item.current_version = 0,
+    'another reviewer does not remove an image from a published dataset';
+  assert next_item.reviewed_count = 0 and next_item.total_count = 4, 'dataset size stays fixed';
+  assert (select position from public.get_pending_review_cursor(batch, 7, 'next')) = 9,
+    'next visits every published image';
+  assert (select position from public.get_pending_review_cursor(batch, 1, 'previous')) = 9,
+    'previous wraps across all published images';
   begin
     perform public.get_pending_review_cursor('73000000-0000-0000-0000-000000000003', null, 'resume');
     raise exception 'closed batch should be rejected';
@@ -76,27 +71,44 @@ begin
     perform public.get_pending_review_cursor(batch, null, 'next');
     raise exception 'missing anchor should be rejected';
   exception when sqlstate '22023' then null; end;
+
   select * into next_item from public.save_pending_image_review(
-    '74000000-0000-0000-0000-000000000002', 'plant', null,
+    '74000000-0000-0000-0000-000000000001', 'plant', 'Saved answer',
     '75000000-0000-0000-0000-000000000001', 'synthetic-pending-test', 0);
-  assert next_item.position = 7 and next_item.reviewed_count = 3, 'save returns next pending image';
+  assert next_item.position = 3 and next_item.reviewed_count = 1, 'save advances normally';
+  select * into next_item from public.get_pending_review_cursor(batch, 3, 'previous');
+  assert next_item.position = 1 and next_item.current_label = 'plant'
+    and next_item.current_comment = 'Saved answer' and next_item.current_version = 1,
+    'previous returns the saved answer after submission';
+  perform public.save_pending_image_review(
+    '74000000-0000-0000-0000-000000000002', 'plant', null,
+    '75000000-0000-0000-0000-000000000002', 'synthetic-pending-test', 0);
+  perform public.save_pending_image_review(
+    '74000000-0000-0000-0000-000000000003', 'bird', null,
+    '75000000-0000-0000-0000-000000000003', 'synthetic-pending-test', 0);
+  select * into next_item from public.save_pending_image_review(
+    '74000000-0000-0000-0000-000000000006', 'plant', null,
+    '75000000-0000-0000-0000-000000000004', 'synthetic-pending-test', 0);
+  assert next_item.position = 1 and next_item.complete and next_item.reviewed_count = 4,
+    'last save wraps to a saved image and marks completion';
   assert (select count(*) from public.save_pending_image_review(
-    '74000000-0000-0000-0000-000000000003', 'plant', null,
-    '75000000-0000-0000-0000-000000000002', 'synthetic-pending-test', 0)) = 0,
-    'last save succeeds with an empty cursor';
-  assert (select count(*) from public.save_pending_image_review(
-    '74000000-0000-0000-0000-000000000003', 'plant', null,
-    '75000000-0000-0000-0000-000000000002', 'synthetic-pending-test', 0)) = 0,
-    'last save retry remains idempotent';
-  assert (select count(*) from public.list_pending_review_batches()
-    where batch_id::text like '73000000-%') = 1,
-    'completed batch and duplicate-only batch disappear';
-  assert (select count(*) from public.get_pending_review_cursor(batch, null, 'resume')) = 0,
-    'a completed batch never falls back to reviewed images';
-  assert not has_table_privilege('authenticated',
-    (select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'private' and c.relname = 'reviewed_image_keys'), 'select'),
-    'private source identities remain inaccessible';
+    '74000000-0000-0000-0000-000000000006', 'plant', null,
+    '75000000-0000-0000-0000-000000000004', 'synthetic-pending-test', 0)) = 1,
+    'last save retry remains idempotent and returns a cursor';
+  assert (select complete from public.list_pending_review_batches() where batch_id = batch),
+    'completed dataset remains selectable';
+  assert (select count(*) from public.get_pending_review_cursor(batch, null, 'resume')) = 1,
+    'completed dataset resumes with a saved image';
+
+  perform public.save_pending_image_review(
+    '74000000-0000-0000-0000-000000000001', 'bird', 'Corrected answer',
+    '75000000-0000-0000-0000-000000000005', 'synthetic-pending-test', 1);
+  select * into next_item from public.get_pending_review_cursor(batch, 3, 'previous');
+  assert next_item.current_label = 'bird' and next_item.current_comment = 'Corrected answer'
+    and next_item.current_version = 2 and next_item.total_count = 4,
+    'saved answers remain editable without changing dataset size';
+  assert not has_schema_privilege('authenticated', 'private', 'usage'),
+    'browser cannot look up private implementations';
   assert not has_function_privilege('anon', 'public.list_pending_review_batches()', 'execute'),
     'anonymous database role cannot list batches';
   assert not has_function_privilege('anon', 'public.get_pending_review_cursor(uuid,integer,text)', 'execute'),
@@ -111,18 +123,12 @@ select set_config('request.jwt.claims',
   '{"sub":"71000000-0000-0000-0000-000000000002","role":"authenticated"}', true);
 do $$
 begin
-  begin
-    perform public.save_pending_image_review(
-      '74000000-0000-0000-0000-000000000002', 'bird', null,
-      '75000000-0000-0000-0000-000000000003', 'synthetic-pending-test', 0);
-    raise exception 'a second reviewer must not create another review';
-  exception when sqlstate 'PT409' then null; end;
-  begin
-    perform public.save_pending_image_review(
-      '74000000-0000-0000-0000-000000000008', 'bird', null,
-      '75000000-0000-0000-0000-000000000004', 'synthetic-pending-test', 0);
-    raise exception 'a duplicate in another batch must not be reviewed again';
-  exception when sqlstate 'PT409' then null; end;
+  perform public.save_pending_image_review(
+    '74000000-0000-0000-0000-000000000002', 'bird', null,
+    '75000000-0000-0000-0000-000000000006', 'synthetic-pending-test', 0);
+  perform public.save_pending_image_review(
+    '74000000-0000-0000-0000-000000000008', 'bird', null,
+    '75000000-0000-0000-0000-000000000007', 'synthetic-pending-test', 0);
 end;
 $$;
 
@@ -140,11 +146,11 @@ reset role;
 do $$
 begin
   assert (select count(*) from public.image_reviews
-    where item_id::text like '74000000-%') = 4, 'existing reviews remain and retries add no duplicates';
+    where item_id::text like '74000000-%') = 8, 'history remains and retries add no duplicates';
 end;
 $$;
 
 -- Emit TAP so this assertion-based test also runs under supabase test db.
 select '1..1' as tap;
-select 'ok 1 - global pending review queues, completion, retries and access checks' as tap;
+select 'ok 1 - compatibility navigation, saved answers, completion, corrections and access checks' as tap;
 rollback;

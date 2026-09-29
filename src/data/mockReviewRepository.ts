@@ -108,14 +108,10 @@ export class SyntheticReviewRepository implements ReviewRepository {
     anchorPosition: number | null,
     direction: ReviewCursorDirection,
     signal: AbortSignal,
-    includeReviewed = false,
   ) {
     throwIfAborted(signal);
     const items = itemsByBatch[batchId] ?? [];
-    const candidates = includeReviewed
-      ? items
-      : items.filter((item) => !this.#reviews.has(item.id));
-    const selected = this.#selectCursorItem(candidates, anchorPosition, direction);
+    const selected = this.#selectCursorItem(items, anchorPosition, direction);
     return Promise.resolve(selected ? this.#withReview(selected, items) : null);
   }
 
@@ -153,14 +149,10 @@ export class SyntheticReviewRepository implements ReviewRepository {
     const batchItems = batchEntry?.[1] ?? [];
     const savedItem = batchItems.find((item) => item.id === submission.itemId);
     const next = savedItem
-      ? this.#selectCursorItem(
-          batchItems.filter((item) => !this.#reviews.has(item.id)),
-          savedItem.position,
-          'next',
-        )
+      ? this.#selectCursorItem(batchItems, savedItem.position, 'next')
       : undefined;
-    if (!savedItem) return Promise.reject(new Error('Synthetic review item is missing'));
-    return Promise.resolve(next ? this.#withReview(next, batchItems) : null);
+    if (!next) return Promise.reject(new Error('Synthetic review item is missing'));
+    return Promise.resolve(this.#withReview(next, batchItems));
   }
 
   #selectCursorItem(
@@ -196,7 +188,7 @@ export class SyntheticReviewRepository implements ReviewRepository {
     return [
       this.#batch(FIRST_BATCH_ID, 'SYNTH-001', 'Batch SYNTH-001'),
       this.#batch(SECOND_BATCH_ID, 'SYNTH-002', 'Batch SYNTH-002'),
-    ].filter((batch) => !batch.complete);
+    ];
   }
 
   #batch(id: string, code: string, name: string): ReviewBatch {

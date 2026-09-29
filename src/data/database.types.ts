@@ -79,9 +79,6 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      list_pending_review_batches: Database['public']['Functions']['list_review_batches'];
-      get_pending_review_cursor: Database['public']['Functions']['get_review_cursor'];
-      save_pending_image_review: Database['public']['Functions']['save_image_review_v2'];
       get_review_cursor: {
         Args: {
           p_anchor_position: number | null;
