@@ -209,6 +209,9 @@ export class ReviewView {
         });
         required(wrapper, '.label-text', HTMLElement).textContent = label.displayLabel;
         required(wrapper, 'kbd', HTMLElement).textContent = label.shortcut;
+        required(wrapper, 'kbd', HTMLElement).hidden = HISTORICAL_REVIEW_LABEL_CODES.has(
+          label.code,
+        );
         this.#labels.set(label.code, input);
         grid.append(wrapper);
       }
