@@ -30,6 +30,13 @@ export class ReviewerAccessDisabledError extends Error {
   }
 }
 
+export class ImageAlreadyReviewedError extends Error {
+  constructor() {
+    super('This image has already been reviewed.');
+    this.name = 'ImageAlreadyReviewedError';
+  }
+}
+
 export type ReviewRepository = {
   getSession: () => Promise<ReviewerSession | null>;
   onAuthStateChange: (handler: AuthEventHandler) => () => void;
@@ -41,6 +48,7 @@ export type ReviewRepository = {
     anchorPosition: number | null,
     direction: ReviewCursorDirection,
     signal: AbortSignal,
+    includeReviewed?: boolean,
   ) => Promise<ReviewItem | null>;
-  saveReview: (submission: ReviewSubmission) => Promise<ReviewItem>;
+  saveReview: (submission: ReviewSubmission) => Promise<ReviewItem | null>;
 };

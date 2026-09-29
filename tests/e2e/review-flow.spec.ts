@@ -81,12 +81,15 @@ test('reviewer save retry, progress, and completion flow', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Retry original save' })).toHaveText('Retry save');
 
   await page.getByRole('button', { name: 'Retry original save' }).click();
-  await expect(page.getByText('All reviewed—answers can still be updated.')).toBeVisible();
-  await expect(reviewImage).toHaveAttribute('src', /review-001\.svg/);
-  await expect(page.getByRole('button', { name: 'Previous image' })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Next image' })).toBeEnabled();
-  await expect(page.locator('input[value="target_scientific_name"]')).toBeChecked();
-  await expect(page.getByLabel('Comment')).toHaveValue('Synthetic note');
+  await expect(page.getByText('Danaus exemplaris', { exact: true })).toBeVisible();
+  await expect(page.locator('#batch-select option')).toHaveCount(1);
+  await expect(page.locator('#batch-select')).toHaveValue('30000000-0000-0000-0000-000000000002');
+  await expect(page.getByLabel('Comment')).toHaveValue('');
+  await page.getByText('Plant', { exact: true }).click();
+  await page.getByRole('button', { name: 'Save this classification' }).click();
+  await expect(page.getByText('No unreviewed images are available.')).toBeVisible();
+  await expect(page.locator('#batch-select')).toBeHidden();
+  await expect(page.locator('img')).toHaveCount(0);
 
   const nextImageRequests = images.filter((url) => url.includes('review-002'));
   expect(new Set(nextImageRequests).size).toBeLessThanOrEqual(1);
@@ -272,8 +275,9 @@ test('retry confirms the original write without losing edits made after failure'
   await page.getByRole('button', { name: 'Save this classification' }).click();
   await expect(page.locator('.image-position')).toHaveText('2 / 2');
   await page.getByRole('button', { name: 'Previous image' }).click();
-  await expect(page.locator('input[value="bird"]')).toBeChecked();
-  await expect(page.getByLabel('Comment')).toHaveValue('Newer draft');
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
+  await expect(page.locator('input[name="review-label"]:checked')).toHaveCount(0);
+  await expect(page.getByLabel('Comment')).toHaveValue('');
 });
 
 test('compares a stale answer and reapplies only after an explicit choice', async ({ page }) => {
@@ -293,8 +297,9 @@ test('compares a stale answer and reapplies only after an explicit choice', asyn
   await page.getByRole('button', { name: 'Save this classification' }).click();
   await expect(page.locator('.image-position')).toHaveText('2 / 2');
   await page.getByRole('button', { name: 'Previous image' }).click();
-  await expect(page.locator('input[value="plant"]')).toBeChecked();
-  await expect(page.getByLabel('Comment')).toHaveValue('My draft');
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
+  await expect(page.locator('input[name="review-label"]:checked')).toHaveCount(0);
+  await expect(page.getByLabel('Comment')).toHaveValue('');
 });
 
 test('keyboard shortcuts ignore editable fields and batch selection survives reload', async ({

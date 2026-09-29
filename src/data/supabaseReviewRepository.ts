@@ -13,6 +13,7 @@ import type {
 import type { Database } from './database.types';
 import {
   ReviewConflictError,
+  ImageAlreadyReviewedError,
   ReviewerAccessDisabledError,
   type AuthEventHandler,
   type ReviewerSession,
@@ -67,7 +68,9 @@ export class SupabaseReviewRepository implements ReviewRepository {
   }
 
   async listBatches(signal: AbortSignal): Promise<ReviewBatch[]> {
-    const { data, error } = await this.#client.rpc('list_review_batches').abortSignal(signal);
+    const { data, error } = await this.#client
+      .rpc('list_pending_review_batches')
+      .abortSignal(signal);
     if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
     if (error?.code === '42501') throw new ReviewerAccessDisabledError();
     if (error) throw new Error('Could not load review batches.');
@@ -80,9 +83,10 @@ export class SupabaseReviewRepository implements ReviewRepository {
     anchorPosition: number | null,
     direction: ReviewCursorDirection,
     signal: AbortSignal,
+    includeReviewed = false,
   ): Promise<ReviewItem | null> {
     const { data, error } = await this.#client
-      .rpc('get_review_cursor', {
+      .rpc(includeReviewed ? 'get_review_cursor' : 'get_pending_review_cursor', {
         p_anchor_position: anchorPosition,
         p_batch_id: batchId,
         p_direction: direction,
@@ -95,8 +99,8 @@ export class SupabaseReviewRepository implements ReviewRepository {
     return first === undefined ? null : parseItem(first);
   }
 
-  async saveReview(submission: ReviewSubmission): Promise<ReviewItem> {
-    const { data, error } = await this.#client.rpc('save_image_review_v2', {
+  async saveReview(submission: ReviewSubmission): Promise<ReviewItem | null> {
+    const { data, error } = await this.#client.rpc('save_pending_image_review', {
       p_client_version: submission.clientVersion,
       p_comment: submission.comment,
       p_expected_version: submission.expectedVersion,
@@ -104,11 +108,12 @@ export class SupabaseReviewRepository implements ReviewRepository {
       p_label: submission.label,
       p_submission_id: submission.submissionId,
     });
+    if (error?.code === 'PT409') throw new ImageAlreadyReviewedError();
     if (error?.code === '40001') throw new ReviewConflictError('stale_version');
     if (error?.code === '23505') throw new ReviewConflictError('submission_conflict');
     if (error) throw new Error('The classification could not be saved.');
-    const first = Array.isArray(data) ? data[0] : undefined;
-    return parseItem(first);
+    if (!Array.isArray(data)) throw new Error('The saved review response was not valid.');
+    return data[0] === undefined ? null : parseItem(data[0]);
   }
 }
 

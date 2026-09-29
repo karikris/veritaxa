@@ -5,6 +5,28 @@ code, not review history, provenance or historical label meanings.
 
 ## Review RPCs
 
+### Unreviewed-only workflow
+
+The September 29 update uses `list_pending_review_batches`,
+`get_pending_review_cursor` and `save_pending_image_review`. These exclude images
+already reviewed by anyone, matching source provider plus image ID across all
+campaigns and batches. Refresh the website to use the new queues; existing tabs
+are not forcibly reloaded, so their unsaved drafts are preserved.
+
+The earlier owner-scoped cursor and save APIs remain available for saved-answer
+comparison, pending retries and corrections. A successful pending save may return
+an empty array when the dataset is exhausted; clients must refresh the dataset
+list instead of treating that response as a failed write. No historical items,
+reviews or datasets are deleted or relabeled by this update.
+
+Verified against PostgreSQL's [function snapshot rules](https://www.postgresql.org/docs/current/xfunc-volatility.html),
+[transaction advisory locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS),
+and PostgREST's [empty-rowset RPC test](https://github.com/PostgREST/postgrest/blob/33823088dab1ab2953e85c3f3cde306fec0b008b/test/spec/Feature/Query/RpcSpec.hs#L471-L478)
+using GitHits. Advisory locking covers the pending-save endpoint; compatibility
+clients must refresh to use this endpoint and the global queue rules.
+
+### Earlier API retirement
+
 On 11 September 2026 the owner explicitly ended support for older deployed
 clients. The deployed release at commit `05e7dec54a3ae5ef1d5c5c2fa21347eaf984553f`
 is the minimum supported client. **Users of stale browser bundles must refresh

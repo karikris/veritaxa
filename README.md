@@ -4,7 +4,9 @@ VeriTaxa is a minimal, authenticated, one-page tool for recording broad human
 labels against image candidates collected by BioMiner and related pipelines.
 It shows one image at a time, saves one classification and an optional comment,
 then advances atomically after Postgres confirms the write. Reviewers can move
-through every image in a batch and revise their own current answer.
+through unreviewed images in a batch. An image leaves all review queues once
+anyone reviews it, including copies in other batches or campaigns. Image identity
+is the pair of source provider and image ID; existing reviews are retained.
 
 VeriTaxa is separate from ButterflyLens. ButterflyLens remains the
 Australia-focused evidence and species-verification application; VeriTaxa is a
@@ -100,8 +102,15 @@ The versioned definitions and pipeline mappings are in
   with a client submission UUID for idempotent retry. Corrections update only
   that reviewer’s row. Target-name reviews snapshot the database-derived name
   in `scientificName`.
-- `list_review_batches`, `get_review_cursor`, and `save_image_review_v2` are the
-  supported browser-facing data operations. The original queue and submit RPCs
+- `list_pending_review_batches`, `get_pending_review_cursor`, and
+  `save_pending_image_review` serve the active review workflow. Empty or fully
+  reviewed batches are hidden, navigation skips reviewed images, and saving the
+  final image returns an empty cursor so the browser refreshes the dataset list.
+  Progress counts images reviewed by anyone. Concurrent submissions for the same
+  provider/image pair are serialized; a later reviewer advances without adding
+  another review. The owner-scoped `get_review_cursor` and `save_image_review_v2`
+  remain available for conflict comparison, retry and correction compatibility.
+  The original queue and submit RPCs
   are retired by a forward migration. Stale browser bundles must refresh before
   continuing; external clients must migrate to the current APIs. Historical
   reviews, labels and source metadata are preserved. See the
@@ -273,7 +282,9 @@ https://karikris.github.io/veritaxa/
 
 A reviewer can then enter their name, immediately choose an open neutral batch,
 classify one image, and resume at the next unreviewed item later. Their session
-and per-batch database progress are remembered on that browser.
+is remembered on that browser; progress reflects all reviewers. Completed batches
+disappear from the dataset chooser, and the app advances to another available
+batch. If none remain, it shows “No unreviewed images are available.”
 
 Unsaved edits remain only in the current tab's memory; they are not database
 reviews and do not survive reload or sign-out. Their retention is capped at 256
