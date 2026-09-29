@@ -58,7 +58,23 @@ create temporary table original_reviews as select id, to_jsonb(review) as row_da
 
 -- Exercise the actual publication transaction against reviewed, duplicate,
 -- fully reviewed, unaffected, and same-ID/different-provider fixtures.
-\ir ../migrations/20260929105250_refresh_review_datasets_and_order_series.sql
+do $$
+declare
+  migration_sql text;
+begin
+  -- Supabase's pg_prove container mounts tests without sibling migration files.
+  -- Replay the actual applied SQL from migration history, not a test-only copy.
+  assert exists (select 1 from supabase_migrations.schema_migrations
+    where version = '20260929105250' and cardinality(statements) > 0),
+    'the refresh migration must be recorded before testing';
+  for migration_sql in
+    select unnest(statements) from supabase_migrations.schema_migrations
+    where version = '20260929105250'
+  loop
+    execute migration_sql;
+  end loop;
+end;
+$$;
 
 do $$
 begin
@@ -87,7 +103,23 @@ $$;
 create temporary table refreshed_counts as
 select (select count(*) from public.review_batches) as batches,
        (select count(*) from public.review_items) as items;
-\ir ../migrations/20260929105250_refresh_review_datasets_and_order_series.sql
+do $$
+declare
+  migration_sql text;
+begin
+  -- Supabase's pg_prove container mounts tests without sibling migration files.
+  -- Replay the actual applied SQL from migration history, not a test-only copy.
+  assert exists (select 1 from supabase_migrations.schema_migrations
+    where version = '20260929105250' and cardinality(statements) > 0),
+    'the refresh migration must be recorded before testing';
+  for migration_sql in
+    select unnest(statements) from supabase_migrations.schema_migrations
+    where version = '20260929105250'
+  loop
+    execute migration_sql;
+  end loop;
+end;
+$$;
 
 do $$
 begin
