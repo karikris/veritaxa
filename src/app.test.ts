@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VeriTaxaApp } from './app';
 import type { ReviewBatch, ReviewItem } from './domain/reviewQueue';
@@ -135,7 +135,16 @@ describe('VeriTaxa application', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="app"></div>';
     window.localStorage.clear();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it('does not request batches or images before authentication', async () => {
     const repo = repository({ signedIn: false });

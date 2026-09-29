@@ -3,6 +3,7 @@ import type { ReviewDraft } from '../domain/reviewDraft';
 import { MAX_COMMENT_LENGTH, type ReviewItem } from '../domain/reviewQueue';
 import { countCodePoints, limitCodePoints } from '../domain/text';
 import type { ImageMode } from '../image/imageLoader';
+import { imagePanBounds } from '../image/imagePan';
 
 type ReviewViewActions = {
   selectLabel: (label: ReviewLabelCode) => void;
@@ -85,9 +86,13 @@ export class ReviewView {
   readonly #comparisonLabel: HTMLElement;
   readonly #comparisonComment: HTMLElement;
   readonly #actions: ReviewViewActions;
+  readonly #resizeObserver: ResizeObserver;
   #image: HTMLImageElement | null = null;
   #sources: readonly string[] | null = null;
   #zoom = 1;
+  #pan = { x: 0, y: 0 };
+  #panBounds = { x: 0, y: 0 };
+  #drag: { pointerId: number; x: number; y: number } | null = null;
   #countedComment: string | null = null;
   #commentLength = 0;
 
@@ -237,6 +242,29 @@ export class ReviewView {
     this.#zoomOut.addEventListener('click', () => this.#setZoom(this.#zoom - 0.25));
     this.#zoomIn.addEventListener('click', () => this.#setZoom(this.#zoom + 0.25));
     this.#zoomReset.addEventListener('click', () => this.#setZoom(1));
+    this.#stage.addEventListener('pointerdown', (event) => {
+      if (event.target !== this.#image || !event.isPrimary || event.button !== 0 || this.#drag)
+        return;
+      this.#refreshPanBounds();
+      if (this.#panBounds.x === 0 && this.#panBounds.y === 0) return;
+      this.#stage.setPointerCapture(event.pointerId);
+      this.#drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+      this.#stage.classList.add('image-stage--dragging');
+      event.preventDefault();
+    });
+    this.#stage.addEventListener('pointermove', (event) => this.#moveImage(event));
+    this.#stage.addEventListener('pointerup', (event) => {
+      if (event.pointerId !== this.#drag?.pointerId) return;
+      this.#moveImage(event);
+      this.#endDrag();
+    });
+    for (const type of ['pointercancel', 'lostpointercapture'] as const) {
+      this.#stage.addEventListener(type, (event) => {
+        if (event.pointerId === this.#drag?.pointerId) this.#endDrag();
+      });
+    }
+    this.#resizeObserver = new ResizeObserver(() => this.#refreshPanBounds());
+    this.#resizeObserver.observe(this.#stage);
   }
 
   update(state: ReviewViewState): void {
@@ -354,7 +382,6 @@ export class ReviewView {
     if (this.#sources !== sources || !source) {
       this.#releaseImage();
       this.#sources = sources;
-      this.#zoom = 1;
     }
     if (!source || !sources) return;
     if (!this.#image) {
@@ -365,24 +392,38 @@ export class ReviewView {
       image.decoding = 'async';
       image.fetchPriority = 'high';
       image.referrerPolicy = 'no-referrer';
+      image.draggable = false;
       // A new node only for a new owned attempt, never for label/comment/status changes.
       image.onerror = () => {
         if (this.#image === image && this.element.contains(image))
           this.#actions.imageError(sources);
       };
       image.onload = () => {
-        if (this.#image === image && this.element.contains(image))
+        if (this.#image === image && this.element.contains(image)) {
+          this.#refreshPanBounds();
           this.#actions.imageLoaded(sources, Math.max(image.naturalWidth, image.naturalHeight));
+        }
       };
       this.#image = image;
       this.#stage.prepend(image);
     }
-    if (this.#image.getAttribute('src') !== source) this.#image.src = source;
+    if (this.#image.getAttribute('src') !== source) {
+      this.#resetImagePosition();
+      this.#image.src = source;
+    }
     this.#setZoom(this.#zoom);
   }
 
   #setZoom(value: number): void {
-    this.#zoom = Math.max(1, Math.min(4, value));
+    const zoom = Math.max(1, Math.min(4, value));
+    if (zoom !== this.#zoom) {
+      this.#endDrag();
+      // Keep the point at the frame center in view as magnification changes.
+      this.#pan.x *= zoom / this.#zoom;
+      this.#pan.y *= zoom / this.#zoom;
+      this.#zoom = zoom;
+      this.#refreshPanBounds();
+    }
     this.#image?.style.setProperty('--image-zoom', String(this.#zoom));
     if (this.#image) this.#image.dataset.zoom = String(this.#zoom);
     this.#zoomOut.disabled = this.#zoom === 1;
@@ -393,7 +434,55 @@ export class ReviewView {
     this.#zoomReset.setAttribute('aria-label', `Reset image zoom from ${percentage}%`);
   }
 
+  #refreshPanBounds(): void {
+    this.#panBounds = imagePanBounds(
+      this.#image?.naturalWidth ?? 0,
+      this.#image?.naturalHeight ?? 0,
+      this.#stage.clientWidth,
+      this.#stage.clientHeight,
+      this.#zoom,
+    );
+    const pannable = this.#panBounds.x > 0 || this.#panBounds.y > 0;
+    this.#stage.classList.toggle('image-stage--pannable', pannable);
+    if (!pannable) this.#endDrag();
+    this.#applyPan();
+  }
+
+  #moveImage(event: PointerEvent): void {
+    if (!this.#drag || event.pointerId !== this.#drag.pointerId) return;
+    this.#pan.x += event.clientX - this.#drag.x;
+    this.#pan.y += event.clientY - this.#drag.y;
+    this.#drag.x = event.clientX;
+    this.#drag.y = event.clientY;
+    this.#applyPan();
+  }
+
+  #applyPan(): void {
+    this.#pan.x = Math.max(-this.#panBounds.x, Math.min(this.#panBounds.x, this.#pan.x));
+    this.#pan.y = Math.max(-this.#panBounds.y, Math.min(this.#panBounds.y, this.#pan.y));
+    this.#image?.style.setProperty('--image-pan-x', `${String(this.#pan.x)}px`);
+    this.#image?.style.setProperty('--image-pan-y', `${String(this.#pan.y)}px`);
+  }
+
+  #endDrag(): void {
+    const pointerId = this.#drag?.pointerId;
+    this.#drag = null;
+    this.#stage.classList.remove('image-stage--dragging');
+    if (pointerId !== undefined && this.#stage.hasPointerCapture(pointerId))
+      this.#stage.releasePointerCapture(pointerId);
+  }
+
+  #resetImagePosition(): void {
+    this.#endDrag();
+    this.#zoom = 1;
+    this.#pan = { x: 0, y: 0 };
+    this.#panBounds = { x: 0, y: 0 };
+    this.#stage.classList.remove('image-stage--pannable');
+    this.#applyPan();
+  }
+
   #releaseImage(): void {
+    this.#resetImagePosition();
     if (!this.#image) return;
     this.#image.onerror = null;
     this.#image.onload = null;
@@ -403,6 +492,7 @@ export class ReviewView {
   }
 
   dispose(): void {
+    this.#resizeObserver.disconnect();
     this.#releaseImage();
     this.#sources = null;
     this.element.remove();
