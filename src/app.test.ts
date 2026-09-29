@@ -240,6 +240,30 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it.each(['arachnid', 'other_arthropod'] as const)(
+    'preserves a historical %s answer when editing its comment',
+    async (label) => {
+      const repo = repository({ cursor: { ...firstItem, currentLabel: label, currentVersion: 1 } });
+      const app = createApp(repo);
+      await app.start();
+      const radio = document.querySelector<HTMLInputElement>(`input[value="${label}"]`);
+      expect(radio?.checked).toBe(true);
+      expect(radio?.parentElement?.hidden).toBe(false);
+      expect(document.querySelector('[data-group="arthropods"]')).toBeNull();
+      const comment = document.querySelector<HTMLTextAreaElement>('#review-comment');
+      if (!comment) throw new Error('Missing comment');
+      comment.value = 'Updated synthetic note';
+      comment.dispatchEvent(new Event('input', { bubbles: true }));
+      document.querySelector<HTMLButtonElement>('.send-button')?.click();
+      await vi.waitFor(() => expect(repo.saveReview).toHaveBeenCalledOnce());
+      expect(repo.saveReview.mock.calls[0]?.[0]).toMatchObject({
+        label,
+        comment: 'Updated synthetic note',
+      });
+      app.dispose();
+    },
+  );
+
   it('preserves the mounted review nodes, focus, selection and zoom through edits and save status', async () => {
     const save = deferred<ReviewItem>();
     const app = createApp(repository({ save: () => save.promise }));

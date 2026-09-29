@@ -20,6 +20,11 @@ export const REVIEW_LABEL_CODES = [
 ] as const;
 
 export type ReviewLabelCode = (typeof REVIEW_LABEL_CODES)[number];
+// Retain stored answers and schema compatibility; new reviews use Other insect.
+export const HISTORICAL_REVIEW_LABEL_CODES = new Set<ReviewLabelCode>([
+  'arachnid',
+  'other_arthropod',
+]);
 export type ReviewLabelGroup =
   'target_taxon' | 'insecta' | 'arthropods' | 'biological_negatives' | 'review_state';
 
@@ -169,5 +174,8 @@ export function isReviewLabelCode(value: unknown): value is ReviewLabelCode {
 }
 
 export const LABEL_BY_SHORTCUT = new Map(
-  REVIEW_LABELS.map((label) => [label.shortcut.toLowerCase(), label.code]),
+  REVIEW_LABELS.filter((label) => !HISTORICAL_REVIEW_LABEL_CODES.has(label.code)).map((label) => [
+    label.shortcut.toLowerCase(),
+    label.code,
+  ]),
 );

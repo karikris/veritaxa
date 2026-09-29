@@ -40,7 +40,7 @@ test('reviewer save retry, progress, and completion flow', async ({ page }) => {
   await expect(reviewImage).toHaveAttribute('alt', 'Image under review');
   await expect(reviewImage).toHaveAttribute('src', /review-001\.svg/);
   await expect(page.locator('img.review-image')).toHaveCount(1);
-  await expect(page.locator('input[name="review-label"]')).toHaveCount(16);
+  await expect(page.getByRole('radio')).toHaveCount(14);
   await expect(page.getByText('Target scientific name')).toBeVisible();
   await expect(page.getByText('Papilio exemplaris', { exact: true })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('model output');
@@ -67,7 +67,7 @@ test('reviewer save retry, progress, and completion flow', async ({ page }) => {
   await page.getByRole('button', { name: 'Save this classification' }).click();
   await expect(reviewImage).toHaveAttribute('src', /review-002\.svg/);
   await expect(reviewImage).toHaveAttribute('data-zoom', '1');
-  await expect(page.locator('input[name="review-label"]')).toHaveCount(15);
+  await expect(page.getByRole('radio')).toHaveCount(13);
   await expect(page.getByText('Target scientific name')).toHaveCount(0);
   await expect(page.locator('.header-progress')).toHaveText('1 / 2');
   await expect(page.locator('.classification-panel')).toBeFocused();

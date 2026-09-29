@@ -1,4 +1,9 @@
-import { REVIEW_LABEL_GROUPS, REVIEW_LABELS, type ReviewLabelCode } from '../domain/reviewLabels';
+import {
+  HISTORICAL_REVIEW_LABEL_CODES,
+  REVIEW_LABEL_GROUPS,
+  REVIEW_LABELS,
+  type ReviewLabelCode,
+} from '../domain/reviewLabels';
 import type { ReviewDraft } from '../domain/reviewDraft';
 import { MAX_COMMENT_LENGTH, type ReviewItem } from '../domain/reviewQueue';
 import { countCodePoints, limitCodePoints } from '../domain/text';
@@ -63,8 +68,6 @@ export class ReviewView {
   readonly #unavailableHeading: HTMLElement;
   readonly #unavailableCopy: HTMLElement;
   readonly #retry: HTMLButtonElement;
-  readonly #sourceControls: HTMLElement;
-  readonly #sourceStatus: HTMLElement;
   readonly #sourceButton: HTMLButtonElement;
   readonly #completion: HTMLElement;
   readonly #classifier: HTMLElement;
@@ -121,18 +124,11 @@ export class ReviewView {
       </section>
       <p class="image-gesture-help">Scroll over the picture to zoom at the pointer. Drag when zoomed to move around. Double-click to zoom; use the percentage button to reset.</p>
       <p class="status-text status-text--error queue-error" role="alert" hidden></p>
-      <section class="classification-panel" tabindex="-1" aria-labelledby="classification-heading">
-        <div role="radiogroup" aria-labelledby="classification-heading">
+      <section class="classification-panel" tabindex="-1" aria-label="Image classification">
+        <div role="radiogroup" aria-label="Classification categories">
           <div class="classification-primary-actions">
-            <button type="button" class="send-button">Send</button>
-          </div>
-          <div class="image-source-controls" role="group" aria-label="Image source">
-            <p class="image-source-status" role="status"></p>
             <button type="button" class="secondary-button image-source-button">Inspect source image</button>
-          </div>
-          <div class="classification-heading-row">
-            <h2 id="classification-heading">How should this image be classified?</h2>
-            <p>Choose the best matching option.</p>
+            <button type="button" class="send-button">Send</button>
           </div>
           <div class="label-groups"></div>
         </div>
@@ -171,8 +167,6 @@ export class ReviewView {
     this.#unavailableHeading = find('.image-unavailable h2', HTMLElement);
     this.#unavailableCopy = find('.image-unavailable p', HTMLElement);
     this.#retry = find('.retry-image', HTMLButtonElement);
-    this.#sourceControls = find('.image-source-controls', HTMLElement);
-    this.#sourceStatus = find('.image-source-status', HTMLElement);
     this.#sourceButton = find('.image-source-button', HTMLButtonElement);
     this.#completion = find('.completion-status', HTMLElement);
     this.#classifier = find('.classification-panel', HTMLElement);
@@ -191,6 +185,7 @@ export class ReviewView {
     this.#comparisonLabel = find('.saved-label', HTMLElement);
     this.#comparisonComment = find('.saved-comment', HTMLElement);
     for (const definition of REVIEW_LABEL_GROUPS) {
+      if (definition.code === 'arthropods') continue;
       const group = document.createElement('section');
       group.className = 'label-group';
       group.dataset.group = definition.code;
@@ -199,10 +194,13 @@ export class ReviewView {
       const grid = document.createElement('div');
       grid.className = 'label-grid';
       for (const label of REVIEW_LABELS.filter(
-        (candidate) => candidate.group === definition.code,
+        (candidate) =>
+          candidate.group === definition.code ||
+          (definition.code === 'insecta' && HISTORICAL_REVIEW_LABEL_CODES.has(candidate.code)),
       )) {
         const wrapper = document.createElement('label');
         wrapper.className = 'label-option';
+        wrapper.hidden = HISTORICAL_REVIEW_LABEL_CODES.has(label.code);
         wrapper.innerHTML = `<input type="radio" name="review-label"><span class="label-card"><span class="label-check" aria-hidden="true">✓</span><span class="label-text"></span><kbd aria-hidden="true"></kbd></span>`;
         const input = required(wrapper, 'input', HTMLInputElement);
         input.value = label.code;
@@ -309,7 +307,9 @@ export class ReviewView {
       state.imageMode === 'preview' ? 'Preview unavailable' : 'Source image unavailable';
     this.#unavailableCopy.textContent =
       state.imageMode === 'preview'
-        ? 'A display-sized image is not available for automatic review.'
+        ? state.previewTooLarge
+          ? 'Preview exceeded 1,600 pixels and was released. A smaller upstream rendition is needed.'
+          : 'No preview is available.'
         : 'The supplied source image could not be loaded.';
     this.#retry.hidden = item ? !!source : !state.errorMessage;
     this.#retry.disabled = !state.canRetryImage;
@@ -318,19 +318,10 @@ export class ReviewView {
     this.#stage.setAttribute('aria-label', item ? 'Image under review' : 'Loading image');
     this.#zoomControls.hidden = !source;
     this.#updateImage(sources, source);
-    this.#sourceControls.hidden = !item;
     this.#sourceButton.hidden = !state.originalAvailable;
     this.#sourceButton.disabled = !canEdit;
     this.#sourceButton.textContent =
       state.imageMode === 'original' ? 'Return to preview' : 'Inspect source image';
-    this.#sourceStatus.textContent =
-      state.imageMode === 'original'
-        ? 'Source image: resolution is uncontrolled. Return to preview to release it.'
-        : state.previewTooLarge
-          ? 'Preview exceeded 1,600 pixels and was released. A smaller upstream rendition is needed.'
-          : source
-            ? 'Upstream preview. Source-image inspection is optional.'
-            : 'No preview is available. Source-image inspection may use more memory.';
     if (item?.targetScientificName) {
       if (!this.#targetGroup.isConnected) this.#primaryActions.prepend(this.#targetGroup);
       this.#targetText.textContent = item.targetScientificName;
@@ -341,6 +332,11 @@ export class ReviewView {
     for (const [label, input] of this.#labels) {
       input.checked = draft.label === label;
       input.disabled = !canEdit;
+      if (HISTORICAL_REVIEW_LABEL_CODES.has(label) && input.parentElement) {
+        // Show an existing granular answer only while revisiting that answer.
+        input.parentElement.hidden = !input.checked;
+        input.disabled ||= !input.checked;
+      }
     }
     this.#comment.disabled = !canEdit;
     // Assigning an unchanged textarea value can disturb selection/IME composition.

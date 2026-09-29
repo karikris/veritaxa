@@ -56,6 +56,11 @@ The stored schema version is `veritaxa-review-label-v3`. The granular code is
 canonical; display labels and derived training groups are not stored as
 redundant review columns.
 
+The reviewer interface uses **Other insect** for spiders and other arthropods as
+well. The separate `arachnid` and `other_arthropod` choices and shortcuts are
+retired for new reviews. Existing answers retain their stored codes and remain
+visible when revisited, including when only their comment is corrected.
+
 | Stored code                | Display label                    |
 | -------------------------- | -------------------------------- |
 | `target_scientific_name`   | Current campaign scientific name |
@@ -78,7 +83,7 @@ redundant review columns.
 Select the dynamic scientific-name option only when the visible subject is the
 campaign's target taxon. Otherwise, for images with several subjects, choose
 the most pipeline-relevant visible subject: adult butterfly, caterpillar, moth,
-other insect, arachnid, other arthropod, mammal or person, bird, other animal,
+other insect (including spiders and other arthropods), mammal or person, bird, other animal,
 plant, fungus, artifact, no clear biological subject, uncertain, then
 unavailable. A real pinned butterfly is an adult butterfly; a butterfly
 drawing, logo, toy, tattoo, or screenshot is an artifact.
