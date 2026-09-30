@@ -91,7 +91,7 @@ def test_cancelled_read_closes_stream_cursor_and_connection(
     connection.__enter__.return_value = connection
     cursor = connection.cursor.return_value.__enter__.return_value
     cursor.stream.side_effect = stream
-    monkeypatch.setattr("tools.export_reviews.psycopg.connect", lambda _dsn: connection)
+    monkeypatch.setattr("tools.export_reviews.connect_admin", lambda _dsn: connection)
     with closing(iter_export_records("synthetic", "SYNTH")) as records:
         first = next(records)
         assert first["pipeline_metadata"] == '{"a":1,"z":[true,null,"🦋"]}'
@@ -108,7 +108,7 @@ def test_cancelled_read_closes_stream_cursor_and_connection(
 
 def test_invalid_output_does_not_connect(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     connect = MagicMock(side_effect=AssertionError("Must not connect"))
-    monkeypatch.setattr("tools.export_reviews.psycopg.connect", connect)
+    monkeypatch.setattr("tools.export_reviews.connect_admin", connect)
     with pytest.raises(AdminError, match="Output"):
         export_reviews("synthetic", "SYNTH", tmp_path / "invalid.json")
     connect.assert_not_called()

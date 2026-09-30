@@ -16,6 +16,7 @@ from tools.candidate_rows import REQUIRED_COLUMNS, Candidate, candidate_from_row
 from tools.candidate_spool import SHUFFLE_ALGORITHM, CandidateChunk, validate_candidates
 from tools.common import AdminError, database_url
 from tools.import_publish import ImportSpec, import_spec, publish_candidates
+from tools.native_runtime import NativeRuntimeError
 
 MAX_BATCH_SIZE = 1000
 
@@ -182,6 +183,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             database=None if args.dry_run else database_url,
             shuffle_seed=args.shuffle_seed,
         )
+    except NativeRuntimeError as error:
+        print(str(error))
+        return 1
     except (
         AdminError,
         OSError,

@@ -193,6 +193,8 @@ SUPABASE_SECRET_KEY=
 These values are local admin credentials and must never be used by frontend
 code or GitHub Pages. Supply the reviewer's email only at runtime:
 
+Database administration requires the [patched native runtime](#patched-admin-runtime).
+
 ```text
 uv sync --frozen --group dev
 uv run python -m tools.provision_reviewer \
@@ -321,6 +323,58 @@ An oversized supplied preview is released when its decoded dimensions become
 known. This is a post-load guard, not a hard bound on the initial decoder
 allocation or on explicitly requested source images. Supply genuine smaller
 renditions rather than relying on CSS scaling to save image memory.
+
+## Patched admin runtime
+
+The administration tools use `psycopg[c]` 3.3.6, libpq 18.6 and OpenSSL 3.5.9.
+The current upstream binary wheel still bundles OpenSSL 3.5.8, which is affected
+by the September certificate-processing advisory. Build the supported Linux
+runtime from the pinned base image and checksum-verified source archives:
+
+```sh
+docker build -f admin/Dockerfile -t veritaxa-admin .
+docker run --rm veritaxa-admin
+```
+
+The default command checks the actual libraries selected by both libpq and
+Python's HTTPS extension. It must report `safe: true`, the C implementation,
+libpq `180006` and OpenSSL `[3, 5, 9]`. Credentials, task files and exports are
+excluded from the build context. Supply them only when running a command; for
+example, export into an existing private directory owned by your local user:
+
+```sh
+docker run --rm --env-file .env.admin --user "$(id -u):$(id -g)" \
+  --mount type=bind,src=/absolute/private/task-files,dst=/data --workdir /data \
+  veritaxa-admin tools.export_reviews \
+  --campaign-code DEMO-001 --output reviewed.parquet
+```
+
+Replace `uv run python -m` with the same container invocation for import and
+optional reviewer provisioning. Docker environment files require unquoted
+values. Keep the administrative connection's existing certificate-verification
+settings and trusted CA configuration; prefer `sslmode=verify-full`.
+
+Host installation needs a C compiler, Python headers, libpq development headers
+and `pg_config` (on Debian/Ubuntu, `build-essential`, `python3-dev`, `libpq-dev`).
+After `uv sync --frozen --group dev`, run:
+
+```sh
+uv run python -m tools.native_runtime --json
+```
+
+Host database and HTTPS operations refuse unsafe or unidentifiable libraries
+before network access. The reviewed policy accepts the OpenSSL 3.5 line from
+3.5.9 and libpq 18 from 18.6, requires the C implementation, and rejects multiple
+loaded TLS providers. Other library branches and non-Linux hosts use the Linux
+container until their linkage has been reviewed. Updating a system executable
+alone does not prove that the loaded driver is safe.
+
+Only explicitly unencrypted, numeric loopback connections to the two named
+disposable benchmark databases are exempt. TLS on loopback still requires a
+safe runtime; service files, hostaddr, multi-host settings and `PG*` environment
+defaults cannot redirect this exception. There is no production bypass flag.
+The [security follow-up](docs/dependency-security.md) records the alternatives
+and compatibility decisions.
 
 ## Local frontend development
 

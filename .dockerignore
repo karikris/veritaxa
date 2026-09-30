@@ -1,0 +1,21 @@
+# Deny by default: credentials, exports, task files and local configuration
+# must never enter the admin image's build context.
+**
+!pyproject.toml
+!uv.lock
+!admin/
+!admin/Dockerfile
+!admin/native-deps.json
+!scripts/
+!scripts/build-native-runtime.py
+!tools/
+!tools/*.py
+!tools/tests/
+!tools/tests/*.py
+!benchmarks/
+!benchmarks/*.py
+!supabase/
+!supabase/migrations/
+!supabase/migrations/*.sql
+!schemas/
+!schemas/*.json

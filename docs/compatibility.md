@@ -90,7 +90,7 @@ libraries separately before claiming identical native security coverage.
   CMS/PKCS7 memory-safety fixes, including CVE-2025-66199, CVE-2025-15467 and
   CVE-2026-45447. CMS/PKCS7 processing is not used by these administration tools.
   See the [upstream affected-version list](https://openssl-library.org/news/vulnerabilities-3.5/).
-- **Still open:** OpenSSL advisories published on 29 September require 3.5.9.
+- **Open at the initial review:** OpenSSL advisories published on 29 September require 3.5.9.
   In particular,
   [CVE-2026-35189](https://openssl-library.org/news/vulnerabilities-3.5/#CVE-2026-35189)
   permits excessive allocation while processing a peer certificate, relevant

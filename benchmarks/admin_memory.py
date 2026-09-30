@@ -185,7 +185,7 @@ def main():
         output("bounded_validation_only", rows=total, id_order_sha256=digest.hexdigest())
     else:
         with patch(
-            "tools.export_reviews.psycopg.connect",
+            "tools.export_reviews.connect_admin",
             return_value=SyntheticConnection(args.count),
         ):
             frame = fetch_export_frame("synthetic-no-connection", "SYNTH-AUDIT")

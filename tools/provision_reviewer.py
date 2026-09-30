@@ -18,6 +18,7 @@ from tools.common import (
     supabase_project_url,
     validate_https_url,
 )
+from tools.native_runtime import NativeRuntimeError, connect_admin, require_runtime
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MAX_IDENTIFIED_BY_LENGTH = 100
@@ -38,7 +39,7 @@ def normalise_identified_by(value: str) -> str:
 
 
 def activate_reviewer_profile(dsn: str, user_id: str, email: str, identified_by: str) -> None:
-    with psycopg.connect(dsn) as connection, connection.cursor() as cursor:
+    with connect_admin(dsn) as connection, connection.cursor() as cursor:
         cursor.execute(
             """
             update private.reviewer_profiles
@@ -102,6 +103,7 @@ def _request_json(
     method: str = "GET",
     body: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    require_runtime()
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = Request(url, headers=headers, method=method, data=data)
     try:
@@ -133,6 +135,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             identified_by,
         )
         activate_reviewer_profile(database_url(), user_id, email, identified_by)
+    except NativeRuntimeError as error:
+        print(str(error))
+        return 1
     except AdminError as error:
         if "Auth administration is unavailable" in str(error):
             print(

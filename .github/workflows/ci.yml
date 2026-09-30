@@ -28,7 +28,10 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Install Python dependencies
-        run: uv sync --frozen --group dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential libpq-dev
+          uv sync --frozen --group dev
       - name: Lint
         run: npm run lint
       - name: Check formatting
@@ -114,14 +117,17 @@ jobs:
           --health-cmd "pg_isready -U synthetic -d veritaxa_synthetic"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      VERITAXA_SYNTHETIC_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_synthetic user=synthetic password=synthetic-ci-only
+      VERITAXA_SYNTHETIC_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_synthetic user=synthetic password=synthetic-ci-only sslmode=disable gssencmode=disable
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
       - name: Install Python dependencies
-        run: uv sync --frozen --group dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential libpq-dev
+          uv sync --frozen --group dev
       - name: Prepare disposable synthetic database
         run: |
           uv run python -m benchmarks.export_database init
@@ -154,7 +160,7 @@ jobs:
           --health-cmd "pg_isready -U synthetic -d veritaxa_import_synthetic"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      VERITAXA_IMPORT_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_import_synthetic user=synthetic password=synthetic-ci-only
+      VERITAXA_IMPORT_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_import_synthetic user=synthetic password=synthetic-ci-only sslmode=disable gssencmode=disable
       VERITAXA_IMPORT_FIXTURES: /tmp/veritaxa-import-fixtures
     steps:
       - uses: actions/checkout@v7
@@ -162,7 +168,10 @@ jobs:
         with:
           enable-cache: true
       - name: Install Python dependencies
-        run: uv sync --frozen --group dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential libpq-dev
+          uv sync --frozen --group dev
       - name: Prepare isolated database and bounded synthetic fixtures
         run: |
           uv run python -m benchmarks.import_database init

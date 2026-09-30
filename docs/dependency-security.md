@@ -108,9 +108,38 @@ The selected design follows Psycopg's
 [production installation guidance](https://github.com/psycopg/psycopg/blob/3.3.6/docs/basic/install.rst#L163-L196)
 for a C implementation linked to separately maintained libpq/OpenSSL.
 
-Implementation and validation evidence is recorded with the native-runtime
-phase. A known-safe image is the supported path when a host cannot prove its
-native libraries meet the policy.
+`psycopg[binary]` has been replaced with `psycopg[c]` in the manifest and lockfile;
+the bundled binary distribution is no longer installed. The admin image builds
+the two native libraries from the exact URLs and SHA-256 hashes in
+`admin/native-deps.json`. The Python base image is pinned by digest. The
+deny-by-default build context excludes credentials, private tasks and exports;
+operators supply them only at runtime.
+
+All three production database entry points use `connect_admin`. Optional Auth
+provisioning checks the same runtime before HTTPS access. The Linux inspector
+resolves TLS/version symbols through the loaded driver and Python HTTPS
+extension, checks their supplying libraries, and rejects multiple mapped
+providers. It does not trust a shell executable, Python compile-time version
+constants or a package name. Static or unsupported linkage fails closed.
+`python -m tools.native_runtime --json` reports only version evidence and status.
+
+The reviewed policy accepts the OpenSSL 3.5 line from 3.5.9 and libpq 18 from
+18.6, with the C driver. New release branches require review. An unsafe remote
+connection cannot bypass the guard with `sslmode=disable`. The sole exception
+requires numeric loopback, one of the two named disposable fixture databases,
+explicit `sslmode=disable` and `gssencmode=disable`, and no service, hostaddr,
+multi-host or `PG*` environment redirection. Local TLS is still checked.
+
+Validation: checksum verification and the complete native source build pass.
+The loaded C driver reports libpq 18.6 and OpenSSL 3.5.9; Python HTTPS resolves
+the same provider. All 171 backend tests pass, including all 36 real-driver
+import/export tests over `sslmode=verify-full`. Guard tests cover vulnerable and
+unreviewed branches, provider ambiguity and connection redirection. Ruff, frozen
+lockfile checks, formatting, the private-data scan and whitespace checks pass.
+Local Docker socket access is unavailable, so the complete container recipe is
+verified by the CI phase; the local native build tests the same build script.
+The default managed Python's statically linked HTTPS extension is deliberately
+rejected rather than misreported as patched by a host library update.
 
 ## Phase 3: regression checks
 

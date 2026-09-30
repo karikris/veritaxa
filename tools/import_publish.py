@@ -12,6 +12,7 @@ from psycopg.types.json import Jsonb
 from tools.candidate_rows import Candidate, _optional_text, _required_text
 from tools.candidate_spool import CandidateChunk
 from tools.common import AdminError
+from tools.native_runtime import connect_admin
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +99,7 @@ def publish_candidates(
         raise AdminError("Unknown candidate insertion method.")
     batch_count = item_count = batch_items = 0
     batch_id = None
-    with (connect or psycopg.connect)(dsn) as connection, connection.cursor() as cursor:
+    with (connect or connect_admin)(dsn) as connection, connection.cursor() as cursor:
         cursor.execute(
             """insert into public.review_campaigns (
                 internal_name, reviewer_name, campaign_code, target_taxon_key,

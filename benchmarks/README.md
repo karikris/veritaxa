@@ -51,12 +51,14 @@ Use a **new disposable local PostgreSQL database** named `veritaxa_synthetic`.
 Never point this fixture at a Supabase application database. The minimal fixture
 models the export columns, relationships and indexes; it does not model Auth,
 RLS or RPC authorization, which remain covered by the separate Supabase suite.
-The commands require an explicit loopback or private local Unix-socket DSN and
+Without the patched admin runtime, the commands require explicit plaintext
+on a numeric loopback address, with no `PG*` environment defaults. TLS and other
+local endpoints require the native-runtime check. The commands
 never load `.env.admin`. Initialization and seeding refuse existing fixture IDs;
 they do not drop or replace data.
 
 ```sh
-export VERITAXA_SYNTHETIC_DSN='host=127.0.0.1 dbname=veritaxa_synthetic'
+export VERITAXA_SYNTHETIC_DSN='host=127.0.0.1 dbname=veritaxa_synthetic sslmode=disable gssencmode=disable'
 uv run python -m benchmarks.export_database init
 uv run python -m benchmarks.export_database seed 10000
 uv run python -m benchmarks.export_database seed 100000
@@ -115,7 +117,7 @@ does not pretend to implement Supabase Auth/RLS; the separate security job cover
 those. Never use an application database or `.env.admin` for this harness.
 
 ```sh
-export VERITAXA_IMPORT_DSN='host=127.0.0.1 dbname=veritaxa_import_synthetic'
+export VERITAXA_IMPORT_DSN='host=127.0.0.1 dbname=veritaxa_import_synthetic sslmode=disable gssencmode=disable'
 export VERITAXA_IMPORT_FIXTURES=$(mktemp -d)
 uv run python -m benchmarks.import_database init
 for size in 10000 100000; do
