@@ -6,6 +6,10 @@ The monthly update covers the local Python administration tools and the Supabase
 CLI. Exact versions and artifact hashes are recorded in `uv.lock` and
 `package-lock.json`. It does not change the hosted database engine or schema.
 
+This section records the initial backend upgrade. The subsequent
+[security follow-up](dependency-security.md) addresses the remaining native TLS
+and frontend-tooling findings below.
+
 | Dependency                                | Previous | Selected | Decision                                                      |
 | ----------------------------------------- | -------- | -------- | ------------------------------------------------------------- |
 | Polars / polars-runtime-32                | 1.43.2   | 1.44.2   | Update together; data conversion and correctness fixes        |
@@ -102,7 +106,7 @@ libraries separately before claiming identical native security coverage.
   the affected range for [CVE-2025-71176](https://github.com/advisories/GHSA-6w46-j5rx-g56g)
   (fixed in 9.0.3). These are not security fixes delivered by this update.
 
-The full npm lockfile audit still reports six affected development-package
+The initial npm lockfile audit reported six affected development-package
 entries (three high, three moderate), outside the backend upgrade set:
 
 | Installed dependency                               | Path / issue                                                                                                                                            | Fixed version                               |
@@ -112,7 +116,7 @@ entries (three high, three moderate), outside the backend upgrade set:
 | nanoid 3.3.16                                      | Vite/PostCSS; [zero-size custom generator loop](https://github.com/advisories/GHSA-2v37-7h3g-55p8)                                                      | 3.3.18                                      |
 | undici 7.29.0                                      | jsdom; TLS validation, WebSocket/HTTP DoS, cache and retry issues, including [GHSA-w293-vg96-wgc3](https://github.com/advisories/GHSA-w293-vg96-wgc3)   | 7.29.1                                      |
 
-These remain follow-up frontend/tooling work. Their presence in development
+These were separated into follow-up frontend/tooling work. Their presence in development
 dependencies does not establish browser-production exploitability. No forced
 or unreviewed broad npm audit fix was applied.
 
@@ -129,7 +133,7 @@ could not run locally because access to `/var/run/docker.sock` is denied;
 the existing CI database job must verify that service-level integration.
 Lockfile consistency, installed Python dependency compatibility, the private-data
 scan and `git diff --check` pass. `npm audit --omit=dev` reports no affected
-production packages; the full development audit findings above remain open.
+production packages; the full development findings above were open at that point.
 
 ## September efficiency refactor
 

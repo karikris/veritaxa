@@ -32,7 +32,7 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.62.0",
     "@types/node": "26.1.1",
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "10.8.0",
     "jsdom": "29.1.1",
     "prettier": "3.9.6",
@@ -40,6 +40,6 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0",
     "vite": "8.1.5",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   }
 }
