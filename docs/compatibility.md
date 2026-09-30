@@ -1,5 +1,138 @@
 # Compatibility and retirement
 
+## Backend dependency review — 30 September 2026
+
+The monthly update covers the local Python administration tools and the Supabase
+CLI. Exact versions and artifact hashes are recorded in `uv.lock` and
+`package-lock.json`. It does not change the hosted database engine or schema.
+
+| Dependency                                | Previous | Selected | Decision                                                      |
+| ----------------------------------------- | -------- | -------- | ------------------------------------------------------------- |
+| Polars / polars-runtime-32                | 1.43.2   | 1.44.2   | Update together; data conversion and correctness fixes        |
+| Psycopg / psycopg-binary                  | 3.3.4    | 3.3.6    | Update together; cancellation, COPY and bundled-library fixes |
+| Ruff                                      | 0.16.0   | 0.16.9   | Update Python development tooling                             |
+| Supabase CLI, including platform packages | 2.109.1  | 2.118.0  | Update database development tooling                           |
+| jose, through Supabase CLI                | 6.2.4    | 6.2.12   | New CLI constraint resolves to this reviewed patch            |
+| PyArrow                                   | 25.0.1   | 25.0.1   | Already the latest stable release reported by GitHits         |
+| pytest                                    | 9.1.1    | 9.1.1    | Already the latest stable release reported by GitHits         |
+
+### Evidence and compatibility
+
+GitHits `pkg_info`, batched `pkg_upgrade_review`, `pkg_changelog`, and pinned
+`pkg_vulns` checks covered the selected packages and Python lockfile dependencies.
+`search` / `search_status`, `code_grep`, and `read` inspected the upstream release
+tags. GitHits returned empty package release-note bodies for Psycopg and the CLI;
+the repository release history and tagged source supplied the missing evidence.
+Advisory results describe package versions, not proof that vulnerable code is
+reachable or a complete audit of native libraries embedded in wheels/binaries.
+
+- **Polars:** [1.44.0 notes](https://github.com/pola-rs/polars/releases/tag/py-1.44.0)
+  deprecate explicit reader/scanner `rechunk` arguments and `Expr.rechunk()`.
+  VeriTaxa uses neither. The
+  [NDJSON implementation](https://github.com/pola-rs/polars/blob/py-1.44.2/py-polars/src/polars/io/ndjson.py#L163-L204)
+  confirms that omitting `rechunk` retains `False`, and continues forwarding
+  `schema`, `batch_size`, and `low_memory`. Arrow nested-list/map conversions and
+  Parquet reading receive correctness fixes. Sparse patch notes were supplemented
+  with the [1.44.0–1.44.2 source history](https://github.com/pola-rs/polars/compare/py-1.44.0...py-1.44.2):
+  null-mask/broadcasting fixes, concatenated gzip Parquet support, and reduced
+  Parquet fsync overhead. Production exports retain their own fsync and atomic
+  rename in `tools/tabular_output.py` and use PyArrow for Parquet writing.
+- **Psycopg:** [tagged release notes](https://github.com/psycopg/psycopg/blob/3.3.6/docs/news.rst#L13-L47)
+  cover prepared-statement invalidation, malformed COPY data raising `DataError`,
+  and bounded cancellation. Source inspection of
+  [Connection.wait](https://github.com/psycopg/psycopg/blob/3.3.6/psycopg/psycopg/connection.py#L479-L516)
+  confirms cancellation waits are bounded and an unresponsive connection is
+  closed. This needs libpq 17+, satisfied by the selected binary wheel. Existing
+  handlers catch `psycopg.Error`; tuple/dict rows do not depend on the changed
+  `namedtuple_row` duplicate-column exception or interval precision metadata.
+- **Ruff:** [release history](https://github.com/astral-sh/ruff/releases)
+  fixes false positives, unsafe autofixes, and obsolete `UP035` recommendations.
+  Our Python 3.12 target and explicit rule families remain unchanged; preview
+  rules are not enabled. Both lint and formatting pass without source edits.
+- **Supabase CLI:** [2.118.0 notes](https://github.com/supabase/cli/releases/tag/v2.118.0)
+  include startup/reset fixes, root-bounded content paths, exact `--workdir`
+  handling, and consent fixes. `storage rm` now needs explicit confirmation.
+  Automation using those operations should check its consent handling. Our CI
+  uses `start`, `db lint`, and `test db`; these commands and flags still exist.
+  The new experimental stack is opt-in: the
+  [init implementation](https://github.com/supabase/cli/blob/v2.118.0/apps/cli/src/commands/init/init.handler.ts#L26-L42)
+  defaults its configuration value to false. Existing Postgres 17 configuration
+  remains unchanged.
+- **jose:** [6.2.5–6.2.12 changes](https://github.com/panva/jose/blob/505a55b8f73536082367b2614cb77e927ba96ec1/CHANGELOG.md)
+  tighten malformed JWT/JWE/JWK input validation and improve key-import and
+  serialization performance. The CLI's
+  [JWT verification paths](https://github.com/supabase/cli/blob/v2.118.0/apps/cli/src/shared/functions/serve.main.ts#L290-L323)
+  use ordinary secret/JWKS verification and map verification failures to auth
+  errors. Nonstandard tokens accepted by older versions may now be rejected.
+
+### Security fixes and remaining exposure
+
+GitHits found no direct affected advisories for the selected Python package
+versions or Supabase CLI/jose. This does **not** mean all native code is patched.
+The Psycopg wheel build pins change from
+[libpq 18.0 / OpenSSL 3.5.4](https://github.com/psycopg/psycopg/blob/3.3.4/.github/workflows/packages-bin.yml#L18-L28)
+to [libpq 18.6 / OpenSSL 3.5.8](https://github.com/psycopg/psycopg/blob/3.3.6/.github/workflows/packages-bin.yml#L18-L28).
+Runtime inspection of the installed Linux wheel confirmed libpq 18.6 and
+OpenSSL 3.5.8. Windows builds obtain libpq differently; verify their installed
+libraries separately before claiming identical native security coverage.
+
+- **Fixed in the selected wheel:**
+  [CVE-2025-12818](https://www.postgresql.org/support/security/CVE-2025-12818/)
+  affects libpq allocation arithmetic before 18.1 and can crash a client.
+  [CVE-2026-6477](https://www.postgresql.org/support/security/CVE-2026-6477/)
+  affects libpq large-object functions before 18.4; VeriTaxa has no `lo_*` calls.
+  Both affected library versions were bundled previously and are now replaced.
+- **OpenSSL fixes:** 3.5.8 includes earlier TLS certificate-compression and
+  CMS/PKCS7 memory-safety fixes, including CVE-2025-66199, CVE-2025-15467 and
+  CVE-2026-45447. CMS/PKCS7 processing is not used by these administration tools.
+  See the [upstream affected-version list](https://openssl-library.org/news/vulnerabilities-3.5/).
+- **Still open:** OpenSSL advisories published on 29 September require 3.5.9.
+  In particular,
+  [CVE-2026-35189](https://openssl-library.org/news/vulnerabilities-3.5/#CVE-2026-35189)
+  permits excessive allocation while processing a peer certificate, relevant
+  to a TLS database client. Other new issues concern QUIC, DTLS, CMP and signing
+  configurations outside our normal PostgreSQL connection path. The latest
+  available Psycopg binary release still bundles 3.5.8. Follow up with a rebuilt
+  upstream wheel, or a separately tested system-linked installation using
+  patched libpq/OpenSSL. A system OpenSSL update alone does not replace the
+  wheel's bundled copy.
+- **Already fixed before this update:** PyArrow 25.0.1 is outside the affected
+  range for [CVE-2026-25087](https://github.com/advisories/GHSA-rgxp-2hwp-jwgg)
+  (fixed in 23.0.1) and CVE-2023-47248 (fixed in 14.0.1). pytest 9.1.1 is outside
+  the affected range for [CVE-2025-71176](https://github.com/advisories/GHSA-6w46-j5rx-g56g)
+  (fixed in 9.0.3). These are not security fixes delivered by this update.
+
+The full npm lockfile audit still reports six affected development-package
+entries (three high, three moderate), outside the backend upgrade set:
+
+| Installed dependency                               | Path / issue                                                                                                                                            | Fixed version                               |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| vitest, @vitest/mocker, @vitest/coverage-v8 4.1.10 | [Mock redirect path traversal](https://github.com/advisories/GHSA-82fw-gwwq-j7x9)                                                                       | 4.1.11, update Vitest and coverage together |
+| brace-expansion 5.0.8                              | ESLint/minimatch; multiple CPU, memory and recursion DoS advisories, including [GHSA-q2hr-2g5m-vwhr](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr) | 5.0.12 covers all reported ranges           |
+| nanoid 3.3.16                                      | Vite/PostCSS; [zero-size custom generator loop](https://github.com/advisories/GHSA-2v37-7h3g-55p8)                                                      | 3.3.18                                      |
+| undici 7.29.0                                      | jsdom; TLS validation, WebSocket/HTTP DoS, cache and retry issues, including [GHSA-w293-vg96-wgc3](https://github.com/advisories/GHSA-w293-vg96-wgc3)   | 7.29.1                                      |
+
+These remain follow-up frontend/tooling work. Their presence in development
+dependencies does not establish browser-production exploitability. No forced
+or unreviewed broad npm audit fix was applied.
+
+### Validation
+
+Python 3.12 and 3.14: all 143 tests passed (107 unit tests and 36 database
+integration tests). Integration tests used fresh disposable local PostgreSQL
+databases and cover streaming
+exports, pipeline/COPY import parity, rollback and interruption handling.
+Ruff lint and format checks pass. The selected CLI starts, reports 2.118.0,
+parses the existing project configuration, and executes a query against the
+disposable database. Full Docker-backed Supabase startup and pgTAP testing
+could not run locally because access to `/var/run/docker.sock` is denied;
+the existing CI database job must verify that service-level integration.
+Lockfile consistency, installed Python dependency compatibility, the private-data
+scan and `git diff --check` pass. `npm audit --omit=dev` reports no affected
+production packages; the full development audit findings above remain open.
+
+## September efficiency refactor
+
 The September efficiency refactor removes obsolete APIs and unused application
 code, not review history, provenance or historical label meanings.
 
