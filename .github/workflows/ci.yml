@@ -25,6 +25,8 @@ jobs:
           enable-cache: true
       - name: Install JavaScript dependencies
         run: npm ci
+      - name: Audit all JavaScript dependencies, including development tooling
+        run: npm audit --audit-level=low
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Install Python dependencies
@@ -60,6 +62,64 @@ jobs:
         run: npm run bundle:check
       - name: Check whitespace
         run: git diff --check
+
+  admin-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: veritaxa_synthetic
+          POSTGRES_USER: synthetic
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synthetic -d veritaxa_synthetic"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      VERITAXA_SYNTHETIC_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_synthetic user=synthetic password=synthetic-ci-only sslmode=verify-full sslrootcert=/certs/server.crt gssencmode=disable
+      VERITAXA_IMPORT_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_import_synthetic user=synthetic password=synthetic-ci-only sslmode=verify-full sslrootcert=/certs/server.crt gssencmode=disable
+      VERITAXA_TLS_TEST_DSN: host=127.0.0.1 port=5432 dbname=veritaxa_synthetic user=synthetic password=synthetic-ci-only sslmode=verify-full sslrootcert=/certs/server.crt gssencmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the production and test admin images
+        run: |
+          docker build -f admin/Dockerfile --target runtime -t veritaxa-admin .
+          docker build -f admin/Dockerfile --target test -t veritaxa-admin-test .
+      - name: Verify the production runtime and installed dependency compatibility
+        run: |
+          docker run --rm veritaxa-admin tools.native_runtime --json
+          docker run --rm --entrypoint python veritaxa-admin -c 'import polars, pyarrow; from tools.native_runtime import require_runtime; require_runtime()'
+          docker run --rm veritaxa-admin-test uv pip check
+      - name: Configure an isolated TLS database fixture
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          cert_dir="$RUNNER_TEMP/veritaxa-tls"
+          mkdir -p "$cert_dir"
+          docker run --rm --user "$(id -u):$(id -g)" --entrypoint openssl \
+            --mount "type=bind,src=$cert_dir,dst=/certs" veritaxa-admin \
+            req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -keyout /certs/server.key -out /certs/server.crt -subj /CN=localhost \
+            -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'
+          docker cp "$cert_dir/server.crt" "$POSTGRES_CONTAINER:/tmp/veritaxa-server.crt"
+          docker cp "$cert_dir/server.key" "$POSTGRES_CONTAINER:/tmp/veritaxa-server.key"
+          docker exec --user root "$POSTGRES_CONTAINER" chown postgres:postgres /tmp/veritaxa-server.key /tmp/veritaxa-server.crt
+          docker exec --user root "$POSTGRES_CONTAINER" chmod 600 /tmp/veritaxa-server.key
+          docker exec --user postgres "$POSTGRES_CONTAINER" psql -U synthetic -d veritaxa_synthetic -v ON_ERROR_STOP=1 \
+            -c "create database veritaxa_import_synthetic" \
+            -c "alter system set ssl = 'on'" \
+            -c "alter system set ssl_cert_file = '/tmp/veritaxa-server.crt'" \
+            -c "alter system set ssl_key_file = '/tmp/veritaxa-server.key'" \
+            -c "select pg_reload_conf()"
+      - name: Exercise native TLS, certificate verification and complete import/export paths
+        run: |
+          cert_dir="$RUNNER_TEMP/veritaxa-tls"
+          docker run --rm --network host --mount "type=bind,src=$cert_dir,dst=/certs,readonly" \
+            --env VERITAXA_SYNTHETIC_DSN --env VERITAXA_IMPORT_DSN --env VERITAXA_TLS_TEST_DSN \
+            veritaxa-admin-test sh -c 'python -m benchmarks.export_database init && python -m benchmarks.import_database init && python -m pytest'
 
   browser-memory:
     runs-on: ubuntu-latest

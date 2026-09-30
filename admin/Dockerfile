@@ -21,6 +21,7 @@ COPY tools ./tools
 COPY benchmarks ./benchmarks
 COPY supabase/migrations ./supabase/migrations
 COPY schemas ./schemas
+COPY admin/native-deps.json ./admin/native-deps.json
 ENV PYTHONPATH=/opt/veritaxa PATH=/opt/veritaxa/.venv/bin:$PATH
 CMD ["python", "-m", "tools.native_runtime"]
 

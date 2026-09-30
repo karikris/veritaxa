@@ -143,6 +143,22 @@ rejected rather than misreported as patched by a host library update.
 
 ## Phase 3: regression checks
 
-CI will audit the complete npm dependency tree and build/probe the native admin
-runtime, including a real synthetic TLS connection and database import/export
-checks. No live credentials or private review tasks belong in these checks.
+CI audits the complete npm dependency tree, including development tooling, and
+fails on newly reported advisories. A separate `admin-runtime` job builds both
+the production image and a test image, probes the final production runtime after
+loading Polars/PyArrow, and checks installed Python dependency compatibility.
+It creates an isolated PostgreSQL TLS fixture and runs all backend tests with
+certificate verification enabled. Generated keys and fixture data are transient
+and are not published or committed.
+
+Four opt-in native TLS tests compare the actually loaded libraries with the
+source manifest, exercise COPY and streaming over verified database TLS,
+reject an unrelated CA, and exercise Python HTTPS against a local synthetic
+server. Local validation passes all 175 backend tests, all 100 frontend unit
+tests, the full npm audit (zero vulnerabilities), lint and formatting. CI uses
+the container to verify the remaining image-build boundary that cannot run
+through the local Docker socket.
+
+Native version floors, source versions/hashes, the base image digest and Python
+lockfile must be reviewed together in later dependency updates. An npm advisory
+audit cannot detect OpenSSL embedded in a Python interpreter or native wheel.
