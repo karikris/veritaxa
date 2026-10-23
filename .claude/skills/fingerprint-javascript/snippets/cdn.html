@@ -1,0 +1,14 @@
+<!-- No bundler? Import the agent from the CDN. The public API key goes at the end of the
+     import URL (after /v4/), and start() takes the remaining options. -->
+<script type="module">
+  // Initialize once, as early on the page as possible.
+  const Fingerprint = await import('https://fpjscdn.net/v4/PUBLIC_API_KEY')
+  const fp = Fingerprint.start({
+    region: 'us', // must match your workspace region
+  })
+
+  // Identify the visitor. Each get() call is a billable identification event.
+  const { visitor_id, event_id } = await fp.get()
+  console.log('visitor_id:', visitor_id)
+  console.log('event_id:', event_id)
+</script>

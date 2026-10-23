@@ -3,3 +3,11 @@ coverage/
 node_modules/
 package-lock.json
 uv.lock
+
+# Vendor-provided Fingerprint skills and private local tooling
+.claude/
+.venv/
+data/
+reviewed/
+test-results/
+playwright-report/

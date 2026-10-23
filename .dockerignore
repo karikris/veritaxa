@@ -10,6 +10,7 @@
 !scripts/build-native-runtime.py
 !tools/
 !tools/*.py
+!tools/*.sql
 !tools/tests/
 !tools/tests/*.py
 !benchmarks/

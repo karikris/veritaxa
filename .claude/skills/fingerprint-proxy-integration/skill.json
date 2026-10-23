@@ -1,0 +1,10 @@
+{
+  "id": "fingerprint-proxy-integration",
+  "title": "Fingerprint — First-party deployment (custom subdomain / proxy)",
+  "role": "enhancement",
+  "category": "get-started",
+  "getStartedStep": "first-party-deployment",
+  "frameworks": [],
+  "packages": [],
+  "envVars": ["FINGERPRINT_ENDPOINTS"]
+}

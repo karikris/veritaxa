@@ -13,6 +13,7 @@ import polars as pl
 import psycopg
 
 from tools.common import AdminError, database_url
+from tools.metadata_archive import MetadataResolver
 from tools.native_runtime import NativeRuntimeError, connect_admin
 from tools.tabular_output import validate_output_path, write_records
 
@@ -223,10 +224,13 @@ def iter_export_records(
         with (
             connection.cursor() as cursor,
             closing(cursor.stream(query, (SCHEMA_VERSION, campaign_code), size=1)) as rows,
+            MetadataResolver() as metadata,
         ):
             # libpq single-row mode avoids both a full client result and per-row FETCH round trips.
             for row in rows:
                 record = dict(zip(columns, row, strict=True))
+                if "pipeline_metadata" in record:
+                    record["pipeline_metadata"] = metadata.resolve(record["pipeline_metadata"])
                 for column in BULKY_COLUMNS.intersection(record):
                     record[column] = _canonical_json(record[column])
                 record["reviewed_at"] = str(record["reviewed_at"])

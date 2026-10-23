@@ -1,0 +1,10 @@
+{
+  "id": "fingerprint-smart-signals",
+  "title": "Fingerprint — Smart Signals (v4 Server API)",
+  "role": "enhancement",
+  "category": "get-started",
+  "getStartedStep": "access-detailed-insights",
+  "frameworks": [],
+  "packages": [],
+  "envVars": ["FINGERPRINT_SECRET_API_KEY", "FINGERPRINT_REGION"]
+}

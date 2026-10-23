@@ -1,0 +1,10 @@
+{
+  "id": "fingerprint-rules-engine",
+  "title": "Fingerprint — Rules Engine (no-code protection)",
+  "role": "enhancement",
+  "category": "get-started",
+  "getStartedStep": "build-first-rule",
+  "frameworks": [],
+  "packages": [],
+  "envVars": []
+}

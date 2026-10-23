@@ -2,6 +2,7 @@ import './styles.css';
 import { VeriTaxaApp } from './app';
 import { readPublicConfig } from './config';
 import { SupabaseReviewRepository } from './data/supabaseReviewRepository';
+import { identifyVisitor } from './fingerprint';
 import type { ReviewRepository } from './data/reviewRepository';
 
 function applicationRoot(): HTMLElement {
@@ -45,6 +46,7 @@ async function start(): Promise<void> {
   const app = new VeriTaxaApp(root, repository, {
     storage: window.localStorage,
   });
+  void identifyVisitor();
   await app.start();
 }
 

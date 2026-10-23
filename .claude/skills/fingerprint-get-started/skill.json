@@ -1,0 +1,8 @@
+{
+  "id": "fingerprint-get-started",
+  "title": "Fingerprint — Get Started (full setup orchestrator)",
+  "role": "orchestrator",
+  "frameworks": ["react", "vue", "angular", "svelte", "next", "node", "python"],
+  "packages": [],
+  "envVars": ["FINGERPRINT_PUBLIC_API_KEY", "FINGERPRINT_SECRET_API_KEY", "FINGERPRINT_REGION"]
+}

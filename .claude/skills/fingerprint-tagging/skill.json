@@ -1,0 +1,10 @@
+{
+  "id": "fingerprint-tagging",
+  "title": "Fingerprint — Tagging events with your data (v4)",
+  "role": "enhancement",
+  "category": "get-started",
+  "getStartedStep": "tag-event",
+  "frameworks": [],
+  "packages": [],
+  "envVars": []
+}

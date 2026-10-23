@@ -1,0 +1,10 @@
+{
+  "id": "fingerprint-request-filtering",
+  "title": "Fingerprint — Protect your public API key (request filtering)",
+  "role": "enhancement",
+  "category": "get-started",
+  "getStartedStep": "protect-api-key",
+  "frameworks": [],
+  "packages": [],
+  "envVars": []
+}

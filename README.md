@@ -220,6 +220,15 @@ prompted. Do not use a server secret or service-role JWT. Enable Pages with
 GitHub Actions as the source; `.github/workflows/pages.yml` deploys only after
 the complete `CI` workflow succeeds on `main`.
 
+Fingerprint optionally identifies a browser once per page load. Configure
+`VITE_FINGERPRINT_PUBLIC_API_KEY` and `VITE_FINGERPRINT_REGION` (`us`, `eu`, or
+`ap`) locally and as GitHub repository variables for Pages. Use only the
+Fingerprint public key; secret keys never belong in the browser. With no public
+key, identification is disabled. SDK errors do not interrupt reviews. No review
+identifiers, image URLs, source metadata, or reviewer details are attached to
+Fingerprint requests. Device and browser signals are sent to Fingerprint; this
+is telemetry, not an authentication or access-control check.
+
 ### 5. Import a campaign
 
 Candidate input may be Parquet, CSV, NDJSON, or JSONL. It requires `image_id`,
@@ -458,10 +467,100 @@ Each completed file is staged privately alongside its destination and atomically
 replaces it only after success. Interrupted exports leave any previous completed
 file intact. See [synthetic end-to-end memory gates](benchmarks/README.md).
 
+### Re-review every previously reviewed category
+
+Create a new round with fresh progress, retaining every original review:
+
+```text
+uv run python -m tools.create_rereview_round \
+  --round-code DEMO-ROUND-01 \
+  --output reviewed/demo-round-01 \
+  --publish
+```
+
+The round snapshots all current reviews, including closed historical batches.
+It creates datasets for every used label, splitting scientific-name and legacy
+keyword matches by their stored values. Each image appears once per category,
+identified by source provider and image ID. Conflicting classifications remain
+in each applicable category, with every original vote retained. Campaigns retain
+the appropriate target scientific name; batches contain at most 1,000 images.
+Reviewers see neutral round/batch identifiers. Category names, old answers,
+reviewer identities, and provenance stay outside reviewer RPC responses.
+
+The private output directory contains one SQLite database per category, a combined
+`all-reviews.sqlite3`, and a `manifest.json` mapping filenames and counts. Each
+database has `images` and `reviews` tables; the original review JSON preserves
+comments, reviewer identity, timestamps, and original campaign/batch references.
+Database publication is atomic and verifies that existing items and reviews are
+unchanged. Exports use the frozen round snapshot, so later corrections do not
+change these files. Omit `--publish` to export an existing round after an interrupted
+download; choose a fresh output directory. Reusing a published round code fails
+without adding another set of batches. Keep all exports under an ignored private
+directory such as `reviewed/`.
+
+### Archive bulky pipeline metadata
+
+The admin tools can keep bulky pipeline JSON in a private S3-compatible archive,
+while Supabase retains reviewable images, source labels, all reviews, and frozen
+re-review provenance. Archive references remain private and are never returned by
+reviewer RPCs. Full administrative exports automatically download and verify the
+referenced metadata; unavailable or corrupt archives stop the export. Lean exports
+continue to work without contacting the archive.
+
+Configure `BIOMINER_S3_ACCESS_KEY_ID`, `BIOMINER_S3_SECRET_ACCESS_KEY`,
+`BIOMINER_S3_BUCKET`, `BIOMINER_S3_PREFIX`, and optionally
+`BIOMINER_S3_ENDPOINT_URL`. Endpoint hostnames are normalized to HTTPS. Archives
+use `<prefix>/veritaxa/metadata-archives/<unique-run>/` in the existing private
+bucket, with AES256 encryption. Keep credentials outside this repository and the
+browser. An optional `--env-file` accepts literal assignments, including `export`,
+without executing shell commands.
+
+Run maintenance with the patched admin runtime:
+
+```text
+python -m tools.archive_metadata \
+  --env-file /absolute/private/secrets.env \
+  --output reviewed/metadata-archives/unique-run
+```
+
+The command streams exact PostgreSQL JSON into bounded Parquet shards, uploads
+and downloads every shard for checksum and content verification, then verifies
+the manifest. During export, reviews remain available. A final transaction locks
+writes, checks every source row's version, replaces metadata with archive
+references, and verifies hashes of all other item fields, complete reviews,
+campaigns, batches, and frozen provenance. Changed rows or failed verification
+abort cleanup. Preserve the local archive and version staging database as recovery
+files; no existing export directory is overwritten.
+
+After committing metadata replacement, the command runs `VACUUM (FULL, ANALYZE)`
+through an autocommit administrative connection. This stage requires a maintenance
+window and additional temporary disk space. If compaction fails after cleanup,
+the archive references remain valid; retry just compaction with
+`python -m tools.archive_metadata --compact-only`. The private maintenance report
+records preservation checks, commit status, and measured database sizes.
+
+The import CLI automatically archives pipeline metadata of at least 8 KiB after
+complete source validation and before database publication. Dry runs perform no
+archive access. Small metadata stays inline. The lower-level `import_file` API
+retains its inline default for existing callers; pass `archive_metadata=True`
+for the CLI behavior. Re-review publication shares existing archive references
+and rejects bulky unarchived metadata until maintenance has archived it.
+
+Recovery is explicit and restores the original PostgreSQL numeric values:
+
+```text
+python -m tools.restore_metadata \
+  --manifest-uri s3://private-bucket/private-prefix/unique-run/manifest.json
+```
+
+Restoration verifies every referenced shard and updates original item IDs in one
+transaction. Restoring bulky metadata also restores its database space usage.
+
 ## Dependencies
 
-The only runtime package is the pinned Supabase JavaScript client, required for
-Auth and typed RPC transport. Vite and TypeScript build the framework-free
+The browser runtime packages are the pinned Supabase JavaScript client for
+Auth and typed RPC transport, and the Fingerprint loader for optional browser
+identification. Vite and TypeScript build the framework-free
 frontend; Vitest and Playwright cover domain, state, browser, keyboard, and
 responsive behaviour. The pinned Supabase CLI runs local migration tests.
 Polars provides import and small-frame compatibility operations; Psycopg provides

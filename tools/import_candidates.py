@@ -16,6 +16,7 @@ from tools.candidate_rows import REQUIRED_COLUMNS, Candidate, candidate_from_row
 from tools.candidate_spool import SHUFFLE_ALGORITHM, CandidateChunk, validate_candidates
 from tools.common import AdminError, database_url
 from tools.import_publish import ImportSpec, import_spec, publish_candidates
+from tools.metadata_archive import archive_large_candidates
 from tools.native_runtime import NativeRuntimeError
 
 MAX_BATCH_SIZE = 1000
@@ -124,6 +125,7 @@ def import_file(
     database: Callable[[], str] | None = None,
     shuffle_seed: int | None = None,
     method: str = "pipeline",
+    archive_metadata: bool = False,
 ) -> tuple[int, int, int]:
     """Validate/close the entire source before resolving credentials or opening Postgres."""
     with (
@@ -132,6 +134,8 @@ def import_file(
     ):
         if database is None:
             return (1, spool.batch_count, spool.item_count)
+        if archive_metadata:
+            archive_large_candidates(spool)
         with closing(spool.chunks()) as chunks:
             return publish_candidates(
                 spec,
@@ -182,6 +186,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             spec,
             database=None if args.dry_run else database_url,
             shuffle_seed=args.shuffle_seed,
+            archive_metadata=True,
         )
     except NativeRuntimeError as error:
         print(str(error))
