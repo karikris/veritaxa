@@ -14,7 +14,9 @@ and mobile-pressure profiles three times each, sequentially, in fresh Node and
 Chromium processes. Each navigates 1,000 times, including wrap-around, and samples
 at positions 0, 100, ..., 1,000. CI publishes the aggregate JSON, not browser
 profiles, keys, traces or generated images. A 180-second worker deadline fails
-the gate and stops that worker's owned process group.
+the gate and stops that worker's owned process group. The suite stops on the first
+terminal worker failure, keeping the original cause rather than reporting only
+a missing final JSON file.
 
 For a short **non-passing pilot**, or a negative control:
 
@@ -87,6 +89,42 @@ a 64 MiB V8 old-space limit and a critical memory-pressure notification every
 This is **not a physical low-RAM phone or a total-process RAM cap**. Native browser
 cache budgets also depend on the host. Unrestricted source images, and the first
 decode of an incorrectly declared preview, remain outside a hard memory bound.
+
+## Dump validation, recovery and failure evidence
+
+Each checkpoint and explicit source-inspection measurement records a
+`measurementAttempts` entry with its profile, navigation, phase, attempt number,
+collection stage, dump GUID, request success, trace completion, data-loss flag,
+allocator-dump count, and required allocator values. Conditions distinguish
+`request_failed`, `trace_data_loss`, `no_allocator_dumps`, `missing_allocator`,
+`invalid_allocator`, `malformed_response`, `malformed_trace`, `trace_timeout`,
+`cdp_timeout`, and `cdp_error`. Invalid numeric entries and transport/cleanup
+errors retain their details. Chromium hierarchy-only allocator nodes without a
+size are skipped; aggregate image, GPU and partition metrics must still exist
+and contain finite nonnegative byte counts. A measured zero is valid.
+
+A completed trace with an unsuccessful dump, lost data, no allocator dumps or
+missing required metrics gets one retry after 250 ms at the same checkpoint.
+Each attempt uses a fresh trace and accumulator. Both attempts remain in the
+report; only a valid result supplies the sample. Persistent incompleteness fails.
+Crashes, timeouts, transport errors, malformed values and memory-growth failures
+never receive a retry. Browser caches, GC policy, the 8 MiB trace buffer, memory
+tolerances and the worker deadline are unchanged.
+
+When `--output` is supplied, a private `<output>.progress.json` sidecar is
+reserved exclusively and replaced atomically after each sample and at the start
+and end of each dump attempt. It contains completed samples, current navigation,
+last checkpoint, collection phase, attempt diagnostics, original failure and
+cleanup errors. Keep both the report and sidecar for standalone investigations;
+use a new output path on each invocation. An abrupt kill can leave the last
+completed checkpoint and an in-progress attempt instead of a final error.
+
+The aggregate CI artifact preserves the existing `runs`, `failures` and `limits`
+fields and adds `workerFailures`. Failed-worker evidence includes its profile,
+repeat, exit code, terminating signal, deadline status, bounded stderr tail,
+report-read errors and available progress. Full traces, browser profiles and TLS
+keys are not published. Recovered dump attempts remain visible inside successful
+run reports. Recovery is not evidence that an application memory leak was fixed.
 
 ## Avoiding measurement-induced retention
 
