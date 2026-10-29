@@ -11,6 +11,7 @@ from tools.create_rereview_round import (
     category_filename,
     export_snapshots,
     publication_sql,
+    regroup_sql,
     snapshot_query,
 )
 
@@ -110,7 +111,7 @@ def test_empty_round_does_not_publish_files(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("unsafe", ["x'; drop table x;--", "../escape", "", "A" * 31])
 def test_rejects_unsafe_round_identifiers(unsafe: str) -> None:
-    for builder in (publication_sql, snapshot_query):
+    for builder in (publication_sql, regroup_sql, snapshot_query):
         with pytest.raises(AdminError):
             builder(unsafe)
 

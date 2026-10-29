@@ -15,6 +15,7 @@ export type Database = {
           label: Database['public']['Enums']['review_label'];
           reviewer_id: string;
           scientificName: string | null;
+          second_round_label: Database['public']['Enums']['review_label'] | null;
           submission_id: string;
           updated_at: string;
           version: number;

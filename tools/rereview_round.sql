@@ -3,10 +3,11 @@
 do $round$
 declare
   round_code constant text := 'ROUND_CODE';
+  replace_existing constant boolean := REPLACE_EXISTING;
+  category_name text;
   group_row record;
   new_campaign uuid;
   new_batch uuid;
-  batch_number integer;
   original_reviews bigint;
   original_images bigint;
 begin
@@ -15,7 +16,7 @@ begin
     public.review_items, public.image_reviews in share row exclusive mode;
 
   if exists (select 1 from public.review_campaigns
-    where campaign_code like 'REREVIEW-' || round_code || '-%') then
+    where campaign_code ~ ('^REREVIEW-' || round_code || '-[0-9]+$')) then
     raise exception 'Re-review round already exists; export the existing round instead';
   end if;
 
@@ -32,7 +33,7 @@ begin
   select count(*) into original_reviews from public.image_reviews;
   select count(*) into original_images from private.reviewed_image_keys;
 
-  -- Snapshot every current review, including closed historical batches.
+  -- Snapshot first-round reviews, including closed historical batches.
   -- Conflicting labels retain separate category memberships and all votes.
   create temporary table rereview_votes on commit drop as
   select item.id as original_item_id, item.source_provider, item.image_id,
@@ -53,7 +54,8 @@ begin
   from public.image_reviews review
   join public.review_items item on item.id = review.item_id
   join public.review_batches batch on batch.id = item.batch_id
-  join public.review_campaigns campaign on campaign.id = batch.campaign_id;
+  join public.review_campaigns campaign on campaign.id = batch.campaign_id
+  where not coalesce(item.pipeline_metadata ? '_veritaxa_rereview', false);
 
   if not exists (select 1 from rereview_votes) then
     raise exception 'No reviews exist to re-review';
@@ -76,59 +78,66 @@ begin
   join public.review_campaigns campaign on campaign.id = batch.campaign_id;
 
   for group_row in
-    select category, target_scientific_name, source_provider, count(*) as images,
+    select category, target_scientific_name, source_provider,
       row_number() over (order by category, target_scientific_name, source_provider) as group_number
     from rereview_members group by category, target_scientific_name, source_provider
     order by category, target_scientific_name, source_provider
   loop
+    category_name := case
+      when group_row.category like 'scientific_name:%'
+        then substring(group_row.category from length('scientific_name:') + 1)
+      when group_row.category like 'flickr_keyword:%'
+        then 'Keyword match: ' || substring(group_row.category from length('flickr_keyword:') + 1)
+      when group_row.category = 'artifact_or_illustration' then 'Object, artwork or illustration'
+      when group_row.category = 'no_biological_subject' then 'No clear biological subject'
+      when group_row.category = 'arachnid' then 'Spider or other arachnid'
+      else upper(left(group_row.category, 1)) || replace(substring(group_row.category from 2), '_', ' ')
+    end;
     insert into public.review_campaigns (
       campaign_code, internal_name, reviewer_name, target_scientific_name, source_provider, status
     ) values (
       'REREVIEW-' || round_code || '-' || lpad(group_row.group_number::text, 3, '0'),
       'Re-review ' || round_code || ': ' || group_row.category,
-      'Re-review ' || round_code, group_row.target_scientific_name, group_row.source_provider, 'open'
+      'Round 2: ' || left(category_name, 111),
+      group_row.target_scientific_name, group_row.source_provider, 'open'
     ) returning id into new_campaign;
 
-    for batch_number in 1..((group_row.images + 999) / 1000)::integer loop
-      insert into public.review_batches (
-        campaign_id, batch_code, reviewer_name, position, status, opened_at
-      ) values (
-        new_campaign,
-        'RR-' || round_code || '-' || lpad(group_row.group_number::text, 3, '0')
-          || '-' || lpad(batch_number::text, 3, '0'),
-        'Re-review ' || round_code || ' / '
-          || lpad(group_row.group_number::text, 3, '0') || ' / '
-          || lpad(batch_number::text, 3, '0'),
-        batch_number, 'open', now()
-      ) returning id into new_batch;
+    -- A re-review folder contains the whole option, regardless of image count.
+    insert into public.review_batches (
+      campaign_id, batch_code, reviewer_name, position, status, opened_at
+    ) values (
+      new_campaign,
+      'RR-' || round_code || '-' || lpad(group_row.group_number::text, 3, '0')
+        || '-001',
+      'Round 2: ' || left(category_name, 111),
+      1, 'open', now()
+    ) returning id into new_batch;
 
-      insert into public.review_items (
-        batch_id, position, image_id, source_provider, source_record_id,
-        display_url, image_url, source_page_url, flickr_search_term,
-        source_labels, pipeline_metadata
-      )
-      select new_batch, ((member.member_position - 1) % 1000) + 1,
-        item.image_id, item.source_provider, item.source_record_id,
-        item.display_url, item.image_url, item.source_page_url, item.flickr_search_term,
-        item.source_labels, coalesce(item.pipeline_metadata, '{}'::jsonb)
-          || jsonb_build_object('_veritaxa_rereview', jsonb_build_object(
-            'round_code', round_code, 'category', member.category,
-            'snapshot_at', transaction_timestamp(),
-            'original_item_id', member.original_item_id,
-            'source_reviews', member.source_reviews))
-      from rereview_members member
-      join public.review_items item on item.id = member.original_item_id
-      where member.category = group_row.category
-        and member.source_provider = group_row.source_provider
-        and member.target_scientific_name is not distinct from group_row.target_scientific_name
-        and (member.member_position - 1) / 1000 + 1 = batch_number;
-    end loop;
+    insert into public.review_items (
+      batch_id, position, image_id, source_provider, source_record_id,
+      display_url, image_url, source_page_url, flickr_search_term,
+      source_labels, pipeline_metadata
+    )
+    select new_batch, member.member_position,
+      item.image_id, item.source_provider, item.source_record_id,
+      item.display_url, item.image_url, item.source_page_url, item.flickr_search_term,
+      item.source_labels, coalesce(item.pipeline_metadata, '{}'::jsonb)
+        || jsonb_build_object('_veritaxa_rereview', jsonb_build_object(
+          'round_code', round_code, 'category', member.category,
+          'snapshot_at', transaction_timestamp(),
+          'original_item_id', member.original_item_id,
+          'source_reviews', member.source_reviews))
+    from rereview_members member
+    join public.review_items item on item.id = member.original_item_id
+    where member.category = group_row.category
+      and member.source_provider = group_row.source_provider
+      and member.target_scientific_name is not distinct from group_row.target_scientific_name;
   end loop;
 
   if (select count(*) from public.review_items item
       join public.review_batches batch on batch.id = item.batch_id
       join public.review_campaigns campaign on campaign.id = batch.campaign_id
-      where campaign.campaign_code like 'REREVIEW-' || round_code || '-%')
+      where campaign.campaign_code ~ ('^REREVIEW-' || round_code || '-[0-9]+$'))
       <> (select count(*) from rereview_members) then
     raise exception 'Re-review membership count mismatch';
   end if;
@@ -145,6 +154,24 @@ begin
     where current_row.version is distinct from original.version
   ) then
     raise exception 'Historical records changed';
+  end if;
+
+  -- Switch visibility only after the fresh round has passed every invariant.
+  -- Archived batches and their saved answers remain available to administrators.
+  if replace_existing then
+    update public.review_batches batch
+    set status = 'archived', closed_at = transaction_timestamp()
+    from public.review_campaigns campaign
+    where campaign.id = batch.campaign_id
+      and starts_with(campaign.campaign_code, 'REREVIEW-')
+      and campaign.campaign_code !~ ('^REREVIEW-' || round_code || '-[0-9]+$')
+      and batch.status <> 'archived';
+
+    update public.review_campaigns campaign
+    set status = 'archived', updated_at = transaction_timestamp()
+    where starts_with(campaign.campaign_code, 'REREVIEW-')
+      and campaign.campaign_code !~ ('^REREVIEW-' || round_code || '-[0-9]+$')
+      and campaign.status <> 'archived';
   end if;
 end;
 $round$;

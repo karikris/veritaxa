@@ -24,10 +24,20 @@ def validate_round_code(round_code: str) -> str:
     return round_code
 
 
-def publication_sql(round_code: str) -> str:
+def publication_sql(round_code: str, *, replace_existing: bool = False) -> str:
     return (
         Path(__file__)
         .with_name("rereview_round.sql")
+        .read_text()
+        .replace("ROUND_CODE", validate_round_code(round_code))
+        .replace("REPLACE_EXISTING", "true" if replace_existing else "false")
+    )
+
+
+def regroup_sql(round_code: str) -> str:
+    return (
+        Path(__file__)
+        .with_name("regroup_rereview_round.sql")
         .read_text()
         .replace("ROUND_CODE", validate_round_code(round_code))
     )
@@ -42,7 +52,7 @@ def snapshot_query(round_code: str) -> str:
       from public.review_items item
       join public.review_batches batch on batch.id = item.batch_id
       join public.review_campaigns campaign on campaign.id = batch.campaign_id
-      where campaign.campaign_code like 'REREVIEW-{round_code}-%'
+      where campaign.campaign_code ~ '^REREVIEW-{round_code}-[0-9]+$'
       order by campaign.campaign_code, batch.position, item.position"""
 
 
@@ -179,14 +189,30 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--round-code", required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--publish", action="store_true", help="Create fresh open review batches.")
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--publish", action="store_true", help="Create fresh open review folders.")
+    action.add_argument(
+        "--regroup", action="store_true", help="Combine an existing round's batches by option."
+    )
+    parser.add_argument(
+        "--replace-existing",
+        action="store_true",
+        help="Archive older re-review rounds on publication.",
+    )
     args = parser.parse_args()
     validate_round_code(args.round_code)
+    if args.replace_existing and not args.publish:
+        parser.error("--replace-existing requires --publish")
     if args.output.exists():
         raise AdminError("Export directory already exists.")
     with connect_admin(database_url()) as connection:
         if args.publish:
-            connection.execute(publication_sql(args.round_code))
+            connection.execute(
+                publication_sql(args.round_code, replace_existing=args.replace_existing)
+            )
+            connection.commit()
+        elif args.regroup:
+            connection.execute(regroup_sql(args.round_code))
             connection.commit()
         connection.read_only = True
         with connection.cursor(row_factory=dict_row) as cursor:

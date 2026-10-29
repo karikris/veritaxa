@@ -785,7 +785,7 @@ export class VeriTaxaApp {
           select.add(option);
         }
         if (option.value !== batch.id) option.value = batch.id;
-        const text = `${batch.code} · ${batch.name}`;
+        const text = `${batch.code} · ${batch.name} · ${String(batch.totalCount)} ${batch.totalCount === 1 ? 'image' : 'images'}`;
         if (option.textContent !== text) option.textContent = text;
       });
       select.value = this.#batchId ?? '';

@@ -478,14 +478,27 @@ uv run python -m tools.create_rereview_round \
   --publish
 ```
 
-The round snapshots all current reviews, including closed historical batches.
+The round snapshots first-round reviews, including closed historical batches;
+answers on re-review items do not become first-round options in later rounds.
 It creates datasets for every used label, splitting scientific-name and legacy
 keyword matches by their stored values. Each image appears once per category,
 identified by source provider and image ID. Conflicting classifications remain
 in each applicable category, with every original vote retained. Campaigns retain
-the appropriate target scientific name; batches contain at most 1,000 images.
-Reviewers see neutral round/batch identifiers. Category names, old answers,
-reviewer identities, and provenance stay outside reviewer RPC responses.
+the appropriate target scientific name. Each option has one review folder sized
+to its image count, including options with more than 1,000 images. Options with
+different target scientific names or source providers retain separate folders
+to preserve review context and image identity. The original import's 1,000-image
+batch limit does not apply to re-review folders.
+Reviewers see each batch's category name and image count. Individual first-round
+answers, reviewer identities, source metadata, and provenance stay private.
+Second-round answers use the same classification options and are stored on the
+new items' per-reviewer rows in `image_reviews.second_round_label`; `label` also
+retains the current answer for the existing cursor API. First-round rows keep
+their original classifications and have a null `second_round_label`.
+
+Add `--replace-existing` to `--publish` to atomically replace the visible
+re-review rounds. Older re-review campaigns and batches are archived, retaining
+their images and saved answers. First-round batch visibility is unaffected.
 
 The private output directory contains one SQLite database per category, a combined
 `all-reviews.sqlite3`, and a `manifest.json` mapping filenames and counts. Each
@@ -497,6 +510,20 @@ change these files. Omit `--publish` to export an existing round after an interr
 download; choose a fresh output directory. Reusing a published round code fails
 without adding another set of batches. Keep all exports under an ignored private
 directory such as `reviewed/`.
+
+Consolidate an existing round's numbered batches into these option folders with:
+
+```text
+uv run python -m tools.create_rereview_round \
+  --round-code DEMO-ROUND-01 \
+  --output reviewed/demo-round-01-regrouped \
+  --regroup
+```
+
+Regrouping retains item IDs, all saved re-review answers, and frozen first-round
+provenance. It moves images into the first available batch for each option and
+closes the emptied batches. Progress reflects the entire folder. Existing private
+exports remain unchanged; the fresh export records the updated folder positions.
 
 ### Archive bulky pipeline metadata
 
