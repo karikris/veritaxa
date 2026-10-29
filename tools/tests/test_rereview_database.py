@@ -20,6 +20,11 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def fixture():
     connection = psycopg.connect(synthetic_dsn())
+    # The native-runtime job uses the same disposable database name for a
+    # reduced export fixture. These tests need the complete migrated app schema.
+    if connection.execute("select to_regclass('auth.users')").fetchone()[0] is None:
+        connection.close()
+        pytest.skip("Full migrated review schema is not configured")
     reviewer, campaign, batch = (uuid4() for _ in range(3))
     connection.execute(
         "insert into auth.users(id, raw_user_meta_data) values (%s, %s)",
