@@ -24,10 +24,12 @@ supabase/.temp/
 
 # Review data and exports
 /data/
+/exports/
 /reviewed/
 /screenshots/
 *.parquet
 *.csv
+*.csv.gz
 *.ndjson
 *.jsonl
 

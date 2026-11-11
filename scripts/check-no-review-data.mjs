@@ -25,6 +25,7 @@ const supabaseSecretPattern = new RegExp(
 const serviceRoleJwtPayloadPattern = new RegExp('eyJyb2xlIjoic2VydmljZV9yb2xl', 'i');
 const textExtensions = new Set([
   '',
+  '.csv',
   '.css',
   '.html',
   '.js',
@@ -62,13 +63,17 @@ const findings = [];
 for (const path of files) {
   const normalised = path.replaceAll('\\', '/');
   const basename = normalised.split('/').at(-1) ?? '';
+  const isSyntheticFixture = normalised.startsWith('tests/fixtures/synthetic-only/');
   if (basename === '.env' || (basename.startsWith('.env.') && !basename.endsWith('.example'))) {
     findings.push(`${normalised}: tracked environment file`);
   }
-  if (
-    extname(normalised).toLowerCase() === '.parquet' &&
-    !normalised.startsWith('tests/fixtures/synthetic-only/')
-  ) {
+  if (normalised.toLowerCase().startsWith('exports/')) {
+    findings.push(`${normalised}: tracked review export`);
+  }
+  if (/\.csv(?:\.(?:gz|bz2|xz|zip|zst))?$/i.test(normalised) && !isSyntheticFixture) {
+    findings.push(`${normalised}: CSV file outside the synthetic fixture path`);
+  }
+  if (extname(normalised).toLowerCase() === '.parquet' && !isSyntheticFixture) {
     findings.push(`${normalised}: Parquet file outside the synthetic fixture path`);
   }
   if (normalised === self || !textExtensions.has(extname(normalised).toLowerCase())) continue;
