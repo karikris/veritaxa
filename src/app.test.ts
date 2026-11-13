@@ -461,7 +461,7 @@ describe('VeriTaxa application', () => {
     await vi.waitFor(() =>
       expect(document.querySelector('.image-position')?.textContent).toBe('1 / 2'),
     );
-    expect(status?.textContent).toBe('');
+    expect(status?.textContent).toBe('Saved');
     expect(status?.firstChild).toBe(text);
     app.dispose();
   });
