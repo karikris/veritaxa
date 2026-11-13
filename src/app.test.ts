@@ -440,4 +440,29 @@ describe('VeriTaxa application', () => {
     expect(repo.saveReview).toHaveBeenCalledOnce();
     app.dispose();
   });
+  it('retains one header status text node through saving, success and navigation', async () => {
+    let finish: (item: ReviewItem) => void = () => undefined;
+    const pending = new Promise<ReviewItem>((resolve) => {
+      finish = resolve;
+    });
+    const app = createApp(repository({ save: () => pending }));
+    await app.start();
+    const status = document.querySelector('.save-state');
+    const text = status?.firstChild;
+    expect(text).toBeInstanceOf(Text);
+    expect(status?.textContent).toBe('');
+    document.querySelector<HTMLButtonElement>('[aria-label="Yes"]')?.click();
+    expect(status?.textContent).toBe('Saving…');
+    expect(status?.firstChild).toBe(text);
+    finish({ ...secondItem, reviewedCount: 1 });
+    await vi.waitFor(() => expect(status?.textContent).toBe('Saved'));
+    expect(status?.firstChild).toBe(text);
+    document.querySelector<HTMLButtonElement>('[aria-label="Next image"]')?.click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.image-position')?.textContent).toBe('1 / 2'),
+    );
+    expect(status?.textContent).toBe('');
+    expect(status?.firstChild).toBe(text);
+    app.dispose();
+  });
 });

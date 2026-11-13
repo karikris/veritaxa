@@ -756,6 +756,8 @@ export class VeriTaxaApp {
     const progress = element('span', 'header-progress');
     const saveState = element('span', 'save-state');
     saveState.setAttribute('role', 'status');
+    const saveStateText = document.createTextNode('');
+    saveState.append(saveStateText);
     const signOut = button('Sign out', 'text-button');
     signOut.addEventListener('click', () => {
       if (this.#disposed || !this.#session) return;
@@ -789,7 +791,7 @@ export class VeriTaxaApp {
       progress.textContent = active
         ? `${String(active.reviewedCount)} / ${String(active.totalCount)}`
         : '— / —';
-      saveState.textContent =
+      saveStateText.data =
         this.#state === 'saving'
           ? 'Saving…'
           : this.#state === 'save_error'
