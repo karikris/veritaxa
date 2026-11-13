@@ -594,13 +594,21 @@ export class VeriTaxaApp {
       return;
     }
     const key = event.key.toLowerCase();
-    if ((key === 'y' || key === 'n') && this.#canAnswer) {
+    const label =
+      key === 'y'
+        ? 'target_scientific_name'
+        : key === 'n'
+          ? 'target_not_present'
+          : key === '0'
+            ? 'no_butterfly'
+            : null;
+    if (label && this.#canAnswer) {
       event.preventDefault();
-      this.#answer(key === 'y' ? 'target_scientific_name' : 'target_not_present');
+      this.#answer(label);
     }
   };
 
-  #answer(label: 'target_scientific_name' | 'target_not_present'): void {
+  #answer(label: 'target_scientific_name' | 'target_not_present' | 'no_butterfly'): void {
     if (!this.#canAnswer) return;
     this.#draft.label = label;
     void this.#submit();

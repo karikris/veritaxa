@@ -22,7 +22,7 @@ def read_schema(version):
 
 
 def test_python_priority_matches_current_schema_and_retains_every_historical_label():
-    current = read_schema(4)
+    current = read_schema(5)
     assert SCHEMA_VERSION == current["schemaVersion"]
     codes = tuple(
         label["code"] for label in sorted(current["labels"], key=lambda row: row["priority"])
@@ -30,7 +30,7 @@ def test_python_priority_matches_current_schema_and_retains_every_historical_lab
     # Legacy keyword decisions remain interpretable but rank after current codes.
     assert EXPECTED_RESULT_PRIORITY == (*codes, "flickr_keyword_match")
     historical = {
-        label["code"] for version in (1, 2, 3, 4) for label in read_schema(version)["labels"]
+        label["code"] for version in (1, 2, 3, 4, 5) for label in read_schema(version)["labels"]
     }
     assert set(EXPECTED_RESULT_PRIORITY) == historical
     assert LABEL_PRIORITY == {
@@ -46,7 +46,7 @@ def test_python_priority_matches_current_schema_and_retains_every_historical_lab
 
 
 def test_python_export_mappings_match_versioned_schema_including_legacy_keyword():
-    current, legacy = read_schema(4)["mappings"], read_schema(2)["mappings"]
+    current, legacy = read_schema(5)["mappings"], read_schema(2)["mappings"]
     expected = {
         "matches_flickr_keyword": set(legacy["flickrKeywordMatch"]),
         "matches_target_scientific_name": set(current["targetScientificName"]),
@@ -54,6 +54,7 @@ def test_python_export_mappings_match_versioned_schema_including_legacy_keyword(
         "is_insecta_positive": set(current["insectaPositive"]),
         "is_lepidoptera_evidence": set(current["lepidopteraEvidence"]),
         "is_butterfly_positive": set(current["butterflyPositive"]),
+        "is_butterfly_negative": set(current["butterflyNegative"]),
         "is_butterfly_hard_negative": set(current["butterflyHardNegatives"]),
         "excluded_from_automatic_training": set(current["excludedFromAutomaticTraining"]),
     }

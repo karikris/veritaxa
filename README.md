@@ -2,10 +2,10 @@
 
 VeriTaxa is a minimal, authenticated, one-page tool for reviewing image
 candidates collected by BioMiner and related pipelines. It asks whether each
-image shows the campaign’s target scientific name. Choosing **Yes** or **No**
+image shows the campaign’s target scientific name. Choosing **Yes**, **No**, or **No butterfly**
 saves the answer immediately and advances after Postgres confirms the write.
 Reviewers can move through every image in a batch and revise their own answer.
-The keyboard shortcuts are **Y** and **N**; holding a key does not submit more
+The keyboard shortcuts are **Y**, **N**, and **0**; holding a key does not submit more
 images. There is no separate Send step or comment field.
 
 VeriTaxa is separate from ButterflyLens. ButterflyLens remains the
@@ -51,16 +51,18 @@ browsers without rewriting a dataset.
 
 ## Canonical labels
 
-The current export schema version is `veritaxa-review-label-v4`. **Yes** stores
-`target_scientific_name`; **No** stores `target_not_present`. No only means the
+The current export schema version is `veritaxa-review-label-v5`. **Yes** stores
+`target_scientific_name`; **No** stores `target_not_present`; **No butterfly**
+stores `no_butterfly`. The last answer means no butterfly is visible. No only means the
 campaign target is absent; it makes no claim about other species or biological
 content. It is excluded from automatic broad-label training. Historical labels
-remain readable and are never converted into binary answers automatically.
+remain readable and are never converted into new answers automatically.
 
 | Stored code                | Display label                    |
 | -------------------------- | -------------------------------- |
 | `target_scientific_name`   | Current campaign scientific name |
 | `target_not_present`       | Target not present               |
+| `no_butterfly`             | No butterfly                     |
 | `adult_butterfly`          | Adult butterfly                  |
 | `caterpillar`              | Caterpillar                      |
 | `moth`                     | Moth                             |
@@ -78,13 +80,14 @@ remain readable and are never converted into binary answers automatically.
 | `image_unavailable`        | Image unavailable                |
 
 The table includes retained historical categories. The current review form
-shows only Yes and No. Image failures disable both answers; retry the image or
+shows Yes, No, and No butterfly. Image failures disable all answers; retry the image or
 use Next to skip it. Existing comments are retained when correcting an answer.
 
 The versioned definitions and pipeline mappings are in
-`src/domain/reviewLabels.ts` and `schemas/review-labels-v4.json`. Apply
+`src/domain/reviewLabels.ts` and `schemas/review-labels-v5.json`. Apply
 `20261113075744_add_target_not_present_review_label.sql` before deploying this
-frontend so the database accepts No answers. Earlier migrations and reviews
+frontend so the database accepts No answers. Apply
+`20261113092059_add_no_butterfly_review_label.sql` before enabling No butterfly. Earlier migrations and reviews
 remain intact.
 
 ## Database model and access
@@ -616,7 +619,7 @@ the Python tools. Exact JavaScript and Python resolutions are committed in
 
 ## Known limitations
 
-- Version 4 records one current label per reviewer and item. Consensus is an
+- Version 5 records one current label per reviewer and item. Consensus is an
   export view rather than a stored adjudication.
 - `identifiedBy` records the broad-image classifier's nickname; it does not
   turn the response into a taxonomic identification or species confirmation.

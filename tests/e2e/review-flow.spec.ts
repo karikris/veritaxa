@@ -41,7 +41,7 @@ test('Yes and No submit immediately and preserve answers for corrections', async
   await page.goto('/veritaxa/?repository=synthetic');
   const image = page.locator('img.review-image');
   await expect(image).toHaveAttribute('src', /review-001\.svg/);
-  await expect(page.locator('.answer-button')).toHaveCount(2);
+  await expect(page.locator('.answer-button')).toHaveCount(3);
   await expect(page.getByRole('heading', { name: 'Is this Papilio exemplaris?' })).toBeVisible();
   await expect(page.locator('input[name="review-label"]')).toHaveCount(0);
   await expect(page.getByLabel('Comment')).toHaveCount(0);
@@ -126,10 +126,31 @@ test('both choices fit within the viewport and remain visible on mobile', async 
     content: document.documentElement.scrollWidth,
   }));
   expect(widths.content).toBeLessThanOrEqual(widths.viewport);
-  for (const answer of ['Yes', 'No']) {
+  for (const answer of ['Yes', 'No', 'No butterfly']) {
     const choice = page.getByRole('button', { name: answer, exact: true });
     await expect(choice).toBeInViewport();
     const box = await choice.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
   }
+});
+
+test('No butterfly saves immediately, can be corrected, and supports the zero shortcut', async ({
+  page,
+}) => {
+  await routeSyntheticImages(page, []);
+  await page.goto('/veritaxa/?repository=synthetic');
+  await page.getByRole('button', { name: 'No butterfly', exact: true }).click();
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
+  await page.getByRole('button', { name: 'Previous image' }).click();
+  await expect(
+    page.getByText('Your saved answer: No butterfly. Choose again to update it.'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Yes', exact: true }).click();
+  await expect(page.locator('.image-position')).toHaveText('2 / 2');
+  await page.keyboard.press('0');
+  await expect(page.getByText('All reviewed—answers can still be updated.')).toBeVisible();
+  await page.getByRole('button', { name: 'Next image' }).click();
+  await expect(
+    page.getByText('Your saved answer: No butterfly. Choose again to update it.'),
+  ).toBeVisible();
 });

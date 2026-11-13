@@ -1,8 +1,9 @@
-export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v4' as const;
+export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v5' as const;
 
 export const REVIEW_LABEL_CODES = [
   'target_scientific_name',
   'target_not_present',
+  'no_butterfly',
   'adult_butterfly',
   'caterpillar',
   'moth',
@@ -51,6 +52,13 @@ export const REVIEW_LABELS: readonly ReviewLabelDefinition[] = [
     group: 'target_taxon',
     priority: 17,
     shortcut: 'N',
+  },
+  {
+    code: 'no_butterfly',
+    displayLabel: 'No butterfly',
+    group: 'target_taxon',
+    priority: 18,
+    shortcut: '0',
   },
   {
     code: 'adult_butterfly',
@@ -167,13 +175,19 @@ export const REVIEW_LABEL_GROUPS: readonly {
 export const PIPELINE_MAPPINGS = {
   targetScientificName: ['target_scientific_name'],
   targetScientificNameNegative: ['target_not_present'],
+  butterflyNegative: ['no_butterfly'],
   insectaPositive: ['adult_butterfly', 'caterpillar', 'moth', 'other_insect'],
   lepidopteraEvidence: ['adult_butterfly', 'caterpillar', 'moth'],
   butterflyPositive: ['adult_butterfly'],
   butterflyHardNegatives: ['moth', 'other_insect', 'arachnid', 'other_arthropod'],
   broadBiologicalNegatives: ['plant', 'mammal_or_person', 'bird', 'other_animal', 'fungus'],
   nonBiologicalNegatives: ['artifact_or_illustration', 'no_biological_subject'],
-  excludedFromAutomaticTraining: ['uncertain', 'image_unavailable', 'target_not_present'],
+  excludedFromAutomaticTraining: [
+    'uncertain',
+    'image_unavailable',
+    'target_not_present',
+    'no_butterfly',
+  ],
 } as const satisfies Record<string, readonly ReviewLabelCode[]>;
 
 const LABEL_CODE_SET = new Set<string>(REVIEW_LABEL_CODES);

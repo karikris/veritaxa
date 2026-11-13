@@ -161,3 +161,16 @@ def test_target_negative_is_not_a_broad_butterfly_or_non_biological_label() -> N
     assert mapped["is_butterfly_positive"].to_list() == [False]
     assert mapped["is_butterfly_hard_negative"].to_list() == [False]
     assert mapped["excluded_from_automatic_training"].to_list() == [True]
+
+
+def test_no_butterfly_retains_its_explicit_negative_evidence() -> None:
+    frame = export_frame().with_columns(
+        pl.lit("no_butterfly").alias("human_label"),
+        pl.lit(None, dtype=pl.String).alias("scientificName"),
+    )
+    mapped = add_derived_mappings(frame)
+    assert mapped["human_label"].to_list() == ["no_butterfly"]
+    assert mapped["is_butterfly_negative"].to_list() == [True]
+    assert mapped["is_butterfly_positive"].to_list() == [False]
+    assert mapped["is_insecta_positive"].to_list() == [False]
+    assert mapped["excluded_from_automatic_training"].to_list() == [True]

@@ -17,7 +17,7 @@ from tools.metadata_archive import MetadataResolver
 from tools.native_runtime import NativeRuntimeError, connect_admin
 from tools.tabular_output import validate_output_path, write_records
 
-SCHEMA_VERSION = "veritaxa-review-label-v4"
+SCHEMA_VERSION = "veritaxa-review-label-v5"
 EXPORT_COLUMNS = [
     "campaign_code",
     "target_scientific_name",
@@ -79,6 +79,7 @@ EXPECTED_RESULT_PRIORITY = (
     "uncertain",
     "image_unavailable",
     "target_not_present",
+    "no_butterfly",
     "flickr_keyword_match",
 )
 
@@ -91,8 +92,14 @@ DERIVED_LABELS = {
     "is_insecta_positive": {"adult_butterfly", "caterpillar", "moth", "other_insect"},
     "is_lepidoptera_evidence": {"adult_butterfly", "caterpillar", "moth"},
     "is_butterfly_positive": {"adult_butterfly"},
+    "is_butterfly_negative": {"no_butterfly"},
     "is_butterfly_hard_negative": {"moth", "other_insect", "arachnid", "other_arthropod"},
-    "excluded_from_automatic_training": {"uncertain", "image_unavailable", "target_not_present"},
+    "excluded_from_automatic_training": {
+        "uncertain",
+        "image_unavailable",
+        "target_not_present",
+        "no_butterfly",
+    },
 }
 
 _PROJECTIONS = dict(

@@ -5,7 +5,7 @@ import type { ImageMode } from '../image/imageLoader';
 import { imagePanBounds } from '../image/imagePan';
 
 type ReviewViewActions = {
-  answer: (label: 'target_scientific_name' | 'target_not_present') => void;
+  answer: (label: 'target_scientific_name' | 'target_not_present' | 'no_butterfly') => void;
   submit: () => void;
   discardDraft: () => void;
   navigate: (direction: 'previous' | 'next') => void;
@@ -68,6 +68,7 @@ export class ReviewView {
   readonly #heading: HTMLElement;
   readonly #yes: HTMLButtonElement;
   readonly #no: HTMLButtonElement;
+  readonly #noButterfly: HTMLButtonElement;
   readonly #send: HTMLButtonElement;
   readonly #status: HTMLElement;
   readonly #pending: HTMLElement;
@@ -115,11 +116,12 @@ export class ReviewView {
       <section class="classification-panel" tabindex="-1" aria-label="Image classification">
         <div class="classification-heading-row">
           <h2 id="classification-heading"></h2>
-          <p>Choose Yes or No to save and show the next image.</p>
+          <p>Choose an answer to save and show the next image.</p>
         </div>
-        <div class="binary-choices" role="group" aria-labelledby="classification-heading">
+        <div class="review-choices" role="group" aria-labelledby="classification-heading">
           <button type="button" class="answer-button answer-button--yes" data-label="target_scientific_name" aria-label="Yes">Yes <kbd aria-hidden="true">Y</kbd></button>
           <button type="button" class="answer-button answer-button--no" data-label="target_not_present" aria-label="No">No <kbd aria-hidden="true">N</kbd></button>
+          <button type="button" class="answer-button answer-button--no-butterfly" data-label="no_butterfly" aria-label="No butterfly">No butterfly <kbd aria-hidden="true">0</kbd></button>
         </div>
         <div class="classification-primary-actions">
           <button type="button" class="secondary-button image-source-button">Inspect source image</button>
@@ -164,6 +166,7 @@ export class ReviewView {
     this.#heading = find('#classification-heading', HTMLElement);
     this.#yes = find('[aria-label="Yes"]', HTMLButtonElement);
     this.#no = find('[aria-label="No"]', HTMLButtonElement);
+    this.#noButterfly = find('[aria-label="No butterfly"]', HTMLButtonElement);
     this.#send = find('.retry-save', HTMLButtonElement);
     this.#status = find('.submission-action .status-text', HTMLElement);
     this.#pending = find('.pending-notice', HTMLElement);
@@ -176,6 +179,7 @@ export class ReviewView {
     this.#comparisonComment = find('.saved-comment', HTMLElement);
     this.#yes.addEventListener('click', () => actions.answer('target_scientific_name'));
     this.#no.addEventListener('click', () => actions.answer('target_not_present'));
+    this.#noButterfly.addEventListener('click', () => actions.answer('no_butterfly'));
     this.#previous.addEventListener('click', () => actions.navigate('previous'));
     this.#next.addEventListener('click', () => actions.navigate('next'));
     this.#retry.addEventListener('click', actions.retryImage);
@@ -275,7 +279,7 @@ export class ReviewView {
     this.#heading.textContent = item?.targetScientificName
       ? `Is this ${item.targetScientificName}?`
       : 'No target species configured';
-    this.#yes.disabled = this.#no.disabled = !state.canAnswer;
+    this.#yes.disabled = this.#no.disabled = this.#noButterfly.disabled = !state.canAnswer;
     this.#classifier.setAttribute('aria-busy', String(state.saving));
     this.#send.hidden = !draft.pendingSubmission && !draft.conflicted;
     this.#send.textContent = draft.conflicted
@@ -304,7 +308,9 @@ export class ReviewView {
               ? 'Your saved answer: Yes. Choose again to update it.'
               : item.currentLabel === 'target_not_present'
                 ? 'Your saved answer: No. Choose again to update it.'
-                : '');
+                : item.currentLabel === 'no_butterfly'
+                  ? 'Your saved answer: No butterfly. Choose again to update it.'
+                  : '');
     this.#status.classList.toggle('status-text--error', state.isError);
     this.#status.setAttribute('role', state.isError ? 'alert' : 'status');
     this.#status.setAttribute('aria-live', state.isError ? 'assertive' : 'polite');

@@ -188,14 +188,14 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
-  it('renders one image and only two answer buttons without a Send or comment step', async () => {
+  it('renders one image and only three answer buttons without a Send or comment step', async () => {
     const repo = repository();
     const app = createApp(repo);
     await app.start();
 
     expect(document.querySelectorAll('img.review-image')).toHaveLength(1);
     expect(document.querySelector('img')?.alt).toBe('Image under review');
-    expect(document.querySelectorAll('.answer-button')).toHaveLength(2);
+    expect(document.querySelectorAll('.answer-button')).toHaveLength(3);
     expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(0);
     expect(document.querySelector('textarea')).toBeNull();
     expect(document.querySelector('.send-button')).toBeNull();
@@ -222,6 +222,7 @@ describe('VeriTaxa application', () => {
   it.each([
     ['Yes', 'target_scientific_name'],
     ['No', 'target_not_present'],
+    ['No butterfly', 'no_butterfly'],
   ] as const)(
     'saves %s immediately and advances only after confirmation',
     async (_answer, label) => {
@@ -357,7 +358,7 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
-  it('disables both answers when the campaign has no target species', async () => {
+  it('disables all answers when the campaign has no target species', async () => {
     const repo = repository({ cursor: { ...firstItem, targetScientificName: null } });
     const app = createApp(repo);
     await app.start();
@@ -463,6 +464,46 @@ describe('VeriTaxa application', () => {
     );
     expect(status?.textContent).toBe('Saved');
     expect(status?.firstChild).toBe(text);
+    app.dispose();
+  });
+  it('restores No butterfly and allows correction without changing the existing comment', async () => {
+    const repo = repository({
+      cursor: {
+        ...firstItem,
+        currentLabel: 'no_butterfly',
+        currentVersion: 4,
+        currentComment: 'Original note',
+      },
+    });
+    const app = createApp(repo);
+    await app.start();
+    expect(document.body.textContent).toContain('Your saved answer: No butterfly.');
+    document.querySelector<HTMLButtonElement>('[aria-label="Yes"]')?.click();
+    expect(repo.saveReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: 'target_scientific_name',
+        expectedVersion: 4,
+        comment: 'Original note',
+      }),
+    );
+    await vi.waitFor(() => expect(app.state).toBe('reviewing'));
+    app.dispose();
+  });
+
+  it('uses zero to submit No butterfly while ignoring editable controls and held keys', async () => {
+    const repo = repository();
+    const app = createApp(repo);
+    await app.start();
+    document
+      .querySelector('select')
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: '0', bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '0', repeat: true, bubbles: true }));
+    expect(repo.saveReview).not.toHaveBeenCalled();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '0', bubbles: true }));
+    expect(repo.saveReview).toHaveBeenCalledWith(
+      expect.objectContaining({ label: 'no_butterfly' }),
+    );
+    await vi.waitFor(() => expect(app.state).toBe('reviewing'));
     app.dispose();
   });
 });

@@ -148,6 +148,7 @@ export type Database = {
         | 'flickr_keyword_match'
         | 'target_scientific_name'
         | 'target_not_present'
+        | 'no_butterfly'
         | 'adult_butterfly'
         | 'caterpillar'
         | 'moth'

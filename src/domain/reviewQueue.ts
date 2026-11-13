@@ -2,7 +2,7 @@ import type { ReviewLabelCode } from './reviewLabels';
 import { countCodePoints } from './text';
 
 export const MAX_COMMENT_LENGTH = 1000;
-export const CLIENT_VERSION = 'veritaxa-web/0.5.0';
+export const CLIENT_VERSION = 'veritaxa-web/0.6.0';
 
 export type ReviewBatch = {
   id: string;

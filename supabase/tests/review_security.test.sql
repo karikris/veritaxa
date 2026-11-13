@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(62);
+select plan(65);
 
 select is(
   (
@@ -1108,6 +1108,32 @@ select results_eq(
   $$ values ('target_scientific_name'::text, 'Taxon example'::text, 3) $$,
   'a corrected Yes uses the database campaign name and increments the version'
 );
+
+set local role authenticated;
+select lives_ok(
+  $$ select * from public.save_image_review_v2(
+    '40000000-0000-0000-0000-000000000001', 'no_butterfly', null,
+    '50000000-0000-0000-0000-000000000022', 'test-client-three-answers', 3
+  ) $$,
+  'No butterfly saves independently of the target-negative answer'
+);
+reset role;
+select results_eq(
+  $$ select label::text, "scientificName", version from public.image_reviews
+     where item_id = '40000000-0000-0000-0000-000000000001'
+       and reviewer_id = '10000000-0000-0000-0000-000000000001' $$,
+  $$ values ('no_butterfly'::text, null::text, 4) $$,
+  'No butterfly retains its own code without claiming a scientific identification'
+);
+set local role authenticated;
+select lives_ok(
+  $$ select * from public.save_image_review_v2(
+    '40000000-0000-0000-0000-000000000001', 'no_butterfly', null,
+    '50000000-0000-0000-0000-000000000022', 'test-client-three-answers', 3
+  ) $$,
+  'No butterfly retries do not create a second review version'
+);
+reset role;
 
 select * from finish();
 rollback;
