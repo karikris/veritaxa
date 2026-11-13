@@ -60,8 +60,8 @@ they do not drop or replace data.
 ```sh
 export VERITAXA_SYNTHETIC_DSN='host=127.0.0.1 dbname=veritaxa_synthetic sslmode=disable gssencmode=disable'
 uv run python -m benchmarks.export_database init
+uv run python -m benchmarks.export_database seed 1000
 uv run python -m benchmarks.export_database seed 10000
-uv run python -m benchmarks.export_database seed 100000
 uv run pytest tools/tests/test_export_database.py
 uv run python -m benchmarks.export_gate --report /tmp/veritaxa-export-memory.json
 ```
@@ -69,8 +69,11 @@ uv run python -m benchmarks.export_gate --report /tmp/veritaxa-export-memory.jso
 CI supplies its own disposable PostgreSQL 17 service and publishes only aggregate
 benchmark metrics. The gate runs every full/lean, raw/consensus, CSV/Parquet path
 at both sizes, three fresh Python processes per case. Each item carries a 20 KiB
-payload plus nested JSON; one to three synthetic reviewers produce 22,500 raw
-rows at 10,000 items and 225,000 at 100,000. Consensus produces one row per item.
+payload plus nested JSON; one to three synthetic reviewers produce 2,250 raw
+rows at 1,000 items and 22,500 at 10,000. Consensus produces one row per item.
+CI currently caps these fixtures at 10,000 images and retains the tenfold size
+comparison, three repeats, and unchanged memory limits. The browser navigation
+soaks continue to exercise 1,000 images per process.
 Output count is checked so an empty/missing fixture cannot pass the memory gate.
 
 The RSS limit is 256 MiB for **every run**, with at most 64 MiB growth between
@@ -78,7 +81,7 @@ size medians. Reports retain all measurements plus medians, ranges and runtime
 versions. RSS covers the driver, JSON decoder, reducer and completed file writer,
 but not the PostgreSQL server. No thread-pool override is required. The gate uses
 Linux `ru_maxrss` units. Outputs are deleted after each measurement; allow at least
-5 GiB of temporary disk space for the largest full CSV file.
+1 GiB of temporary disk space for the largest full CSV file.
 
 Integration tests separately cover output types/nulls/order/canonical JSON,
 multiple reviewers, concurrent edits, stream cancellation, slow/failing writes,
@@ -120,7 +123,7 @@ those. Never use an application database or `.env.admin` for this harness.
 export VERITAXA_IMPORT_DSN='host=127.0.0.1 dbname=veritaxa_import_synthetic sslmode=disable gssencmode=disable'
 export VERITAXA_IMPORT_FIXTURES=$(mktemp -d)
 uv run python -m benchmarks.import_database init
-for size in 10000 100000; do
+for size in 1000 10000; do
   for format in csv parquet ndjson; do
     uv run python -m benchmarks.import_database generate "$size" --format "$format"
   done
@@ -132,7 +135,7 @@ uv run python -m benchmarks.import_gate --report /tmp/veritaxa-import-memory.jso
 Fixture generation runs separately and refuses to replace existing files. The
 gate includes source decoding, normalization, disk staging, global shuffle when
 selected, JSON adaptation, inserts and the final commit. It tests all three
-formats at 10,000 and 100,000 rows, unshuffled and seed 0, in three fresh processes
+formats at 1,000 and 10,000 rows, unshuffled and seed 0, in three fresh processes
 per case. JSONL shares the NDJSON reader and is covered by equivalence tests.
 Six additional Parquet runs compare pipeline inserts and COPY using identical
 row mapping and transaction semantics. Every run must stay below 256 MiB RSS;

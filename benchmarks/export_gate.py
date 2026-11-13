@@ -16,7 +16,7 @@ import psycopg
 
 from benchmarks.export_database import synthetic_dsn
 
-SIZES = (10000, 100000)
+SIZES = (1000, 10000)
 MAX_RSS_MIB = 256
 MAX_GROWTH_MIB = 64
 

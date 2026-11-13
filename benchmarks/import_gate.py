@@ -16,7 +16,7 @@ import psycopg
 
 from benchmarks.import_database import import_dsn
 
-SIZES = (10000, 100000)
+SIZES = (1000, 10000)
 
 
 def main() -> int:

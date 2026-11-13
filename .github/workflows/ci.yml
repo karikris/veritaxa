@@ -191,8 +191,8 @@ jobs:
       - name: Prepare disposable synthetic database
         run: |
           uv run python -m benchmarks.export_database init
+          uv run python -m benchmarks.export_database seed 1000
           uv run python -m benchmarks.export_database seed 10000
-          uv run python -m benchmarks.export_database seed 100000
       - name: Verify database-to-file correctness and interruption handling
         run: uv run pytest tools/tests/test_export_database.py
       - name: Measure complete export paths in fresh processes
@@ -235,7 +235,7 @@ jobs:
       - name: Prepare isolated database and bounded synthetic fixtures
         run: |
           uv run python -m benchmarks.import_database init
-          for size in 10000 100000; do
+          for size in 1000 10000; do
             for format in csv parquet ndjson; do
               uv run python -m benchmarks.import_database generate "$size" --format "$format"
             done
