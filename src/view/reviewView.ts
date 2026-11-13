@@ -1,18 +1,11 @@
-import {
-  HISTORICAL_REVIEW_LABEL_CODES,
-  REVIEW_LABEL_GROUPS,
-  REVIEW_LABELS,
-  type ReviewLabelCode,
-} from '../domain/reviewLabels';
+import { REVIEW_LABELS } from '../domain/reviewLabels';
 import type { ReviewDraft } from '../domain/reviewDraft';
-import { MAX_COMMENT_LENGTH, type ReviewItem } from '../domain/reviewQueue';
-import { countCodePoints, limitCodePoints } from '../domain/text';
+import type { ReviewItem } from '../domain/reviewQueue';
 import type { ImageMode } from '../image/imageLoader';
 import { imagePanBounds } from '../image/imagePan';
 
 type ReviewViewActions = {
-  selectLabel: (label: ReviewLabelCode) => void;
-  editComment: (comment: string) => void;
+  answer: (label: 'target_scientific_name' | 'target_not_present') => void;
   submit: () => void;
   discardDraft: () => void;
   navigate: (direction: 'previous' | 'next') => void;
@@ -34,6 +27,7 @@ export type ReviewViewState = {
   originalAvailable: boolean;
   previewTooLarge: boolean;
   canEdit: boolean;
+  canAnswer: boolean;
   canNavigate: boolean;
   canDiscardDraft: boolean;
   canRetryImage: boolean;
@@ -71,13 +65,9 @@ export class ReviewView {
   readonly #sourceButton: HTMLButtonElement;
   readonly #completion: HTMLElement;
   readonly #classifier: HTMLElement;
-  readonly #groups: HTMLElement;
-  readonly #primaryActions: HTMLElement;
-  readonly #targetGroup: HTMLElement;
-  readonly #targetText: HTMLElement;
-  readonly #labels = new Map<ReviewLabelCode, HTMLInputElement>();
-  readonly #comment: HTMLTextAreaElement;
-  readonly #counter: HTMLElement;
+  readonly #heading: HTMLElement;
+  readonly #yes: HTMLButtonElement;
+  readonly #no: HTMLButtonElement;
   readonly #send: HTMLButtonElement;
   readonly #status: HTMLElement;
   readonly #pending: HTMLElement;
@@ -96,8 +86,6 @@ export class ReviewView {
   #pan = { x: 0, y: 0 };
   #panBounds = { x: 0, y: 0 };
   #drag: { pointerId: number; x: number; y: number } | null = null;
-  #countedComment: string | null = null;
-  #commentLength = 0;
 
   constructor(actions: ReviewViewActions) {
     this.#actions = actions;
@@ -125,20 +113,23 @@ export class ReviewView {
       <p class="image-gesture-help">Scroll over the picture to zoom at the pointer. Drag when zoomed to move around. Double-click to zoom; use the percentage button to reset.</p>
       <p class="status-text status-text--error queue-error" role="alert" hidden></p>
       <section class="classification-panel" tabindex="-1" aria-label="Image classification">
-        <div role="radiogroup" aria-label="Classification categories">
-          <div class="classification-primary-actions">
-            <button type="button" class="secondary-button image-source-button">Inspect source image</button>
-            <button type="button" class="send-button">Send</button>
-          </div>
-          <div class="label-groups"></div>
+        <div class="classification-heading-row">
+          <h2 id="classification-heading"></h2>
+          <p>Choose Yes or No to save and show the next image.</p>
+        </div>
+        <div class="binary-choices" role="group" aria-labelledby="classification-heading">
+          <button type="button" class="answer-button answer-button--yes" data-label="target_scientific_name" aria-label="Yes">Yes <kbd aria-hidden="true">Y</kbd></button>
+          <button type="button" class="answer-button answer-button--no" data-label="target_not_present" aria-label="No">No <kbd aria-hidden="true">N</kbd></button>
+        </div>
+        <div class="classification-primary-actions">
+          <button type="button" class="secondary-button image-source-button">Inspect source image</button>
+          <button type="button" class="secondary-button retry-save" hidden>Retry save</button>
         </div>
         <div class="submission-panel">
-          <div class="comment-heading"><label for="review-comment">Comment</label><span>optional</span></div>
-          <textarea id="review-comment" rows="2"></textarea><span class="comment-count"></span>
           <div class="submission-action">
             <p class="status-text" aria-live="polite" role="status"></p>
           </div>
-          <p class="status-text pending-notice" role="status" hidden>Retry sends the original request. Any newer edits will remain unsaved until you send them separately.</p>
+          <p class="status-text pending-notice" role="status" hidden>Retry saves your original answer. The image advances after the save is confirmed.</p>
           <section class="draft-limit" aria-label="Unsaved draft limit" hidden>
             <p class="status-text status-text--error" role="alert"></p>
             <button type="button" class="secondary-button discard-draft">Discard local edits</button>
@@ -170,11 +161,10 @@ export class ReviewView {
     this.#sourceButton = find('.image-source-button', HTMLButtonElement);
     this.#completion = find('.completion-status', HTMLElement);
     this.#classifier = find('.classification-panel', HTMLElement);
-    this.#groups = find('.label-groups', HTMLElement);
-    this.#primaryActions = find('.classification-primary-actions', HTMLElement);
-    this.#comment = find('#review-comment', HTMLTextAreaElement);
-    this.#counter = find('.comment-count', HTMLElement);
-    this.#send = find('.send-button', HTMLButtonElement);
+    this.#heading = find('#classification-heading', HTMLElement);
+    this.#yes = find('[aria-label="Yes"]', HTMLButtonElement);
+    this.#no = find('[aria-label="No"]', HTMLButtonElement);
+    this.#send = find('.retry-save', HTMLButtonElement);
     this.#status = find('.submission-action .status-text', HTMLElement);
     this.#pending = find('.pending-notice', HTMLElement);
     this.#draftLimit = find('.draft-limit', HTMLElement);
@@ -184,57 +174,14 @@ export class ReviewView {
     this.#comparisonHeading = find('.conflict-comparison h3', HTMLElement);
     this.#comparisonLabel = find('.saved-label', HTMLElement);
     this.#comparisonComment = find('.saved-comment', HTMLElement);
-    for (const definition of REVIEW_LABEL_GROUPS) {
-      if (definition.code === 'arthropods') continue;
-      const group = document.createElement('section');
-      group.className = 'label-group';
-      group.dataset.group = definition.code;
-      const heading = document.createElement('h3');
-      heading.textContent = definition.heading;
-      const grid = document.createElement('div');
-      grid.className = 'label-grid';
-      for (const label of REVIEW_LABELS.filter(
-        (candidate) =>
-          candidate.group === definition.code ||
-          (definition.code === 'insecta' && HISTORICAL_REVIEW_LABEL_CODES.has(candidate.code)),
-      )) {
-        const wrapper = document.createElement('label');
-        wrapper.className = 'label-option';
-        wrapper.hidden = HISTORICAL_REVIEW_LABEL_CODES.has(label.code);
-        wrapper.innerHTML = `<input type="radio" name="review-label"><span class="label-card"><span class="label-check" aria-hidden="true">✓</span><span class="label-text"></span><kbd aria-hidden="true"></kbd></span>`;
-        const input = required(wrapper, 'input', HTMLInputElement);
-        input.value = label.code;
-        input.addEventListener('change', () => {
-          if (input.checked && !input.disabled) actions.selectLabel(label.code);
-        });
-        required(wrapper, '.label-text', HTMLElement).textContent = label.displayLabel;
-        required(wrapper, 'kbd', HTMLElement).textContent = label.shortcut;
-        required(wrapper, 'kbd', HTMLElement).hidden = HISTORICAL_REVIEW_LABEL_CODES.has(
-          label.code,
-        );
-        this.#labels.set(label.code, input);
-        grid.append(wrapper);
-      }
-      group.append(heading, grid);
-      this.#groups.append(group);
-    }
-    this.#targetGroup = find('[data-group="target_taxon"]', HTMLElement);
-    this.#targetGroup.classList.add('label-group--target-taxon');
-    this.#targetText = required(this.#targetGroup, '.label-text', HTMLElement);
-    this.#primaryActions.prepend(this.#targetGroup);
+    this.#yes.addEventListener('click', () => actions.answer('target_scientific_name'));
+    this.#no.addEventListener('click', () => actions.answer('target_not_present'));
     this.#previous.addEventListener('click', () => actions.navigate('previous'));
     this.#next.addEventListener('click', () => actions.navigate('next'));
     this.#retry.addEventListener('click', actions.retryImage);
     this.#sourceButton.addEventListener('click', actions.changeImageMode);
     this.#send.addEventListener('click', actions.submit);
     this.#discardDraft.addEventListener('click', actions.discardDraft);
-    this.#comment.addEventListener('input', () => {
-      if (this.#comment.disabled) return;
-      const comment = limitCodePoints(this.#comment.value, MAX_COMMENT_LENGTH);
-      this.#countedComment = comment.value;
-      this.#commentLength = comment.length;
-      actions.editComment(comment.value);
-    });
     find('.use-saved', HTMLButtonElement).addEventListener('click', () =>
       actions.resolveConflict(true),
     );
@@ -325,50 +272,39 @@ export class ReviewView {
     this.#sourceButton.disabled = !canEdit;
     this.#sourceButton.textContent =
       state.imageMode === 'original' ? 'Return to preview' : 'Inspect source image';
-    if (item?.targetScientificName) {
-      if (!this.#targetGroup.isConnected) this.#primaryActions.prepend(this.#targetGroup);
-      this.#targetText.textContent = item.targetScientificName;
-    } else {
-      this.#targetGroup.remove();
-      this.#targetText.textContent = '';
-    }
-    for (const [label, input] of this.#labels) {
-      input.checked = draft.label === label;
-      input.disabled = !canEdit;
-      if (HISTORICAL_REVIEW_LABEL_CODES.has(label) && input.parentElement) {
-        // Show an existing granular answer only while revisiting that answer.
-        input.parentElement.hidden = !input.checked;
-        input.disabled ||= !input.checked;
-      }
-    }
-    this.#comment.disabled = !canEdit;
-    // Assigning an unchanged textarea value can disturb selection/IME composition.
-    if (this.#comment.value !== draft.comment) this.#comment.value = draft.comment;
-    // Typing already counted while truncating. Restored/server drafts are counted
-    // once when their value changes, never again for label/status/image updates.
-    if (this.#countedComment !== draft.comment) {
-      this.#countedComment = draft.comment;
-      this.#commentLength = countCodePoints(draft.comment);
-    }
-    const remaining = MAX_COMMENT_LENGTH - this.#commentLength;
-    this.#counter.textContent = remaining <= 100 ? `${String(remaining)} remaining` : '';
+    this.#heading.textContent = item?.targetScientificName
+      ? `Is this ${item.targetScientificName}?`
+      : 'No target species configured';
+    this.#yes.disabled = this.#no.disabled = !state.canAnswer;
+    this.#classifier.setAttribute('aria-busy', String(state.saving));
+    this.#send.hidden = !draft.pendingSubmission && !draft.conflicted;
     this.#send.textContent = draft.conflicted
       ? 'Compare saved answer'
       : draft.pendingSubmission
         ? 'Retry save'
-        : 'Send';
+        : 'Retry save';
     this.#send.setAttribute(
       'aria-label',
       draft.conflicted
         ? 'Compare saved answer'
         : draft.pendingSubmission
-          ? 'Retry original save'
-          : 'Save this classification and advance',
+          ? 'Retry save'
+          : 'Retry save',
     );
     this.#send.disabled = !state.canSubmit;
     this.#status.textContent =
       state.errorMessage ||
-      (state.saving ? 'Saving classification…' : 'Select one label, then send when ready.');
+      (state.saving
+        ? 'Saving answer…'
+        : !item?.targetScientificName
+          ? 'This batch needs a target species before it can be reviewed.'
+          : !source
+            ? 'Retry the image or use Next to skip it.'
+            : item.currentLabel === 'target_scientific_name'
+              ? 'Your saved answer: Yes. Choose again to update it.'
+              : item.currentLabel === 'target_not_present'
+                ? 'Your saved answer: No. Choose again to update it.'
+                : '');
     this.#status.classList.toggle('status-text--error', state.isError);
     this.#status.setAttribute('role', state.isError ? 'alert' : 'status');
     this.#status.setAttribute('aria-live', state.isError ? 'assertive' : 'polite');

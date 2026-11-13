@@ -35,7 +35,7 @@ repository.getCursor = (_batchId, anchor, direction) => {
   return Promise.resolve({
     id: `40000000-0000-0000-0000-${String(position).padStart(12, '0')}`,
     imageId: `synthetic-${String(position)}`,
-    targetScientificName: null,
+    targetScientificName: 'Papilio exemplaris',
     displayUrl: `${imageOrigin}/display-${String(position)}.png`,
     fallbackImageUrl: `${imageOrigin}/original-${String(position)}.png`,
     position,
@@ -47,6 +47,20 @@ repository.getCursor = (_batchId, anchor, direction) => {
     complete: false,
   });
 };
-repository.saveReview = () =>
-  Promise.reject(new Error('This synthetic navigation fixture does not persist reviews.'));
+const failed = new Set<string>();
+repository.saveReview = async (submission) => {
+  if (!failed.has(submission.itemId)) {
+    failed.add(submission.itemId);
+    throw new Error('Synthetic unknown save outcome');
+  }
+  const position = Number(submission.itemId.slice(-12));
+  const next = await repository.getCursor(
+    '30000000-0000-0000-0000-000000000001',
+    position,
+    'next',
+    new AbortController().signal,
+  );
+  if (!next) throw new Error('Synthetic next item missing');
+  return next;
+};
 void new VeriTaxaApp(root, repository).start();

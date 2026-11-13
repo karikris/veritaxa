@@ -29,7 +29,7 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
     {
       id: '40000000-0000-0000-0000-000000000002',
       imageId: 'synthetic-image-002',
-      targetScientificName: null,
+      targetScientificName: 'Papilio exemplaris',
       displayUrl: 'https://images.example.invalid/review-002.svg',
       fallbackImageUrl: 'https://images.example.invalid/review-002-original.svg',
       position: 2,
@@ -46,7 +46,7 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
       id: '40000000-0000-0000-0000-000000000003',
       imageId: 'synthetic-image-003',
       targetScientificName: 'Danaus exemplaris',
-      displayUrl: null,
+      displayUrl: 'https://images.example.invalid/review-003-preview.svg',
       fallbackImageUrl: 'https://images.example.invalid/review-003.svg',
       position: 1,
       currentLabel: null,
@@ -60,6 +60,8 @@ const itemsByBatch: Readonly<Record<string, readonly ReviewItem[]>> = {
 };
 
 export class SyntheticReviewRepository implements ReviewRepository {
+  readonly #failFirstSave: boolean;
+  constructor(options: { failFirstSave?: boolean } = {}) { this.#failFirstSave = options.failFirstSave ?? false; }
   #signedIn = true;
   #authHandler: AuthEventHandler | null = null;
   readonly #reviews = new Map<string, ReviewSubmission & { version: number }>();
@@ -117,7 +119,7 @@ export class SyntheticReviewRepository implements ReviewRepository {
 
   saveReview(submission: ReviewSubmission) {
     if (
-      submission.comment === 'force-save-failure' &&
+      (this.#failFirstSave || submission.comment === 'force-save-failure') &&
       !this.#failedOnce.has(submission.submissionId)
     ) {
       this.#failedOnce.add(submission.submissionId);

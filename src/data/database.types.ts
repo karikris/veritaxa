@@ -147,6 +147,7 @@ export type Database = {
       review_label:
         | 'flickr_keyword_match'
         | 'target_scientific_name'
+        | 'target_not_present'
         | 'adult_butterfly'
         | 'caterpillar'
         | 'moth'

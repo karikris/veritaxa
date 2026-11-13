@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(57);
+select plan(62);
 
 select is(
   (
@@ -1058,6 +1058,56 @@ select
     null,
     'reviewer profile names cannot be blank'
   );
+
+-- Binary target answers use the same authenticated, versioned save path.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated"}',
+  true
+);
+
+select lives_ok(
+  $$ select * from public.save_image_review_v2(
+    '40000000-0000-0000-0000-000000000001', 'target_not_present', null,
+    '50000000-0000-0000-0000-000000000020', 'test-client-binary', 1
+  ) $$,
+  'No saves as a distinct target-negative label'
+);
+
+reset role;
+select results_eq(
+  $$ select label::text, "scientificName", version from public.image_reviews
+     where item_id = '40000000-0000-0000-0000-000000000001'
+       and reviewer_id = '10000000-0000-0000-0000-000000000001' $$,
+  $$ values ('target_not_present'::text, null::text, 2) $$,
+  'No preserves the negative answer without claiming a scientific identification'
+);
+
+set local role authenticated;
+select lives_ok(
+  $$ select * from public.save_image_review_v2(
+    '40000000-0000-0000-0000-000000000001', 'target_not_present', null,
+    '50000000-0000-0000-0000-000000000020', 'test-client-binary', 1
+  ) $$,
+  'a retried No answer remains idempotent'
+);
+select lives_ok(
+  $$ select * from public.save_image_review_v2(
+    '40000000-0000-0000-0000-000000000001', 'target_scientific_name', null,
+    '50000000-0000-0000-0000-000000000021', 'test-client-binary', 2
+  ) $$,
+  'a saved No can be corrected to Yes'
+);
+
+reset role;
+select results_eq(
+  $$ select label::text, "scientificName", version from public.image_reviews
+     where item_id = '40000000-0000-0000-0000-000000000001'
+       and reviewer_id = '10000000-0000-0000-0000-000000000001' $$,
+  $$ values ('target_scientific_name'::text, 'Taxon example'::text, 3) $$,
+  'a corrected Yes uses the database campaign name and increments the version'
+);
 
 select * from finish();
 rollback;

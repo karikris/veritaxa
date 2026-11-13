@@ -40,7 +40,9 @@ async function start(): Promise<void> {
     new URLSearchParams(window.location.search).get('repository') === 'synthetic'
   ) {
     const { SyntheticReviewRepository } = await import('./data/mockReviewRepository');
-    repository = new SyntheticReviewRepository();
+    repository = new SyntheticReviewRepository({
+      failFirstSave: new URLSearchParams(window.location.search).get('saveFailure') === 'once',
+    });
   }
 
   const app = new VeriTaxaApp(root, repository, {

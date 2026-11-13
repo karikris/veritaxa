@@ -123,8 +123,6 @@ test('panning preserves edits and image ownership, and resets on navigation and 
   await zoomTo(page, 2);
   await drag(page, 40, 30);
   expect(await geometry(page)).toMatchObject({ x: 40, y: 30, zoom: 2 });
-  await page.getByText('Plant', { exact: true }).click();
-  await page.getByLabel('Comment').fill('Synthetic pan review');
   expect(await geometry(page)).toMatchObject({ x: 40, y: 30, zoom: 2 });
   expect(
     await originalNode.evaluate((node) => node === document.querySelector('.review-image')),
@@ -137,13 +135,12 @@ test('panning preserves edits and image ownership, and resets on navigation and 
   expect(await geometry(page)).toMatchObject({ x: 0, y: 0, zoom: 1 });
   await zoomTo(page, 2);
   await drag(page, 40, 30);
-  await page.getByRole('button', { name: 'Save this classification' }).click();
+  await page.getByRole('button', { name: 'No', exact: true }).click();
   await expect(image).toHaveAttribute('src', /review-002\.svg/);
   expect(await geometry(page)).toMatchObject({ x: 0, y: 0, zoom: 1 });
   await page.getByRole('button', { name: 'Previous image' }).click();
   await expect(image).toHaveAttribute('src', /review-001\.svg/);
-  await expect(page.locator('input[value="plant"]')).toBeChecked();
-  await expect(page.getByLabel('Comment')).toHaveValue('Synthetic pan review');
+  await expect(page.getByText('Your saved answer: No. Choose again to update it.')).toBeVisible();
 
   await zoomTo(page, 2);
   await drag(page, 40, 30);
@@ -227,6 +224,11 @@ test('one-finger touch pans when zoomed and scrolls the page at 100%', async ({
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
 
   await page.getByRole('button', { name: /Reset image zoom/ }).click();
+  await page.evaluate(() => {
+    const space = document.createElement('div');
+    space.style.height = '500px';
+    document.body.append(space);
+  });
   await stage.scrollIntoViewIfNeeded();
   await expect(image).toHaveCSS('touch-action', 'manipulation');
   const next = (await geometry(page)).frame;

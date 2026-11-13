@@ -147,3 +147,17 @@ def _vote(
         "reviewed_at": reviewed_at,
         "client_version": "veritaxa-web/0.2.0",
     }
+
+
+def test_target_negative_is_not_a_broad_butterfly_or_non_biological_label() -> None:
+    frame = export_frame().with_columns(
+        pl.lit("target_not_present").alias("human_label"),
+        pl.lit(None, dtype=pl.String).alias("scientificName"),
+    )
+    mapped = add_derived_mappings(frame)
+    assert mapped["human_label"].to_list() == ["target_not_present"]
+    assert mapped["target_not_present"].to_list() == [True]
+    assert mapped["matches_target_scientific_name"].to_list() == [False]
+    assert mapped["is_butterfly_positive"].to_list() == [False]
+    assert mapped["is_butterfly_hard_negative"].to_list() == [False]
+    assert mapped["excluded_from_automatic_training"].to_list() == [True]

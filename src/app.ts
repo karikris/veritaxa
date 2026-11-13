@@ -2,7 +2,6 @@ import { ReviewView } from './view/reviewView';
 import { MAX_PREVIEW_EDGE } from './image/imagePolicy';
 import { DraftStore } from './domain/draftStore';
 import { createReviewDraft, submissionForDraft } from './domain/reviewDraft';
-import { LABEL_BY_SHORTCUT, type ReviewLabelCode } from './domain/reviewLabels';
 import {
   normalizeComment,
   type ReviewBatch,
@@ -110,6 +109,17 @@ export class VeriTaxaApp {
 
   get #canEditReview(): boolean {
     return !this.#disposed && !!this.#currentItem && !this.#busy;
+  }
+
+  get #canAnswer(): boolean {
+    return (
+      this.#canEditReview &&
+      !!this.#currentItem?.targetScientificName &&
+      !!(this.#imageAttempt && currentImageSource(this.#imageAttempt)) &&
+      !this.#draft.pendingSubmission &&
+      !this.#draft.conflicted &&
+      !this.#comparisonItem
+    );
   }
 
   get #canNavigate(): boolean {
@@ -530,6 +540,7 @@ export class VeriTaxaApp {
       ? createReviewDraft(latest)
       : {
           ...this.#draft,
+          comment: latest.currentComment ?? '',
           baseVersion: latest.currentVersion,
           pendingSubmission: null,
           conflicted: false,
@@ -540,11 +551,10 @@ export class VeriTaxaApp {
     this.#lastSaveSucceeded = false;
     this.#updateBatchProgress(latest);
     this.#state = 'reviewing';
-    this.#errorMessage = useSaved
-      ? ''
-      : 'Your changes are ready to send against the compared version.';
+    this.#errorMessage = useSaved ? '' : 'Saving the answer against the compared version…';
     this.#render();
     this.#focusClassification();
+    if (!useSaved) void this.#submit();
   }
 
   #updateBatchProgressValues(
@@ -568,34 +578,32 @@ export class VeriTaxaApp {
   }
 
   readonly #handleKeydown = (event: KeyboardEvent): void => {
-    if (this.#disposed) return;
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      if (!this.#blocksSubmitShortcut(event.target)) {
-        event.preventDefault();
-        void this.#submit();
-      }
+    if (
+      this.#disposed ||
+      event.repeat ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      this.#isEditable(event.target)
+    )
       return;
-    }
-
-    if (event.ctrlKey || event.metaKey || event.altKey || this.#isEditable(event.target)) return;
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       if (!this.#canNavigate) return;
       event.preventDefault();
       void this.#navigate(event.key === 'ArrowLeft' ? 'previous' : 'next');
       return;
     }
-
-    const label = LABEL_BY_SHORTCUT.get(event.key.toLowerCase());
-    if (label && this.#selectLabel(label)) event.preventDefault();
+    const key = event.key.toLowerCase();
+    if ((key === 'y' || key === 'n') && this.#canAnswer) {
+      event.preventDefault();
+      this.#answer(key === 'y' ? 'target_scientific_name' : 'target_not_present');
+    }
   };
 
-  #selectLabel(label: ReviewLabelCode): boolean {
-    if (!this.#canEditReview) return false;
-    if (label === 'target_scientific_name' && !this.#currentItem?.targetScientificName)
-      return false;
+  #answer(label: 'target_scientific_name' | 'target_not_present'): void {
+    if (!this.#canAnswer) return;
     this.#draft.label = label;
-    this.#render();
-    return true;
+    void this.#submit();
   }
 
   #isEditable(target: EventTarget | null): boolean {
@@ -603,14 +611,6 @@ export class VeriTaxaApp {
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement ||
       target instanceof HTMLInputElement ||
-      (target instanceof HTMLElement && target.isContentEditable)
-    );
-  }
-
-  #blocksSubmitShortcut(target: EventTarget | null): boolean {
-    return (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLSelectElement ||
       (target instanceof HTMLElement && target.isContentEditable)
     );
   }
@@ -663,6 +663,7 @@ export class VeriTaxaApp {
         originalAvailable: !!this.#imagePolicy?.original,
         previewTooLarge: this.#previewTooLarge,
         canEdit: this.#canEditReview,
+        canAnswer: this.#canAnswer,
         canNavigate: this.#canNavigate,
         canDiscardDraft: this.#canDiscardDraft,
         canRetryImage: this.#canRetryImage,
@@ -689,13 +690,8 @@ export class VeriTaxaApp {
     const epoch = this.#sessionEpoch;
     const owns = (): boolean => this.#ownsSession(epoch) && this.#reviewView === view;
     const view: ReviewView = new ReviewView({
-      selectLabel: (label) => {
-        if (owns()) this.#selectLabel(label);
-      },
-      editComment: (comment) => {
-        if (!owns() || !this.#canEditReview) return;
-        this.#draft.comment = comment;
-        this.#render();
+      answer: (label) => {
+        if (owns()) this.#answer(label);
       },
       submit: () => {
         if (owns()) void this.#submit();

@@ -30,6 +30,7 @@ supabase/.temp/
 *.parquet
 *.csv
 *.csv.gz
+*.xlsx
 *.ndjson
 *.jsonl
 

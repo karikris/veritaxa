@@ -162,3 +162,10 @@ through the local Docker socket.
 Native version floors, source versions/hashes, the base image digest and Python
 lockfile must be reviewed together in later dependency updates. An npm advisory
 audit cannot detect OpenSSL embedded in a Python interpreter or native wheel.
+
+## November 2026 glob-pattern tooling patch
+
+The minimatch override pins 11.0.1 for ESLint and TypeScript ESLint tooling to
+address [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+The override preserves the current direct dependency pins. Lint, TypeScript,
+application tests, and the all-dependency npm audit verify compatibility.

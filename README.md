@@ -1,13 +1,12 @@
 # VeriTaxa
 
-VeriTaxa is a minimal, authenticated, one-page tool for recording broad human
-labels against image candidates collected by BioMiner and related pipelines.
-It shows one image at a time, saves one classification and an optional comment,
-then advances atomically after Postgres confirms the write. Reviewers can move
-through images in a batch and return to saved answers to correct them. Dataset
-refreshes exclude images already reviewed by anyone, including copies in other
-batches or campaigns. Image identity is the pair of source provider and image ID;
-existing reviews are retained.
+VeriTaxa is a minimal, authenticated, one-page tool for reviewing image
+candidates collected by BioMiner and related pipelines. It asks whether each
+image shows the campaign’s target scientific name. Choosing **Yes** or **No**
+saves the answer immediately and advances after Postgres confirms the write.
+Reviewers can move through every image in a batch and revise their own answer.
+The keyboard shortcuts are **Y** and **N**; holding a key does not submit more
+images. There is no separate Send step or comment field.
 
 VeriTaxa is separate from ButterflyLens. ButterflyLens remains the
 Australia-focused evidence and species-verification application; VeriTaxa is a
@@ -52,18 +51,16 @@ browsers without rewriting a dataset.
 
 ## Canonical labels
 
-The stored schema version is `veritaxa-review-label-v3`. The granular code is
-canonical; display labels and derived training groups are not stored as
-redundant review columns.
-
-The reviewer interface uses **Other insect** for spiders and other arthropods as
-well. The separate `arachnid` and `other_arthropod` choices and shortcuts are
-retired for new reviews. Existing answers retain their stored codes and remain
-visible when revisited, including when only their comment is corrected.
+The current export schema version is `veritaxa-review-label-v4`. **Yes** stores
+`target_scientific_name`; **No** stores `target_not_present`. No only means the
+campaign target is absent; it makes no claim about other species or biological
+content. It is excluded from automatic broad-label training. Historical labels
+remain readable and are never converted into binary answers automatically.
 
 | Stored code                | Display label                    |
 | -------------------------- | -------------------------------- |
 | `target_scientific_name`   | Current campaign scientific name |
+| `target_not_present`       | Target not present               |
 | `adult_butterfly`          | Adult butterfly                  |
 | `caterpillar`              | Caterpillar                      |
 | `moth`                     | Moth                             |
@@ -80,16 +77,15 @@ visible when revisited, including when only their comment is corrected.
 | `uncertain`                | Uncertain                        |
 | `image_unavailable`        | Image unavailable                |
 
-Select the dynamic scientific-name option only when the visible subject is the
-campaign's target taxon. Otherwise, for images with several subjects, choose
-the most pipeline-relevant visible subject: adult butterfly, caterpillar, moth,
-other insect (including spiders and other arthropods), mammal or person, bird, other animal,
-plant, fungus, artifact, no clear biological subject, uncertain, then
-unavailable. A real pinned butterfly is an adult butterfly; a butterfly
-drawing, logo, toy, tattoo, or screenshot is an artifact.
+The table includes retained historical categories. The current review form
+shows only Yes and No. Image failures disable both answers; retry the image or
+use Next to skip it. Existing comments are retained when correcting an answer.
 
 The versioned definitions and pipeline mappings are in
-`src/domain/reviewLabels.ts` and `schemas/review-labels-v3.json`.
+`src/domain/reviewLabels.ts` and `schemas/review-labels-v4.json`. Apply
+`20261113075744_add_target_not_present_review_label.sql` before deploying this
+frontend so the database accepts No answers. Earlier migrations and reviews
+remain intact.
 
 ## Database model and access
 
@@ -583,6 +579,28 @@ python -m tools.restore_metadata \
 Restoration verifies every referenced shard and updates original item IDs in one
 transaction. Restoring bulky metadata also restores its database space usage.
 
+## Local reconciliation and workbook tools
+
+`python -m tools.join_flickr_reviews --source PATH --reviews PATH --reviews-sha256 HASH
+--output PATH` joins a local gzipped review snapshot to source records. The hash
+covers the uncompressed CSV. It validates image identities and optionally
+refreshes cached public Flickr metadata with `--refresh`.
+
+`python -m tools.queue_flickr_enrichment --discovery-dir PATH --original-source PATH
+--reviews PATH --reviews-sha256 HASH --output PATH --secrets-env PATH` resumes
+metadata and comment retrieval after discovery. Both collections reuse the cache
+and request budget. The joined tables are named `joined_images.csv` and
+`joined_images.parquet`.
+
+`python -m tools.csv_to_workbook INPUT --output OUTPUT` creates an Excel workbook
+with all, reviewed, and unreviewed images. `--by-classification` creates a separate
+worksheet per saved classification. Long text is retained in continuation columns;
+identifiers and formula-like text remain literal.
+
+The reusable location-clue pipeline, exploration tools, and review workbook are
+documented in [tools/text_extraction/README.md](tools/text_extraction/README.md).
+All generated data, URLs, and reviewer metadata remain outside Git.
+
 ## Dependencies
 
 The browser runtime packages are the pinned Supabase JavaScript client for
@@ -598,7 +616,7 @@ the Python tools. Exact JavaScript and Python resolutions are committed in
 
 ## Known limitations
 
-- Version 3 records one current label per reviewer and item. Consensus is an
+- Version 4 records one current label per reviewer and item. Consensus is an
   export view rather than a stored adjudication.
 - `identifiedBy` records the broad-image classifier's nickname; it does not
   turn the response into a taxonomic identification or species confirmation.

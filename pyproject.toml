@@ -8,6 +8,7 @@ dependencies = [
   "pyarrow==25.0.1",
   "psycopg[c]==3.3.6",
   "boto3==1.43.117",
+  "xlsxwriter==3.2.9",
 ]
 
 [dependency-groups]

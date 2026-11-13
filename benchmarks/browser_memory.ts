@@ -156,21 +156,17 @@ try {
   for (let navigation = 0; navigation <= steps; navigation += 1) {
     progress.currentNavigation = navigation;
     if (navigation > 0) {
-      discardedDrafts += await page.evaluate((retainDrafts) => {
+      discardedDrafts += await page.evaluate(async (retainDrafts) => {
         const next = document.querySelector<HTMLButtonElement>('[aria-label="Next image"]');
         if (!next) throw new Error('Navigation is missing');
         if (retainDrafts) {
-          document.querySelector<HTMLInputElement>('input[value="plant"]')?.click();
-          const comment = document.querySelector<HTMLTextAreaElement>('#review-comment');
-          if (!comment) throw new Error('Comment is missing');
-          comment.value = 'Synthetic 🦋 '.repeat(70);
-          comment.dispatchEvent(new Event('input', { bubbles: true }));
+          document.querySelector<HTMLButtonElement>('[aria-label="No"]')?.click();
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
         }
         next.click();
         const limit = document.querySelector<HTMLElement>('.draft-limit');
         if (limit && !limit.hidden) {
-          document.querySelector<HTMLButtonElement>('.discard-draft')?.click();
-          next.click();
+          document.querySelector<HTMLButtonElement>('.retry-save')?.click();
           return 1;
         }
         return 0;
