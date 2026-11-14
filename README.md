@@ -557,6 +557,14 @@ progress. Add `--reopen-source-batches` to reopen closed batches in the selected
 source campaigns. New answers do not automatically regroup
 an existing snapshot; publish a fresh round code when another refresh is needed.
 
+To append another reviewed cohort to the same round without resetting existing
+items or saved answers, use `--append-existing`. To include an explicitly selected
+cohort where BioCLIP predicted a different species, also pass
+`--include-other-model-campaign DEMO-MODEL-B` along with
+`--source-campaign DEMO-MODEL-B`. The review date, model attestation, and matching
+media requirements still apply. Existing image memberships are skipped, so retrying
+an append does not duplicate them. The command reports counts of newly added images.
+
 The header's **Choose a dataset** selector shows remaining work and round labels.
 Team counts mean images with at least one saved human review in that dataset;
 multiple reviewers count once. Personal progress and each image's saved status
@@ -574,6 +582,9 @@ transaction, then roll back: `tools/tests/latest_review_groups.sql`,
 `tools/tests/dataset_progress_permissions.sql`. Use a disposable migrated database.
 They exercise date/cohort/model/media exclusions, conflicting reviews, timestamp ties, original review preservation,
 round-specific progress, authenticated permissions, save retries, and stale versions.
+Append checks use `tools/tests/latest_review_groups_append_assertions.sql`, rerun
+the publisher after dropping its temporary tables, then run
+`tools/tests/latest_review_groups_append_checks.sql` before rolling back.
 
 ### Archive bulky pipeline metadata
 

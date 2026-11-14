@@ -33,6 +33,8 @@ def main() -> None:
     parser.add_argument("--reviewed-on", type=date.fromisoformat, required=True)
     parser.add_argument("--timezone", default="UTC")
     parser.add_argument("--reopen-source-batches", action="store_true")
+    parser.add_argument("--include-other-model-campaign", action="append", default=[])
+    parser.add_argument("--append-existing", action="store_true")
     parser.add_argument(
         "--publish", action="store_true", help="Commit; otherwise validate and roll back"
     )
@@ -48,11 +50,14 @@ def main() -> None:
             "reviewed_after": after.isoformat(),
             "reviewed_before": before.isoformat(),
             "reopen_source_batches": str(args.reopen_source_batches).lower(),
+            "other_model_campaigns": json.dumps(args.include_other_model_campaign),
+            "append_existing": str(args.append_existing).lower(),
         }.items():
             connection.execute("select set_config(%s, %s, true)", (f"veritaxa.{name}", value))
         connection.execute(publication_sql())
         counts = connection.execute(
-            "select category,count(*) from latest_group_members group by category order by category"
+            "select category,count(*) from latest_group_additions "
+            "group by category order by category"
         ).fetchall()
         if not args.publish:
             connection.rollback()
