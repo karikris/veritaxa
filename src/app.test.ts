@@ -172,6 +172,45 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it('keeps no-geotag series separate and starts with geotagged work', async () => {
+    const repo = repository();
+    repo.listBatches.mockResolvedValue([
+      {
+        ...batch,
+        id: '30000000-0000-0000-0000-000000000002',
+        code: 'ZZ-NOGEO-SYNTH-R1-001',
+        name: 'No geotag — Synthetic first',
+        reviewRound: 1,
+      },
+      {
+        ...batch,
+        id: '30000000-0000-0000-0000-000000000003',
+        code: 'ZZ-NOGEO-SYNTH-R2-001',
+        name: 'No geotag (round 2)',
+        reviewRound: 2,
+      },
+      batch,
+    ]);
+    const app = createApp(repo);
+    await app.start();
+    expect(repo.getCursor).toHaveBeenCalledWith(batch.id, null, 'resume', expect.any(AbortSignal));
+    const groups = [...document.querySelectorAll('optgroup')];
+    expect(groups.map((g) => g.label)).toEqual([
+      'Geotagged datasets',
+      'No geotag · first round',
+      'No geotag · round 2',
+    ]);
+    expect(groups.map((g) => g.children.length)).toEqual([1, 1, 1]);
+    const select = document.querySelector<HTMLSelectElement>('#batch-select');
+    if (!select) throw new Error('Missing dataset selector');
+    select.value = '30000000-0000-0000-0000-000000000003';
+    select.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      expect(document.querySelector('.dataset-progress')?.textContent).toContain('No geotag ·'),
+    );
+    app.dispose();
+  });
+
   it('does not request batches or images before authentication', async () => {
     const repo = repository({ signedIn: false });
     const app = createApp(repo);

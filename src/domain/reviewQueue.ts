@@ -15,6 +15,10 @@ export type ReviewBatch = {
   reviewRound?: number;
 };
 
+export function isNoGeotagBatch(batch: ReviewBatch): boolean {
+  return /(?:^|-)NOGEO-/i.test(batch.code);
+}
+
 export type ReviewItem = {
   id: string;
   imageId: string;

@@ -667,6 +667,38 @@ The reusable location-clue pipeline, exploration tools, and review workbook are
 documented in [tools/text_extraction/README.md](tools/text_extraction/README.md).
 All generated data, URLs, and reviewer metadata remain outside Git.
 
+### Separate images without geotags
+
+The dataset selector separates geotagged work from first-round and second-round
+**No geotag** series. A usable recorded or provisional coordinate counts as a
+geotag; unresolved clues alone do not. The administrative partition keeps item
+IDs, biological classifications, source evidence and saved reviews intact.
+First-round source campaigns stay separate, while second-round missing-location
+images for the same taxon and provider share a No geotag category.
+
+```sh
+uv run python -m tools.partition_no_geotag \
+  --run-code EXAMPLE-GEO-001 \
+  --source-campaign EXAMPLE-FIRST-ROUND \
+  --source-campaign EXAMPLE-SECOND-ROUND
+# Add --publish after inspecting the rolled-back preview.
+```
+
+This requires the normal native administrative database configuration. It creates
+balanced batches capped at 1,000 images and contiguous cursor positions. A run
+code cannot be reused. Status is stored privately in `source_labels.has_geotag`,
+`source_labels.geolocation_status` and `_veritaxa_geolocation`, including original
+batch membership and the reason for missing coordinates. These markers describe
+the partition snapshot; rerun the assessment after enriching coordinates, and
+regroup changed images before reopening their datasets. Reviewer RPCs expose only
+dataset labels and counts, never the underlying location metadata.
+
+To check the SQL against a disposable database with migrations applied, run
+`tools/tests/no_geotag_fixture.sql`, `tools/partition_no_geotag.sql` and
+`tools/tests/no_geotag_assertions.sql` inside a single `BEGIN` / `ROLLBACK`
+transaction. The fixture covers malformed and zero coordinates, legacy numeric
+strings, cohort separation, round-two consolidation and saved-review access.
+
 ## Dependencies
 
 The browser runtime packages are the pinned Supabase JavaScript client for

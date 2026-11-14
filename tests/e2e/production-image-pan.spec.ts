@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Exercise the built application and its production CSP. Every auth, RPC and
 // image response is synthetic, including when checking the deployed Pages URL.
-async function openSyntheticReview(page: Page): Promise<void> {
+async function openSyntheticReview(page: Page, includeNoGeotag = false): Promise<void> {
   const user = {
     id: '00000000-0000-4000-8000-000000000001',
     aud: 'authenticated',
@@ -47,6 +47,24 @@ async function openSyntheticReview(page: Page): Promise<void> {
           review_round: 1,
         },
       ];
+      if (includeNoGeotag) {
+        const batches = data as Record<string, unknown>[];
+        batches.unshift(
+          {
+            ...batches[0],
+            batch_id: '00000000-0000-4000-8000-000000000004',
+            batch_code: 'ZZ-NOGEO-SYNTH-R1-001',
+            reviewer_name: 'No geotag — Synthetic',
+          },
+          {
+            ...batches[0],
+            batch_id: '00000000-0000-4000-8000-000000000005',
+            batch_code: 'ZZ-NOGEO-SYNTH-R2-001',
+            reviewer_name: 'No geotag (round 2)',
+            review_round: 2,
+          },
+        );
+      }
     } else if (path === '/rest/v1/rpc/get_review_cursor_v3') {
       data = [
         {
@@ -92,6 +110,32 @@ async function openSyntheticReview(page: Page): Promise<void> {
     )
     .toBe(1200);
 }
+
+test('production dataset selector separates no-geotag rounds and keeps geotagged work first', async ({
+  page,
+}) => {
+  await openSyntheticReview(page, true);
+  const select = page.getByLabel('Choose a dataset ↓');
+  await expect(select).toHaveValue('00000000-0000-4000-8000-000000000002');
+  const groups = page.locator('#batch-select optgroup');
+  await expect(groups).toHaveCount(3);
+  expect(
+    await groups.evaluateAll((nodes) => nodes.map((node) => (node as HTMLOptGroupElement).label)),
+  ).toEqual(['Geotagged datasets', 'No geotag · first round', 'No geotag · round 2']);
+  await select.selectOption('00000000-0000-4000-8000-000000000005');
+  await expect(page.locator('.dataset-progress')).toHaveText(
+    'No geotag · 0 / 1 reviewed by team in this dataset',
+  );
+  await expect(page.locator('.answer-button')).toHaveCount(5);
+  await select.selectOption('00000000-0000-4000-8000-000000000004');
+  await expect(page.locator('.dataset-progress')).toHaveText(
+    'No geotag · 0 / 1 reviewed by team in this dataset',
+  );
+  await select.selectOption('00000000-0000-4000-8000-000000000002');
+  await expect(page.locator('.dataset-progress')).toHaveText(
+    '0 / 1 reviewed by team in this dataset',
+  );
+});
 
 async function picture(page: Page) {
   return page.locator('.review-image').evaluate((image: HTMLImageElement) => {

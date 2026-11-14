@@ -5,6 +5,7 @@ import { DraftStore } from './domain/draftStore';
 import { createReviewDraft, submissionForDraft } from './domain/reviewDraft';
 import {
   normalizeComment,
+  isNoGeotagBatch,
   type ReviewBatch,
   type ReviewItem,
   type ReviewSubmission,
@@ -233,7 +234,9 @@ export class VeriTaxaApp {
     this.#render();
 
     try {
-      const batches = await this.#repository.listBatches(signal);
+      const batches = (await this.#repository.listBatches(signal)).sort(
+        (a, b) => Number(isNoGeotagBatch(a)) - Number(isNoGeotagBatch(b)),
+      );
       if (!this.#isCurrentRequest(id)) return;
       this.#batches = batches;
       if (batches.length === 0) {
@@ -783,6 +786,14 @@ export class VeriTaxaApp {
     selectLabel.textContent = 'Choose a dataset ↓';
     const select = element('select', 'batch-select');
     select.id = 'batch-select';
+    const locatedGroup = element('optgroup');
+    locatedGroup.label = 'Geotagged datasets';
+    const missingFirstGroup = element('optgroup');
+    missingFirstGroup.label = 'No geotag · first round';
+    const missingSecondGroup = element('optgroup');
+    missingSecondGroup.label = 'No geotag · round 2';
+    select.append(locatedGroup, missingFirstGroup, missingSecondGroup);
+    const optionsById = new Map<string, HTMLOptionElement>();
     select.setAttribute('aria-describedby', 'dataset-progress');
     select.addEventListener('change', () => {
       if (this.#canChangeBatch) void this.#selectBatch(select.value);
@@ -813,13 +824,29 @@ export class VeriTaxaApp {
       select.hidden = selectLabel.hidden = this.#batches.length === 0;
       chooser.hidden = this.#batches.length === 0;
       select.disabled = !this.#canChangeBatch;
-      while (select.options.length > this.#batches.length) select.remove(select.options.length - 1);
-      this.#batches.forEach((batch, index) => {
-        let option = select.options[index];
+      const activeIds = new Set(this.#batches.map((batch) => batch.id));
+      for (const [id, option] of optionsById) {
+        if (!activeIds.has(id)) {
+          option.remove();
+          optionsById.delete(id);
+        }
+      }
+      const groupPositions = new Map<HTMLOptGroupElement, number>();
+      this.#batches.forEach((batch) => {
+        let option = optionsById.get(batch.id);
         if (!option) {
           option = element('option');
-          select.add(option);
+          optionsById.set(batch.id, option);
         }
+        const group = isNoGeotagBatch(batch)
+          ? batch.reviewRound === 2
+            ? missingSecondGroup
+            : missingFirstGroup
+          : locatedGroup;
+        const index = groupPositions.get(group) ?? 0;
+        if (group.children[index] !== option)
+          group.insertBefore(option, group.children[index] ?? null);
+        groupPositions.set(group, index + 1);
         if (option.value !== batch.id) option.value = batch.id;
         const teamCount = batch.teamReviewedCount ?? batch.reviewedCount;
         const remaining = Math.max(0, batch.totalCount - teamCount);
@@ -831,11 +858,13 @@ export class VeriTaxaApp {
         const text = `${round}${batch.name} · ${String(batch.totalCount)} images · ${status}`;
         if (option.textContent !== text) option.textContent = text;
       });
+      for (const group of [locatedGroup, missingFirstGroup, missingSecondGroup])
+        group.hidden = group.children.length === 0;
       select.value = this.#batchId ?? '';
       const active = this.#batches.find((batch) => batch.id === this.#batchId);
       const teamCount = active?.teamReviewedCount ?? active?.reviewedCount ?? 0;
       datasetProgress.textContent = active
-        ? `${String(teamCount)} / ${String(active.totalCount)} reviewed by team in this dataset`
+        ? `${isNoGeotagBatch(active) ? 'No geotag · ' : ''}${String(teamCount)} / ${String(active.totalCount)} reviewed by team in this dataset`
         : '';
       progress.title = 'Your saved reviews in this dataset';
       progress.setAttribute(
