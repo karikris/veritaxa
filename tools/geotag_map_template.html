@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VeriTaxa · Geotag explorer</title>
+    <style>
+      __LEAFLET_CSS__
+    </style>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111713;
+        --panel: #1b241f;
+        --text: #ecf1ea;
+        --muted: #b4c0b5;
+        --line: #35483b;
+        --accent: #c3dda2;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 system-ui,
+          sans-serif;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+        background: #18211b;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 8px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      a {
+        color: #bfd9fa;
+      }
+      h1 {
+        font-size: 21px;
+        margin: 0;
+      }
+      h2 {
+        font-size: 17px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 5px 0;
+      }
+      header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .small {
+        font-size: 12px;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .filters {
+        display: grid;
+        grid-template-columns: 2fr repeat(4, 1fr);
+        gap: 10px;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .options {
+        padding: 0 20px 12px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .options label {
+        flex-direction: row;
+        align-items: center;
+      }
+      .options input[type='range'] {
+        width: 150px;
+        padding: 0;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(300px, 1fr) 370px;
+        min-height: 560px;
+        height: calc(100dvh - 230px);
+      }
+      #map {
+        height: 100%;
+        min-height: 400px;
+        background: #182b35;
+      }
+      .side {
+        overflow: auto;
+        padding: 16px;
+        border-left: 1px solid var(--line);
+        background: var(--panel);
+      }
+      #stats {
+        font-variant-numeric: tabular-nums;
+      }
+      .legend {
+        position: absolute;
+        bottom: 26px;
+        left: 12px;
+        z-index: 500;
+        padding: 8px 10px;
+        background: #17231ee8;
+        border-radius: 7px;
+        max-width: 280px;
+      }
+      .map-wrap {
+        position: relative;
+        min-width: 0;
+      }
+      .swatch {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 5px;
+      }
+      .detail-image {
+        width: 100%;
+        max-height: 230px;
+        object-fit: contain;
+        background: #0d130f;
+        margin: 8px 0;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 105px 1fr;
+        gap: 5px;
+        margin: 10px 0;
+      }
+      .kv dt {
+        color: var(--muted);
+      }
+      .kv dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .evidence {
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .detail-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      textarea {
+        width: 100%;
+        min-height: 64px;
+      }
+      .results {
+        padding: 16px 20px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+      }
+      td,
+      th {
+        padding: 9px 7px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      td button {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        color: #bfd9fa;
+        text-align: left;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      .numeric {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .tag {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #2b3e30;
+        color: #d8e9cf;
+        font-size: 12px;
+      }
+      .warning {
+        color: #ecc694;
+      }
+      #loading {
+        padding: 8px 20px;
+        color: var(--muted);
+      }
+      .leaflet-container {
+        font-family: inherit;
+      }
+      .leaflet-control-attribution {
+        color: #243a2a;
+        background: #edf4e9dd !important;
+      }
+      .leaflet-control-attribution a {
+        color: #24548c;
+      }
+      .leaflet-tooltip {
+        color: #142019;
+        background: #f2f6ef;
+        border: 0;
+      }
+      .leaflet-popup-content-wrapper {
+        color: #142019;
+        background: #f2f6ef;
+      }
+      #point-members {
+        width: 100%;
+        margin: 8px 0;
+      }
+      .empty {
+        padding: 24px;
+        color: var(--muted);
+      }
+      @media (max-width: 950px) {
+        .filters {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .filters label:first-child {
+          grid-column: 1/-1;
+        }
+        .layout {
+          grid-template-columns: minmax(280px, 1fr) 310px;
+          height: 600px;
+        }
+        .options {
+          gap: 12px;
+        }
+      }
+      @media (max-width: 650px) {
+        header {
+          padding: 12px;
+        }
+        .filters {
+          padding: 10px 12px;
+        }
+        .options {
+          padding: 0 12px 10px;
+        }
+        .layout {
+          display: block;
+          height: auto;
+        }
+        .map-wrap,
+        #map {
+          height: 440px;
+        }
+        .side {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          max-height: 650px;
+        }
+        .results {
+          padding: 12px;
+        }
+        .legend {
+          max-width: 220px;
+          font-size: 11px;
+        }
+        button {
+          min-height: 36px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>VeriTaxa · Geotag explorer</h1>
+        <p class="muted">
+          Recorded locations and provisional mapping points · inspect, filter and flag outliers
+        </p>
+      </div>
+      <div class="actions">
+        <button id="fit">Fit filtered points</button><button id="export">Export filtered CSV</button
+        ><button id="export-flags">Export flags</button>
+      </div>
+    </header>
+    <section class="filters" aria-label="Map filters">
+      <label
+        >Search place, title, species or photo ID<input
+          id="search"
+          type="search"
+          placeholder="Search…"
+      /></label>
+      <label
+        >Dataset<select id="dataset">
+          <option value="">All datasets</option>
+        </select></label
+      >
+      <label
+        >Location source<select id="method">
+          <option value="">All location sources</option>
+        </select></label
+      >
+      <label
+        >Human answer<select id="human">
+          <option value="">All human answers</option>
+        </select></label
+      >
+      <label
+        >Investigate<select id="mode">
+          <option value="all">All records</option>
+          <option value="isolated">Spatial isolation</option>
+          <option value="ambiguous">Widely separated alternatives</option>
+          <option value="coarse">Country / region reference points</option>
+          <option value="flagged">Flagged by me</option>
+          <option value="unplaced">Unplaced clue records</option>
+        </select></label
+      >
+    </section>
+    <div class="options">
+      <label
+        >Isolation threshold
+        <input id="threshold" type="range" min="0" max="2000" step="25" value="250" /><span
+          id="threshold-value"
+          >250 km</span
+        ></label
+      >
+      <label><input type="checkbox" id="bounds" />Only current map view</label>
+      <label
+        ><input type="checkbox" id="alternatives" checked />Selected image's alternatives</label
+      >
+      <label><input type="checkbox" id="extent" />Selected feature's extent</label>
+      <button id="reset">Reset filters</button><span id="stats" role="status"></span>
+    </div>
+    <div id="loading">Preparing map…</div>
+    <div class="layout">
+      <div class="map-wrap">
+        <div id="map" aria-label="Image geotags world map"></div>
+        <div class="legend">
+          <div>
+            <span class="swatch" style="background: #62b49a"></span>Recorded Flickr coordinates
+          </div>
+          <div>
+            <span class="swatch" style="background: #79ace6"></span>Provisional place / coordinate
+            reference
+          </div>
+          <div>
+            <span class="swatch" style="background: #dfb260"></span>Provisional country / region
+            reference
+          </div>
+          <div><span class="swatch" style="background: #b19adc"></span>Nearby-photo proxy</div>
+          <div class="muted">Larger dots contain multiple images. Click to inspect each.</div>
+        </div>
+      </div>
+      <aside class="side" id="detail" aria-label="Selected image">
+        <p class="empty">Select a point or image in the list.</p>
+      </aside>
+    </div>
+    <section class="results">
+      <h2>Image list · largest isolation distance first</h2>
+      <p class="muted small">
+        Isolation is distance to the fifth distinct recorded Flickr location, across all species. It
+        is a search aid, not proof of an error. Provisional points may be place reference points;
+        coordinate uncertainty remains unknown.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Place</th>
+              <th>Source</th>
+              <th>Dataset</th>
+              <th>Human answer</th>
+              <th class="numeric">Isolation km</th>
+              <th>Flags</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <button id="more" hidden>Show 200 more</button>
+    </section>
+    <script>
+      __LEAFLET_JS__;
+    </script>
+    <script id="records" type="application/json">
+      __RECORDS_JSON__
+    </script>
+    <script id="world" type="application/json">
+      __WORLD_JSON__
+    </script>
+    <script>
+      'use strict';
+      const data = JSON.parse(document.getElementById('records').textContent);
+      const world = JSON.parse(document.getElementById('world').textContent);
+      const $ = (id) => document.getElementById(id);
+      const methodNames = {
+        flickr_coordinates: 'Recorded Flickr coordinates',
+        gazetteer_place_reference: 'Provisional place reference',
+        administrative_reference_point: 'Provisional country / region',
+        text_coordinate_reference: 'Provisional quoted coordinates',
+        nearby_photo_proxy: 'Nearby-photo proxy',
+        no_resolvable_reference: 'Unplaced clue',
+        no_location_clue: 'No location clue',
+      };
+      let stored = {};
+      try {
+        stored = JSON.parse(localStorage.getItem('veritaxa-geotag-flags-v1') || '{}');
+      } catch {}
+      let filtered = [],
+        selected = null,
+        displayLimit = 200,
+        refreshTimer = null;
+      const map = L.map('map', {
+        preferCanvas: true,
+        minZoom: 1,
+        maxZoom: 18,
+        worldCopyJump: true,
+      }).setView([16, 30], 2);
+      const countries = L.geoJSON(world, {
+        style: { color: '#53696d', weight: 0.6, fillColor: '#334a47', fillOpacity: 1 },
+        onEachFeature: (feature, layer) => {
+          const label = document.createElement('span');
+          label.textContent = feature.properties.name;
+          layer.bindTooltip(label, { sticky: true });
+        },
+      }).addTo(map);
+      map.attributionControl.addAttribution('Made with Natural Earth');
+      L.control.scale({ imperial: false }).addTo(map);
+      const layer = L.layerGroup().addTo(map),
+        selectionLayer = L.layerGroup().addTo(map);
+      for (let lat = -60; lat <= 60; lat += 30)
+        L.polyline(
+          [
+            [lat, -180],
+            [lat, 180],
+          ],
+          { color: '#7b9197', weight: 0.4, opacity: 0.35, interactive: false },
+        ).addTo(map);
+      for (let lon = -180; lon <= 180; lon += 30)
+        L.polyline(
+          [
+            [-80, lon],
+            [80, lon],
+          ],
+          { color: '#7b9197', weight: 0.4, opacity: 0.35, interactive: false },
+        ).addTo(map);
+      const make = (tag, text, cls) => {
+        const e = document.createElement(tag);
+        if (text !== undefined) e.textContent = String(text);
+        if (cls) e.className = cls;
+        return e;
+      };
+      function safeUrl(value) {
+        try {
+          const u = new URL(value);
+          return u.protocol === 'https:' && !u.username && !u.password ? u.href : null;
+        } catch {
+          return null;
+        }
+      }
+      function link(text, url) {
+        const a = make('a', text);
+        const safe = safeUrl(url);
+        if (safe) {
+          a.href = safe;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
+        return a;
+      }
+      function fillOptions(id, values) {
+        for (const v of [...new Set(values)].sort()) {
+          const o = make('option', id === 'method' ? methodNames[v] || v : v);
+          o.value = v;
+          $(id).append(o);
+        }
+      }
+      fillOptions(
+        'dataset',
+        data.map((r) => r.dataset),
+      );
+      fillOptions(
+        'method',
+        data.map((r) => r.method),
+      );
+      fillOptions(
+        'human',
+        data.map((r) => r.human_answer),
+      );
+      function saveFlags() {
+        try {
+          localStorage.setItem('veritaxa-geotag-flags-v1', JSON.stringify(stored));
+        } catch {}
+      }
+      function color(r) {
+        return r.method === 'flickr_coordinates'
+          ? '#62b49a'
+          : r.method === 'nearby_photo_proxy'
+            ? '#b19adc'
+            : r.method === 'administrative_reference_point'
+              ? '#dfb260'
+              : '#79ace6';
+      }
+      function selectImage(r, members = null) {
+        selected = r;
+        const root = $('detail');
+        root.replaceChildren();
+        root.append(
+          make('h2', r.title || r.photo_id),
+          make(
+            'p',
+            r.status === 'source_reported'
+              ? 'Source-reported coordinate'
+              : 'Provisional · location needs verification',
+            'tag',
+          ),
+        );
+        if (members && members.length > 1) {
+          const label = make('label', `${members.length} images at this point`);
+          const s = make('select');
+          s.id = 'point-members';
+          for (const row of members) {
+            const o = make('option', `${row.photo_id} · ${row.title}`);
+            o.value = row.item_id;
+            s.append(o);
+          }
+          s.value = r.item_id;
+          s.addEventListener('change', () =>
+            selectImage(
+              members.find((m) => m.item_id === s.value),
+              members,
+            ),
+          );
+          label.append(s);
+          root.append(label);
+        }
+        const url = safeUrl(r.image_url);
+        if (url) {
+          const image = make('img');
+          image.className = 'detail-image';
+          image.alt = r.title || 'Selected image';
+          image.referrerPolicy = 'no-referrer';
+          image.src = url;
+          image.addEventListener(
+            'error',
+            () => {
+              image.hidden = true;
+            },
+            { once: true },
+          );
+          root.append(image);
+        }
+        root.append(link('Open original photo', r.photo_url));
+        const dl = make('dl');
+        dl.className = 'kv';
+        for (const [label, value] of [
+          ['Photo ID', r.photo_id],
+          ['Dataset', r.dataset],
+          ['Human answer', r.human_answer],
+          ['BioCLIP species', r.model_species],
+          ['Place', r.place_name || 'Unplaced'],
+          ['Country', r.country_name || r.country || 'Not resolved'],
+          [
+            'Coordinates',
+            r.latitude === null
+              ? 'Unplaced'
+              : `${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}`,
+          ],
+          ['Location source', methodNames[r.method] || r.method],
+          ['Uncertainty', 'Unknown'],
+          [
+            'Feature extent',
+            r.feature_extent_radius_m
+              ? `${Math.round(r.feature_extent_radius_m / 1000).toLocaleString()} km radius · map feature only`
+              : 'Not available',
+          ],
+          [
+            'Isolation',
+            r.isolation_km === null ? 'Not available' : `${r.isolation_km.toLocaleString()} km`,
+          ],
+          [
+            'Candidate spread',
+            r.alternative_spread_km === null || r.alternative_spread_km === undefined
+              ? 'Not available'
+              : `${r.alternative_spread_km.toLocaleString()} km`,
+          ],
+        ]) {
+          dl.append(make('dt', label), make('dd', value));
+        }
+        if (r.anchor_photo_id) {
+          dl.append(
+            make('dt', 'Reference photo'),
+            make(
+              'dd',
+              `${r.anchor_photo_id} · ${Math.abs(r.minutes_anchor_before_target).toFixed(1)} minutes ${r.minutes_anchor_before_target >= 0 ? 'before' : 'after'}`,
+            ),
+          );
+        }
+        root.append(dl);
+        if (r.flags?.length)
+          root.append(make('p', r.flags.join(' · ').replaceAll('_', ' '), 'small warning'));
+        const controls = make('div');
+        controls.className = 'detail-controls';
+        for (const [text, state] of [
+          ['Flag suspect', 'suspect'],
+          ['Keep', 'keep'],
+          ['Clear flag', ''],
+        ]) {
+          const b = make('button', text);
+          b.addEventListener('click', () => {
+            if (state) stored[r.item_id] = { ...(stored[r.item_id] || {}), state };
+            else delete stored[r.item_id];
+            saveFlags();
+            refresh();
+            selectImage(r, members);
+          });
+          controls.append(b);
+        }
+        root.append(controls);
+        const current = stored[r.item_id];
+        root.append(
+          make('p', current?.state ? `Your mark: ${current.state}` : 'No personal flag', 'small'),
+        );
+        const noteLabel = make('label', 'Outlier note');
+        const note = make('textarea');
+        note.value = current?.note || '';
+        note.placeholder = 'Notes saved in this browser';
+        note.addEventListener('input', () => {
+          stored[r.item_id] = { ...(stored[r.item_id] || {}), note: note.value };
+          saveFlags();
+        });
+        noteLabel.append(note);
+        root.append(noteLabel);
+        root.append(make('h2', 'Location evidence'));
+        if (!r.excerpts?.length)
+          root.append(
+            make(
+              'p',
+              r.status === 'source_reported'
+                ? 'Coordinates recovered from saved Flickr metadata.'
+                : 'No resolvable place reference is available.',
+              'muted',
+            ),
+          );
+        for (const text of r.excerpts || []) root.append(make('div', text, 'evidence'));
+        if (r.alternatives?.length) {
+          root.append(
+            make(
+              'h2',
+              `Alternative matches (${r.alternatives.length} shown of ${Math.max(0, (r.candidate_count || 1) - 1)})`,
+            ),
+          );
+          for (const alt of r.alternatives) {
+            const b = make(
+              'button',
+              `${alt.name || 'Coordinate reference'} · ${alt.country_name || alt.country || ''}`,
+            );
+            b.style.margin = '3px';
+            b.addEventListener('click', () => map.setView([alt.latitude, alt.longitude], 5));
+            root.append(b);
+          }
+        }
+        updateSelection();
+      }
+      function updateSelection() {
+        selectionLayer.clearLayers();
+        if (!selected || selected.latitude === null) return;
+        const p = [selected.latitude, selected.longitude];
+        L.circleMarker(p, {
+          radius: 10,
+          color: '#f4efe0',
+          weight: 2,
+          fillOpacity: 0,
+          interactive: false,
+        }).addTo(selectionLayer);
+        if ($('extent').checked && selected.feature_extent_radius_m)
+          L.circle(p, {
+            radius: selected.feature_extent_radius_m,
+            color: '#dfb260',
+            weight: 1,
+            fillOpacity: 0.06,
+            interactive: false,
+          }).addTo(selectionLayer);
+        if ($('alternatives').checked)
+          for (const alt of selected.alternatives || []) {
+            L.polyline([p, [alt.latitude, alt.longitude]], {
+              color: '#dfb260',
+              weight: 1,
+              dashArray: '4 5',
+              opacity: 0.7,
+              interactive: false,
+            }).addTo(selectionLayer);
+            L.circleMarker([alt.latitude, alt.longitude], {
+              radius: 6,
+              color: '#dfb260',
+              weight: 2,
+              fillOpacity: 0.2,
+            })
+              .bindTooltip(alt.name || 'Alternative reference')
+              .addTo(selectionLayer);
+          }
+      }
+      function drawList() {
+        const tbody = $('rows');
+        tbody.replaceChildren();
+        for (const r of filtered.slice(0, displayLimit)) {
+          const tr = make('tr');
+          const td = make('td');
+          const b = make('button', `${r.photo_id} · ${r.title || ''}`);
+          b.addEventListener('click', () => {
+            selectImage(r);
+            if (r.latitude !== null)
+              map.setView([r.latitude, r.longitude], Math.max(5, map.getZoom()));
+          });
+          td.append(b);
+          tr.append(td);
+          for (const v of [
+            r.place_name || 'Unplaced',
+            methodNames[r.method] || r.method,
+            r.dataset,
+            r.human_answer,
+          ])
+            tr.append(make('td', v));
+          tr.append(
+            make('td', r.isolation_km === null ? '—' : r.isolation_km.toLocaleString(), 'numeric'),
+          );
+          tr.append(make('td', stored[r.item_id]?.state || ''));
+          tbody.append(tr);
+        }
+        $('more').hidden = filtered.length <= displayLimit;
+      }
+      function refresh() {
+        const search = $('search').value.trim().toLocaleLowerCase();
+        const mode = $('mode').value;
+        const bounds = map.getBounds();
+        const threshold = Number($('threshold').value);
+        $('threshold-value').textContent = `${threshold} km`;
+        filtered = data.filter(
+          (r) =>
+            (!$('dataset').value || r.dataset === $('dataset').value) &&
+            (!$('method').value || r.method === $('method').value) &&
+            (!$('human').value || r.human_answer === $('human').value) &&
+            (!search ||
+              [
+                r.title,
+                r.photo_id,
+                r.country,
+                r.country_name,
+                r.place_name,
+                r.human_answer,
+                r.model_species,
+              ].some((v) =>
+                String(v || '')
+                  .toLocaleLowerCase()
+                  .includes(search),
+              )) &&
+            (!$('bounds').checked ||
+              (r.latitude !== null && bounds.contains([r.latitude, r.longitude]))) &&
+            (mode === 'all' ||
+              (mode === 'isolated' && (r.isolation_km || 0) >= threshold) ||
+              (mode === 'ambiguous' && (r.alternative_spread_km || 0) >= 250) ||
+              (mode === 'coarse' && ['country', 'region'].includes(r.level)) ||
+              (mode === 'flagged' && stored[r.item_id]?.state === 'suspect') ||
+              (mode === 'unplaced' && r.status === 'unresolved')),
+        );
+        filtered.sort(
+          (a, b) =>
+            (mode === 'ambiguous'
+              ? (b.alternative_spread_km || 0) - (a.alternative_spread_km || 0)
+              : (b.isolation_km ?? -1) - (a.isolation_km ?? -1)) ||
+            a.photo_id.localeCompare(b.photo_id),
+        );
+        layer.clearLayers();
+        const grouped = new Map();
+        for (const r of filtered) {
+          if (r.latitude === null) continue;
+          const key = r.latitude.toFixed(5) + ',' + r.longitude.toFixed(5);
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key).push(r);
+        }
+        for (const members of grouped.values()) {
+          const r = members[0];
+          const m = L.circleMarker([r.latitude, r.longitude], {
+            radius: members.length > 1 ? Math.min(13, 5 + Math.log2(members.length)) : 4,
+            color: members.some((x) => stored[x.item_id]?.state === 'suspect')
+              ? '#ff8b80'
+              : color(r),
+            weight: members.length > 1 ? 2 : 1,
+            fillColor: color(r),
+            fillOpacity: 0.72,
+          });
+          m.bindTooltip(
+            `${members.length} image${members.length === 1 ? '' : 's'} · ${r.place_name || r.photo_id}`,
+          );
+          m.on('click', () => selectImage(r, members));
+          m.addTo(layer);
+        }
+        const mapped = filtered.filter((r) => r.latitude !== null).length;
+        $('stats').textContent =
+          `${filtered.length.toLocaleString()} images · ${mapped.toLocaleString()} mapped · ${(filtered.length - mapped).toLocaleString()} unplaced`;
+        displayLimit = 200;
+        drawList();
+        updateSelection();
+        window.__geotagMap = { map, data, filtered, selectImage, markerCount: grouped.size };
+      }
+      function exportCsv(records, name) {
+        const cols = [
+          'photo_id',
+          'title',
+          'dataset',
+          'latitude',
+          'longitude',
+          'status',
+          'method',
+          'place_name',
+          'country',
+          'human_answer',
+          'model_species',
+          'isolation_km',
+          'alternative_spread_km',
+          'photo_url',
+          'personal_flag',
+          'personal_note',
+        ];
+        const cell = (v) => {
+          let s = String(v ?? '');
+          if (/^[=+@]/.test(s)) s = "'" + s;
+          return '"' + s.replaceAll('"', '""') + '"';
+        };
+        const lines = [cols.join(',')];
+        for (const r of records) {
+          const row = {
+            ...r,
+            personal_flag: stored[r.item_id]?.state || '',
+            personal_note: stored[r.item_id]?.note || '',
+          };
+          lines.push(cols.map((k) => cell(row[k])).join(','));
+        }
+        const url = URL.createObjectURL(
+          new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }),
+        );
+        const a = make('a');
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      for (const id of ['dataset', 'method', 'human', 'mode', 'bounds'])
+        $(id).addEventListener('change', refresh);
+      for (const id of ['alternatives', 'extent'])
+        $(id).addEventListener('change', updateSelection);
+      $('threshold').addEventListener('input', () => {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(refresh, 120);
+      });
+      $('search').addEventListener('input', () => {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(refresh, 120);
+      });
+      $('fit').addEventListener('click', () => {
+        const pts = filtered
+          .filter((r) => r.latitude !== null)
+          .map((r) => [r.latitude, r.longitude]);
+        if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [25, 25], maxZoom: 9 });
+      });
+      $('reset').addEventListener('click', () => {
+        for (const id of ['dataset', 'method', 'human', 'search']) $(id).value = '';
+        $('mode').value = 'all';
+        $('bounds').checked = false;
+        $('threshold').value = 250;
+        refresh();
+      });
+      $('more').addEventListener('click', () => {
+        displayLimit += 200;
+        drawList();
+      });
+      $('export').addEventListener('click', () => exportCsv(filtered, 'veritaxa-map-filtered.csv'));
+      $('export-flags').addEventListener('click', () =>
+        exportCsv(
+          data.filter((r) => stored[r.item_id]),
+          'veritaxa-map-flags.csv',
+        ),
+      );
+      map.on('moveend', () => {
+        if ($('bounds').checked) refresh();
+      });
+      refresh();
+      $('loading').hidden = true;
+    </script>
+  </body>
+</html>

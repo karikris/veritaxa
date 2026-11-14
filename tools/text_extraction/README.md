@@ -172,6 +172,53 @@ The enrichment remains private administrative metadata and is not added to the
 reviewer RPCs. Dataset membership, image IDs, existing model metadata and saved
 human classifications are preserved.
 
+## Exploratory geotags and private outlier map
+
+`tools.provisional_geotags.provisional_tag` ranks saved coordinate references,
+place candidates and nearby-photo anchors into explicit provisional mapping
+points. It excludes profile-only, greeting, distribution and location-question
+evidence. Country context comes from photo metadata or owner statements;
+ambiguous alternatives are retained. Administrative reference points carry
+their feature extent separately from capture-coordinate uncertainty. Unknown
+uncertainty remains null, and clues without a geographic reference stay unplaced.
+
+The ranking is deterministic and is not a calibrated probability or a verified
+photograph location. Gazetteer points identify places, nearby-photo proxies identify
+another photograph's location, and administrative points can be very coarse.
+The map keeps these methods separate from original provider coordinates.
+
+Prepare a private gzip JSONL plan containing `item_id`, `source_provider`,
+`source_record_id` and `geotag`, then publish with:
+
+```text
+uv run python -m tools.publish_geotags --env-file /secure/config.env \
+  --plan /private/geotag-plan.jsonl.gz --output /private/geotag-publication --publish
+```
+
+Geotags are stored in `source_labels._veritaxa_geotag`. Conditional updates preserve
+the existing source labels, large pipeline evidence and saved human answers.
+They retain source/provisional/unresolved status and refuse to replace reviewed
+geotags. Omit `--publish` for validation and backup only.
+
+Generate a standalone private map using the pinned Leaflet 1.9.4 assets and
+Natural Earth country geometry stored in a private assets directory:
+
+```text
+uv run python -m tools.build_geotag_map --records /private/map-records.json \
+  --assets /private/map-assets --output /private/map.html
+```
+
+The generated HTML embeds the map data and base geometry and contains no API
+credentials. Keep it outside Git. It supports dataset, source and human-answer
+filters; place/species/ID search; alternative-point inspection; local suspect
+flags and notes; and filtered CSV exports. Isolation is the great-circle distance
+to the fifth distinct recorded Flickr location across all species. It is an
+exploration aid rather than a species-range test or automatic error decision.
+The template and tools contain no real review rows; only the private output does.
+
+Map geometry: [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/)
+(public domain). Map rendering: [Leaflet](https://leafletjs.com/reference-1.9.4.html).
+
 ## Checks
 
 ```bash
