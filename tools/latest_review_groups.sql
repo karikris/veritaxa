@@ -96,8 +96,9 @@ begin
 
   create temporary table latest_group_members on commit drop as
   select chosen.*,
-    case when chosen.label = 'target_scientific_name' then 'yes_target'
-      when chosen.label in ('adult_butterfly', 'target_not_present') then 'no_target'
+    case when chosen.label = 'target_scientific_name'
+        or (chosen.label = 'model_scientific_name' and chosen.review_snapshot->>'scientificName'=target_name) then 'yes_target'
+      when chosen.label in ('adult_butterfly', 'target_not_present', 'model_scientific_name') then 'no_target'
       else 'no_butterfly' end as category,
     (select jsonb_agg(v.review_snapshot order by v.updated_at, v.review_id)
       from latest_group_votes v where v.source_provider = chosen.source_provider

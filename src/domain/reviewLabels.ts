@@ -1,6 +1,7 @@
-export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v5' as const;
+export const REVIEW_LABEL_SCHEMA_VERSION = 'veritaxa-review-label-v6' as const;
 
 export const REVIEW_LABEL_CODES = [
+  'model_scientific_name',
   'target_scientific_name',
   'target_not_present',
   'no_butterfly',
@@ -39,6 +40,13 @@ export type ReviewLabelDefinition = {
 };
 
 export const REVIEW_LABELS: readonly ReviewLabelDefinition[] = [
+  {
+    code: 'model_scientific_name',
+    displayLabel: 'BioCLIP species',
+    group: 'target_taxon',
+    priority: 0,
+    shortcut: '1',
+  },
   {
     code: 'target_scientific_name',
     displayLabel: 'Target scientific name',
@@ -187,6 +195,7 @@ export const PIPELINE_MAPPINGS = {
     'image_unavailable',
     'target_not_present',
     'no_butterfly',
+    'model_scientific_name',
   ],
 } as const satisfies Record<string, readonly ReviewLabelCode[]>;
 

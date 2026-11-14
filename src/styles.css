@@ -951,9 +951,9 @@ kbd {
 
 .review-choices {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  max-width: 760px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  max-width: 1100px;
 }
 
 .answer-button {
@@ -1010,5 +1010,34 @@ kbd {
     min-height: 60px;
     padding: 14px 8px;
     font-size: 1rem;
+  }
+}
+
+.answer-button--model {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.model-answer-score {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+@media (max-width: 700px) {
+  .image-stage {
+    height: 38dvh;
+    min-height: 220px;
+    max-height: 380px;
+  }
+  .review-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .answer-button--model {
+    grid-column: 1 / -1;
+  }
+  .answer-button {
+    min-height: 52px;
+    padding: 10px 12px;
   }
 }

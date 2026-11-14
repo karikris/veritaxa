@@ -80,7 +80,7 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      get_review_cursor_v2: {
+      get_review_cursor_v3: {
         Args: {
           p_anchor_position: number | null;
           p_batch_id: string;
@@ -99,6 +99,8 @@ export type Database = {
           item_id: string;
           position: number;
           reviewed_count: number;
+          model_scientific_name: string | null;
+          model_cosine: number | null;
           target_scientific_name: string | null;
           total_count: number;
         }[];
@@ -120,7 +122,7 @@ export type Database = {
           total_count: number;
         }[];
       };
-      save_image_review_v3: {
+      save_image_review_v4: {
         Args: {
           p_client_version: string;
           p_comment: string | null;
@@ -142,6 +144,8 @@ export type Database = {
           item_id: string;
           position: number;
           reviewed_count: number;
+          model_scientific_name: string | null;
+          model_cosine: number | null;
           target_scientific_name: string | null;
           total_count: number;
         }[];
@@ -151,6 +155,7 @@ export type Database = {
       batch_status: 'draft' | 'open' | 'closed' | 'archived';
       campaign_status: 'draft' | 'open' | 'closed' | 'archived';
       review_label:
+        | 'model_scientific_name'
         | 'flickr_keyword_match'
         | 'target_scientific_name'
         | 'target_not_present'

@@ -18,6 +18,8 @@ const firstItem: ReviewItem = {
   id: '40000000-0000-0000-0000-000000000001',
   imageId: 'synthetic-image-001',
   targetScientificName: 'Papilio exemplaris',
+  modelScientificName: 'Papilio polytes',
+  modelCosine: 0.6789,
   displayUrl: 'https://images.example.invalid/review-001-small.jpg',
   fallbackImageUrl: 'https://images.example.invalid/review-001.jpg',
   position: 1,
@@ -33,6 +35,8 @@ const secondItem: ReviewItem = {
   id: '40000000-0000-0000-0000-000000000002',
   imageId: 'synthetic-image-002',
   targetScientificName: 'Papilio exemplaris',
+  modelScientificName: 'Papilio polytes',
+  modelCosine: 0.6789,
   displayUrl: 'https://images.example.invalid/review-002.jpg',
   fallbackImageUrl: 'https://images.example.invalid/review-002-original.jpg',
   position: 2,
@@ -223,14 +227,14 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
-  it('renders one image and only three answer buttons without a Send or comment step', async () => {
+  it('renders one image and five answer buttons without a Send or comment step', async () => {
     const repo = repository();
     const app = createApp(repo);
     await app.start();
 
     expect(document.querySelectorAll('img.review-image')).toHaveLength(1);
     expect(document.querySelector('img')?.alt).toBe('Image under review');
-    expect(document.querySelectorAll('.answer-button')).toHaveLength(3);
+    expect(document.querySelectorAll('.answer-button')).toHaveLength(5);
     expect(document.querySelectorAll('input[name="review-label"]')).toHaveLength(0);
     expect(document.querySelector('textarea')).toBeNull();
     expect(document.querySelector('.send-button')).toBeNull();
@@ -238,6 +242,12 @@ describe('VeriTaxa application', () => {
       'Is this Papilio exemplaris?',
     );
     expect(document.querySelector('.image-position')?.textContent).toBe('1 / 2');
+    expect(document.querySelector('[data-label="model_scientific_name"]')?.textContent).toContain(
+      'Papilio polytes',
+    );
+    expect(document.querySelector('[data-label="model_scientific_name"]')?.textContent).toContain(
+      'cosine 0.6789',
+    );
     expect(repo.saveReview).not.toHaveBeenCalled();
     app.dispose();
   });
@@ -255,9 +265,11 @@ describe('VeriTaxa application', () => {
   });
 
   it.each([
-    ['Yes', 'target_scientific_name'],
-    ['No', 'target_not_present'],
+    ['Papilio demoleus', 'target_scientific_name'],
+    ['Other', 'target_not_present'],
     ['No butterfly', 'no_butterfly'],
+    ['Caterpillar', 'caterpillar'],
+    ['Papilio polytes', 'model_scientific_name'],
   ] as const)(
     'saves %s immediately and advances only after confirmation',
     async (_answer, label) => {
@@ -322,7 +334,7 @@ describe('VeriTaxa application', () => {
     );
     await app.start();
     expect(document.querySelector('.classification-panel')?.textContent).not.toContain(
-      'Your saved answer: No',
+      'Your saved answer: Other',
     );
     app.dispose();
   });
@@ -338,7 +350,7 @@ describe('VeriTaxa application', () => {
     });
     const app = createApp(repo);
     await app.start();
-    expect(document.body.textContent).toContain('Your saved answer: Yes');
+    expect(document.body.textContent).toContain('Your saved answer: Papilio exemplaris');
     document.querySelector<HTMLButtonElement>('[data-label="target_not_present"]')?.click();
     expect(repo.saveReview).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -434,10 +446,12 @@ describe('VeriTaxa application', () => {
       });
       const app = createApp(repo);
       await app.start();
-      document.querySelector<HTMLButtonElement>('[aria-label="Yes"]')?.click();
+      document.querySelector<HTMLButtonElement>('[data-label="target_scientific_name"]')?.click();
       await vi.waitFor(() => expect(app.state).toBe('save_error'));
       const original = repo.saveReview.mock.calls[0]?.[0];
-      expect(document.querySelector<HTMLButtonElement>('[aria-label="No"]')?.disabled).toBe(true);
+      expect(
+        document.querySelector<HTMLButtonElement>('[data-label="target_not_present"]')?.disabled,
+      ).toBe(true);
       document.querySelector<HTMLButtonElement>('.retry-save')?.click();
       await vi.waitFor(() => expect(document.querySelector('.conflict-comparison')).not.toBeNull());
       expect(repo.saveReview).toHaveBeenCalledOnce();
@@ -465,14 +479,14 @@ describe('VeriTaxa application', () => {
     const app = createApp(repo);
     await app.start();
     const image = document.querySelector('img');
-    const yes = document.querySelector<HTMLButtonElement>('[aria-label="Yes"]');
+    const yes = document.querySelector<HTMLButtonElement>('[data-label="target_scientific_name"]');
     yes?.click();
     expect(document.querySelector('img')).toBe(image);
     rejectSave(new Error('Unknown write outcome'));
     await vi.waitFor(() => expect(app.state).toBe('save_error'));
     expect(document.querySelector('img')).toBe(image);
-    expect(document.querySelector('[aria-label="Yes"]')).toBe(yes);
-    document.querySelector<HTMLButtonElement>('[aria-label="No"]')?.click();
+    expect(document.querySelector('[data-label="target_scientific_name"]')).toBe(yes);
+    document.querySelector<HTMLButtonElement>('[data-label="target_not_present"]')?.click();
     expect(repo.saveReview).toHaveBeenCalledOnce();
     app.dispose();
   });
@@ -487,7 +501,7 @@ describe('VeriTaxa application', () => {
     const text = status?.firstChild;
     expect(text).toBeInstanceOf(Text);
     expect(status?.textContent).toBe('');
-    document.querySelector<HTMLButtonElement>('[aria-label="Yes"]')?.click();
+    document.querySelector<HTMLButtonElement>('[data-label="target_scientific_name"]')?.click();
     expect(status?.textContent).toBe('Saving…');
     expect(status?.firstChild).toBe(text);
     finish({ ...secondItem, reviewedCount: 1 });
@@ -513,7 +527,7 @@ describe('VeriTaxa application', () => {
     const app = createApp(repo);
     await app.start();
     expect(document.body.textContent).toContain('Your saved answer: No butterfly.');
-    document.querySelector<HTMLButtonElement>('[aria-label="Yes"]')?.click();
+    document.querySelector<HTMLButtonElement>('[data-label="target_scientific_name"]')?.click();
     expect(repo.saveReview).toHaveBeenCalledWith(
       expect.objectContaining({
         label: 'target_scientific_name',

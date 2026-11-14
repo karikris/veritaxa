@@ -1,3 +1,4 @@
+import type { ReviewLabelCode } from './domain/reviewLabels';
 import { ReviewView } from './view/reviewView';
 import { MAX_PREVIEW_EDGE } from './image/imagePolicy';
 import { DraftStore } from './domain/draftStore';
@@ -615,15 +616,24 @@ export class VeriTaxaApp {
           ? 'target_not_present'
           : key === '0'
             ? 'no_butterfly'
-            : null;
+            : key === 'c'
+              ? 'caterpillar'
+              : key === '1'
+                ? 'model_scientific_name'
+                : null;
     if (label && this.#canAnswer) {
       event.preventDefault();
       this.#answer(label);
     }
   };
 
-  #answer(label: 'target_scientific_name' | 'target_not_present' | 'no_butterfly'): void {
+  #answer(label: ReviewLabelCode): void {
     if (!this.#canAnswer) return;
+    if (
+      label === 'model_scientific_name' &&
+      (!this.#currentItem?.modelScientificName || this.#currentItem.modelCosine == null)
+    )
+      return;
     this.#draft.label = label;
     void this.#submit();
   }
@@ -667,10 +677,10 @@ export class VeriTaxaApp {
     ) {
       main = this.#buildCentredStatus(
         this.#state === 'loading_batches'
-          ? 'Loading review batches…'
+          ? 'Loading datasets…'
           : this.#state === 'empty_batch'
-            ? 'This batch has no images to review.'
-            : this.#errorMessage || 'No review batches are available.',
+            ? 'This dataset has no images to review.'
+            : this.#errorMessage || 'No datasets are available.',
       );
     } else {
       this.#reviewView ??= this.#createReviewView();
@@ -814,9 +824,11 @@ export class VeriTaxaApp {
         const teamCount = batch.teamReviewedCount ?? batch.reviewedCount;
         const remaining = Math.max(0, batch.totalCount - teamCount);
         const status = remaining === 0 ? '✓ Reviewed by team' : `${String(remaining)} need review`;
-        const roundName = batch.reviewRound ? `Round ${String(batch.reviewRound)}` : '';
-        const round = roundName && !batch.name.startsWith(roundName) ? `${roundName} · ` : '';
-        const text = `${round}${batch.name} · ${status} · ${batch.code}`;
+        const round =
+          batch.reviewRound === 2 && !batch.name.toLowerCase().includes('round 2')
+            ? 'Round 2 · '
+            : '';
+        const text = `${round}${batch.name} · ${String(batch.totalCount)} images · ${status}`;
         if (option.textContent !== text) option.textContent = text;
       });
       select.value = this.#batchId ?? '';

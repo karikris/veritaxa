@@ -2,7 +2,7 @@
 
 VeriTaxa is a minimal, authenticated, one-page tool for reviewing image
 candidates collected by BioMiner and related pipelines. It asks whether each
-image shows the campaign’s target scientific name. Choosing **Yes**, **No**, or **No butterfly**
+image shows the campaign’s target scientific name. Choosing the **BioCLIP species**, the **target species**, **Other**, **No butterfly**, or **Caterpillar**
 saves the answer immediately and advances after Postgres confirms the write.
 Reviewers can move through every image in a batch and revise their own answer.
 The keyboard shortcuts are **Y**, **N**, and **0**; holding a key does not submit more
@@ -51,15 +51,16 @@ browsers without rewriting a dataset.
 
 ## Canonical labels
 
-The current export schema version is `veritaxa-review-label-v5`. **Yes** stores
-`target_scientific_name`; **No** stores `target_not_present`; **No butterfly**
-stores `no_butterfly`. The last answer means no butterfly is visible. No only means the
+The current export schema version is `veritaxa-review-label-v6`. The target-species button stores
+`target_scientific_name`; **Other** stores `target_not_present`; **No butterfly**
+stores `no_butterfly`. The last answer means no butterfly is visible. Other only means the
 campaign target is absent; it makes no claim about other species or biological
 content. It is excluded from automatic broad-label training. Historical labels
 remain readable and are never converted into new answers automatically.
 
 | Stored code                | Display label                    |
 | -------------------------- | -------------------------------- |
+| `model_scientific_name`    | BioCLIP species name and cosine  |
 | `target_scientific_name`   | Current campaign scientific name |
 | `target_not_present`       | Target not present               |
 | `no_butterfly`             | No butterfly                     |
@@ -80,11 +81,11 @@ remain readable and are never converted into new answers automatically.
 | `image_unavailable`        | Image unavailable                |
 
 The table includes retained historical categories. The current review form
-shows Yes, No, and No butterfly. Image failures disable all answers; retry the image or
+shows the model species and cosine, target species, Other, No butterfly, and Caterpillar. Image failures disable all answers; retry the image or
 use Next to skip it. Existing comments are retained when correcting an answer.
 
 The versioned definitions and pipeline mappings are in
-`src/domain/reviewLabels.ts` and `schemas/review-labels-v5.json`. Apply
+`src/domain/reviewLabels.ts` and `schemas/review-labels-v6.json`. Apply
 `20261113075744_add_target_not_present_review_label.sql` before deploying this
 frontend so the database accepts No answers. Apply
 `20261113092059_add_no_butterfly_review_label.sql` before enabling No butterfly. Earlier migrations and reviews
@@ -708,3 +709,13 @@ enforces common accidental-disclosure patterns.
 
 VeriTaxa is licensed under the GNU Affero General Public License v3.0. See
 [LICENSE](LICENSE).
+
+The v6 model confirmation action stores `model_scientific_name` and the server-selected
+`scientificName` from attested BioCLIP metadata. The browser receives only that
+model name and its finite raw cosine through `get_review_cursor_v3` and
+`save_image_review_v4`; full metadata remains private. Apply migrations
+`20261114071219` and `20261114071232` before deploying this interface.
+
+Dataset names describe categories. The administration importer still caps newly
+imported chunks at 1,000 rows; an explicitly consolidated category can contain
+more images and continues to use the bounded single-image cursor.

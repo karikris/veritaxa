@@ -1,11 +1,11 @@
-import { REVIEW_LABELS } from '../domain/reviewLabels';
+import { REVIEW_LABELS, type ReviewLabelCode } from '../domain/reviewLabels';
 import type { ReviewDraft } from '../domain/reviewDraft';
 import type { ReviewItem } from '../domain/reviewQueue';
 import type { ImageMode } from '../image/imageLoader';
 import { imagePanBounds } from '../image/imagePan';
 
 type ReviewViewActions = {
-  answer: (label: 'target_scientific_name' | 'target_not_present' | 'no_butterfly') => void;
+  answer: (label: ReviewLabelCode) => void;
   submit: () => void;
   discardDraft: () => void;
   navigate: (direction: 'previous' | 'next') => void;
@@ -67,6 +67,10 @@ export class ReviewView {
   readonly #completion: HTMLElement;
   readonly #classifier: HTMLElement;
   readonly #heading: HTMLElement;
+  readonly #model: HTMLButtonElement;
+  readonly #modelName: HTMLElement;
+  readonly #modelScore: HTMLElement;
+  readonly #caterpillar: HTMLButtonElement;
   readonly #yes: HTMLButtonElement;
   readonly #no: HTMLButtonElement;
   readonly #noButterfly: HTMLButtonElement;
@@ -121,9 +125,11 @@ export class ReviewView {
           <p>Choose an answer to save and show the next image.</p>
         </div>
         <div class="review-choices" role="group" aria-labelledby="classification-heading">
-          <button type="button" class="answer-button answer-button--yes" data-label="target_scientific_name" aria-label="Yes">Yes <kbd aria-hidden="true">Y</kbd></button>
-          <button type="button" class="answer-button answer-button--no" data-label="target_not_present" aria-label="No">No <kbd aria-hidden="true">N</kbd></button>
+          <button type="button" class="answer-button answer-button--model" data-label="model_scientific_name"><span class="model-answer-name"></span><small class="model-answer-score"></small></button>
+          <button type="button" class="answer-button answer-button--yes" data-label="target_scientific_name" aria-label="Target species"><span class="target-answer-name"></span> <kbd aria-hidden="true">Y</kbd></button>
+          <button type="button" class="answer-button answer-button--no" data-label="target_not_present" aria-label="Other">Other <kbd aria-hidden="true">N</kbd></button>
           <button type="button" class="answer-button answer-button--no-butterfly" data-label="no_butterfly" aria-label="No butterfly">No butterfly <kbd aria-hidden="true">0</kbd></button>
+          <button type="button" class="answer-button answer-button--caterpillar" data-label="caterpillar" aria-label="Caterpillar">Caterpillar <kbd aria-hidden="true">C</kbd></button>
         </div>
         <div class="classification-primary-actions">
           <button type="button" class="secondary-button image-source-button">Inspect source image</button>
@@ -167,8 +173,12 @@ export class ReviewView {
     this.#completion = find('.completion-status', HTMLElement);
     this.#classifier = find('.classification-panel', HTMLElement);
     this.#heading = find('#classification-heading', HTMLElement);
-    this.#yes = find('[aria-label="Yes"]', HTMLButtonElement);
-    this.#no = find('[aria-label="No"]', HTMLButtonElement);
+    this.#model = find('[data-label="model_scientific_name"]', HTMLButtonElement);
+    this.#modelName = find('.model-answer-name', HTMLElement);
+    this.#modelScore = find('.model-answer-score', HTMLElement);
+    this.#caterpillar = find('[data-label="caterpillar"]', HTMLButtonElement);
+    this.#yes = find('[aria-label="Target species"]', HTMLButtonElement);
+    this.#no = find('[aria-label="Other"]', HTMLButtonElement);
     this.#noButterfly = find('[aria-label="No butterfly"]', HTMLButtonElement);
     this.#send = find('.retry-save', HTMLButtonElement);
     this.#status = find('.submission-action .status-text', HTMLElement);
@@ -180,6 +190,8 @@ export class ReviewView {
     this.#comparisonHeading = find('.conflict-comparison h3', HTMLElement);
     this.#comparisonLabel = find('.saved-label', HTMLElement);
     this.#comparisonComment = find('.saved-comment', HTMLElement);
+    this.#model.addEventListener('click', () => actions.answer('model_scientific_name'));
+    this.#caterpillar.addEventListener('click', () => actions.answer('caterpillar'));
     this.#yes.addEventListener('click', () => actions.answer('target_scientific_name'));
     this.#no.addEventListener('click', () => actions.answer('target_not_present'));
     this.#noButterfly.addEventListener('click', () => actions.answer('no_butterfly'));
@@ -292,7 +304,26 @@ export class ReviewView {
     this.#heading.textContent = item?.targetScientificName
       ? `Is this ${item.targetScientificName}?`
       : 'No target species configured';
-    this.#yes.disabled = this.#no.disabled = this.#noButterfly.disabled = !state.canAnswer;
+    const targetName = item?.targetScientificName ?? 'Target species';
+    required(this.#yes, '.target-answer-name', HTMLElement).textContent = targetName;
+    this.#yes.setAttribute('aria-label', targetName);
+    const modelName = item?.modelScientificName;
+    const cosine = item?.modelCosine;
+    const hasPrediction = !!modelName && typeof cosine === 'number' && Number.isFinite(cosine);
+    this.#modelName.textContent = modelName ?? 'BioCLIP prediction unavailable';
+    this.#modelScore.textContent = hasPrediction ? `cosine ${cosine.toFixed(4)} · 1` : '';
+    this.#model.setAttribute(
+      'aria-label',
+      hasPrediction
+        ? `${modelName} · cosine ${cosine.toFixed(4)}`
+        : 'BioCLIP prediction unavailable',
+    );
+    this.#model.disabled = !state.canAnswer || !hasPrediction;
+    this.#yes.disabled =
+      this.#no.disabled =
+      this.#noButterfly.disabled =
+      this.#caterpillar.disabled =
+        !state.canAnswer;
     this.#classifier.setAttribute('aria-busy', String(state.saving));
     this.#send.hidden = !draft.pendingSubmission && !draft.conflicted;
     this.#send.textContent = draft.conflicted
@@ -318,12 +349,16 @@ export class ReviewView {
           : !source
             ? 'Retry the image or use Next to skip it.'
             : item.currentLabel === 'target_scientific_name'
-              ? 'Your saved answer: Yes. Choose again to update it.'
+              ? `Your saved answer: ${item.targetScientificName}. Choose again to update it.`
               : item.currentLabel === 'target_not_present'
-                ? 'Your saved answer: No. Choose again to update it.'
+                ? 'Your saved answer: Other. Choose again to update it.'
                 : item.currentLabel === 'no_butterfly'
                   ? 'Your saved answer: No butterfly. Choose again to update it.'
-                  : '');
+                  : item.currentLabel === 'model_scientific_name'
+                    ? `Your saved answer: ${item.modelScientificName ?? 'BioCLIP species'}. Choose again to update it.`
+                    : item.currentLabel === 'caterpillar'
+                      ? 'Your saved answer: Caterpillar. Choose again to update it.'
+                      : '');
     this.#status.classList.toggle('status-text--error', state.isError);
     this.#status.setAttribute('role', state.isError ? 'alert' : 'status');
     this.#status.setAttribute('aria-live', state.isError ? 'assertive' : 'polite');
@@ -348,10 +383,12 @@ export class ReviewView {
     this.#comparisonLabel.textContent =
       comparison?.currentLabel === 'target_scientific_name'
         ? comparison.targetScientificName
-        : comparison
-          ? (REVIEW_LABELS.find((label) => label.code === comparison.currentLabel)?.displayLabel ??
-            'No classification')
-          : '';
+        : comparison?.currentLabel === 'model_scientific_name'
+          ? (comparison.modelScientificName ?? 'BioCLIP species')
+          : comparison
+            ? (REVIEW_LABELS.find((label) => label.code === comparison.currentLabel)
+                ?.displayLabel ?? 'No classification')
+            : '';
     this.#comparisonComment.textContent = comparison
       ? (comparison.currentComment ?? 'No comment')
       : '';

@@ -135,12 +135,14 @@ test('panning preserves edits and image ownership, and resets on navigation and 
   expect(await geometry(page)).toMatchObject({ x: 0, y: 0, zoom: 1 });
   await zoomTo(page, 2);
   await drag(page, 40, 30);
-  await page.getByRole('button', { name: 'No', exact: true }).click();
+  await page.getByRole('button', { name: 'Other', exact: true }).click();
   await expect(image).toHaveAttribute('src', /review-002\.svg/);
   expect(await geometry(page)).toMatchObject({ x: 0, y: 0, zoom: 1 });
   await page.getByRole('button', { name: 'Previous image' }).click();
   await expect(image).toHaveAttribute('src', /review-001\.svg/);
-  await expect(page.getByText('Your saved answer: No. Choose again to update it.')).toBeVisible();
+  await expect(
+    page.getByText('Your saved answer: Other. Choose again to update it.'),
+  ).toBeVisible();
 
   await zoomTo(page, 2);
   await drag(page, 40, 30);

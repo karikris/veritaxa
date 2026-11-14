@@ -47,7 +47,7 @@ async function openSyntheticReview(page: Page): Promise<void> {
           review_round: 1,
         },
       ];
-    } else if (path === '/rest/v1/rpc/get_review_cursor_v2') {
+    } else if (path === '/rest/v1/rpc/get_review_cursor_v3') {
       data = [
         {
           item_id: '00000000-0000-4000-8000-000000000003',

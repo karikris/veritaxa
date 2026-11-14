@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import labelSchema from '../../schemas/review-labels-v5.json';
+import labelSchema from '../../schemas/review-labels-v6.json';
 import {
   PIPELINE_MAPPINGS,
   REVIEW_LABEL_CODES,
@@ -9,9 +9,9 @@ import {
 } from './reviewLabels';
 
 describe('canonical review labels', () => {
-  it('defines all 18 stored codes exactly once', () => {
-    expect(REVIEW_LABEL_CODES).toHaveLength(18);
-    expect(new Set(REVIEW_LABEL_CODES)).toHaveLength(18);
+  it('defines all 19 stored codes exactly once', () => {
+    expect(REVIEW_LABEL_CODES).toHaveLength(19);
+    expect(new Set(REVIEW_LABEL_CODES)).toHaveLength(19);
     expect(REVIEW_LABELS.map((label) => label.code)).toEqual(REVIEW_LABEL_CODES);
   });
 

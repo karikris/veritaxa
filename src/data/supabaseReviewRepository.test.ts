@@ -34,6 +34,27 @@ function repository() {
 describe('review RPC response boundary', () => {
   beforeEach(() => rpc.mockReset());
 
+  it('reads only the requested model name and finite raw cosine', async () => {
+    rpc.mockReturnValue({ abortSignal: vi.fn().mockResolvedValue({ data: [{
+      ...item, model_scientific_name: 'Papilio testensis', model_cosine: 0.6789,
+      pipeline_metadata: { secret_source: 'synthetic private metadata' },
+    }] }) });
+    const result = await repository().getCursor('synthetic-batch', null, 'resume', new AbortController().signal);
+    expect(result?.modelScientificName).toBe('Papilio testensis');
+    expect(result?.modelCosine).toBe(0.6789);
+    expect(result).not.toHaveProperty('pipeline_metadata');
+  });
+
+  it.each([NaN, Infinity, -Infinity, 1.1, -1.1, '0.6'])(
+    'rejects an invalid model cosine (%s)', async (cosine) => {
+      rpc.mockReturnValue({ abortSignal: vi.fn().mockResolvedValue({ data: [{
+        ...item, model_scientific_name: 'Papilio testensis', model_cosine: cosine,
+      }] }) });
+      await expect(repository().getCursor('synthetic-batch', null, 'resume', new AbortController().signal))
+        .rejects.toThrow('model cosine response was not valid');
+    },
+  );
+
   it('accepts count-only shared progress without retaining private metadata', async () => {
     rpc.mockReturnValue({ abortSignal: vi.fn().mockResolvedValue({ data: [{
       batch_id: '30000000-0000-0000-0000-000000000001',
@@ -101,7 +122,7 @@ describe('review RPC response boundary', () => {
     const result = await repository().saveReview(submission);
     expect(result.currentComment).toBe(submission.comment);
     expect(result).not.toHaveProperty('hidden_metadata');
-    expect(rpc).toHaveBeenLastCalledWith('save_image_review_v3', {
+    expect(rpc).toHaveBeenLastCalledWith('save_image_review_v4', {
       p_item_id: submission.itemId,
       p_label: submission.label,
       p_comment: submission.comment,

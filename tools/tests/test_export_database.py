@@ -98,7 +98,7 @@ def test_real_driver_output_matches_columns_metadata_votes_and_projection(
         "image_url": "https://images.example.invalid/1.jpg",
         "display_url": None,
         "flickr_search_term": None,
-        "schema_version": "veritaxa-review-label-v5",
+        "schema_version": "veritaxa-review-label-v6",
         "matches_flickr_keyword": False,
         "matches_target_scientific_name": False,
         "target_not_present": False,
@@ -182,7 +182,7 @@ def test_real_transaction_is_read_only_and_repeatable_read(
     rows = list(iter_export_records(dsn, "SYNTH"))
     assert len(rows) == 1
     assert rows[0] == {
-        "schema_version": "veritaxa-review-label-v5",
+        "schema_version": "veritaxa-review-label-v6",
         "campaign_code": "SYNTH",
         "reviewed_at": "on",
         "image_id": "repeatable read",

@@ -160,7 +160,7 @@ try {
         const next = document.querySelector<HTMLButtonElement>('[aria-label="Next image"]');
         if (!next) throw new Error('Navigation is missing');
         if (retainDrafts) {
-          document.querySelector<HTMLButtonElement>('[aria-label="No"]')?.click();
+          document.querySelector<HTMLButtonElement>('[data-label="target_not_present"]')?.click();
           await new Promise<void>((resolve) => setTimeout(resolve, 0));
         }
         next.click();

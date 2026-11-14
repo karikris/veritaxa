@@ -17,7 +17,7 @@ from tools.metadata_archive import MetadataResolver
 from tools.native_runtime import NativeRuntimeError, connect_admin
 from tools.tabular_output import validate_output_path, write_records
 
-SCHEMA_VERSION = "veritaxa-review-label-v5"
+SCHEMA_VERSION = "veritaxa-review-label-v6"
 EXPORT_COLUMNS = [
     "campaign_code",
     "target_scientific_name",
@@ -62,6 +62,7 @@ CONSENSUS_EXPORT_COLUMNS = [
 ]
 
 EXPECTED_RESULT_PRIORITY = (
+    "model_scientific_name",
     "target_scientific_name",
     "adult_butterfly",
     "caterpillar",
@@ -99,6 +100,7 @@ DERIVED_LABELS = {
         "image_unavailable",
         "target_not_present",
         "no_butterfly",
+        "model_scientific_name",
     },
 }
 

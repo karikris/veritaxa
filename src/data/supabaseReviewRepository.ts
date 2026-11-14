@@ -82,7 +82,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
     signal: AbortSignal,
   ): Promise<ReviewItem | null> {
     const { data, error } = await this.#client
-      .rpc('get_review_cursor_v2', {
+      .rpc('get_review_cursor_v3', {
         p_anchor_position: anchorPosition,
         p_batch_id: batchId,
         p_direction: direction,
@@ -96,7 +96,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
   }
 
   async saveReview(submission: ReviewSubmission): Promise<ReviewItem> {
-    const { data, error } = await this.#client.rpc('save_image_review_v3', {
+    const { data, error } = await this.#client.rpc('save_image_review_v4', {
       p_client_version: submission.clientVersion,
       p_comment: submission.comment,
       p_expected_version: submission.expectedVersion,
@@ -155,6 +155,8 @@ function parseItem(value: unknown): ReviewItem {
             MAX_SCIENTIFIC_NAME_LENGTH,
             'target scientific name',
           ),
+    modelScientificName: row.model_scientific_name == null ? null : requiredString(row.model_scientific_name, MAX_SCIENTIFIC_NAME_LENGTH, 'model scientific name'),
+    modelCosine: modelCosine(row.model_cosine),
     displayUrl: displayUrl === null ? null : requiredString(displayUrl, 2048, 'display image URL'),
     fallbackImageUrl: requiredString(row.fallback_image_url, 2048, 'fallback image URL'),
     position: requiredCount(row.position, 'item position'),
@@ -200,5 +202,11 @@ function requiredBoolean(value: unknown, label: string): boolean {
 
 function requiredReviewLabel(value: unknown, label: string) {
   if (!isReviewLabelCode(value)) throw new Error(`The ${label} response was not valid.`);
+  return value;
+}
+
+function modelCosine(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < -1 || value > 1) throw new Error('The model cosine response was not valid.');
   return value;
 }
