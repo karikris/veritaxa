@@ -6,6 +6,7 @@ declare
   reviewer_b uuid := gen_random_uuid();
   campaign uuid := gen_random_uuid();
   batch uuid := gen_random_uuid();
+  excluded_batch uuid := gen_random_uuid();
   item uuid;
   tie_a uuid := gen_random_uuid();
   tie_b uuid := gen_random_uuid();
@@ -21,9 +22,13 @@ begin
     (campaign,'SYNTH-'||campaign::text,'Synthetic latest','Synthetic latest',test_name,'open');
   insert into public.review_batches(id,campaign_id,batch_code,reviewer_name,position,status)
     values(batch,campaign,'SYNTH-'||batch::text,'Synthetic latest',1,'open');
-  insert into public.review_items(batch_id,position,image_id,source_provider,image_url)
+  insert into public.review_items(batch_id,position,image_id,source_provider,image_url,pipeline_metadata)
     select batch,n,'synthetic-latest-'||n,'synthetic-latest',
-      'https://images.example.invalid/synthetic.svg' from generate_series(1,5) n;
+      'https://images.example.invalid/synthetic.svg',jsonb_build_object(
+        'bioclip',jsonb_build_object('top5',jsonb_build_array(jsonb_build_object(
+          'scientific_name',test_name)),'attestation',jsonb_build_object('model','bioclip-synthetic')),
+        'bioclip_media_byte_sha256','synthetic-hash',
+        'scored_cache_image_sha256','sha256:synthetic-hash') from generate_series(1,5) n;
   insert into public.image_reviews(item_id,reviewer_id,label,submission_id,client_version,
     "identifiedBy",updated_at,"scientificName")
     select i.id,reviewer_a,case i.position when 2 then 'target_scientific_name'::public.review_label
@@ -47,6 +52,9 @@ begin
       'synthetic','Synthetic reviewer B',stamp,null);
   perform set_config('veritaxa.round_code','SYNTH-LATEST',true);
   perform set_config('veritaxa.target_name',test_name,true);
+  perform set_config('veritaxa.source_campaigns',jsonb_build_array('SYNTH-'||campaign::text)::text,true);
+  perform set_config('veritaxa.reviewed_after',(stamp-interval '1 day')::text,true);
+  perform set_config('veritaxa.reviewed_before',(stamp+interval '1 day')::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',reviewer_a,'role','authenticated')::text,true);
   perform set_config('veritaxa.test_claims',current_setting('request.jwt.claims'),true);
 
@@ -56,6 +64,44 @@ begin
   if not (select reviewed_by_anyone from public.get_review_cursor_v2(batch,0,'next')) then
     raise exception 'Missing reviewed image badge';
   end if;
+
+  -- Same target is insufficient: exclude non-target BioCLIP, absent evidence,
+  -- old reviews, and scores bound to different media bytes.
+  insert into public.review_batches(id,campaign_id,batch_code,reviewer_name,position,status)
+    values(excluded_batch,campaign,'SYNTH-'||excluded_batch::text,'Synthetic exclusions',2,'open');
+  insert into public.review_items(batch_id,position,image_id,source_provider,image_url,
+    pipeline_metadata,created_at)
+    select excluded_batch,n,'synthetic-excluded-'||n,'synthetic-latest',
+      'https://images.example.invalid/synthetic.svg',
+      case when n=7 then '{}'::jsonb else jsonb_build_object(
+        'bioclip',jsonb_build_object('top5',jsonb_build_array(jsonb_build_object(
+          'scientific_name',case when n=6 then 'Other synthetic taxon' else test_name end)),
+          'attestation',jsonb_build_object('model','bioclip-synthetic')),
+        'bioclip_media_byte_sha256','synthetic-hash',
+        'scored_cache_image_sha256',case when n=9 then 'sha256:different-hash'
+          else 'sha256:synthetic-hash' end) end,
+      case when n=8 then stamp-interval '3 days' else transaction_timestamp() end
+    from generate_series(6,9) n;
+  insert into public.image_reviews(item_id,reviewer_id,label,submission_id,client_version,
+    "identifiedBy",created_at,updated_at)
+    select i.id,reviewer_a,'plant',gen_random_uuid(),'synthetic','Synthetic reviewer A',
+      case when i.position=8 then stamp-interval '2 days' else stamp end,
+      case when i.position=8 then stamp-interval '2 days' else stamp end
+    from public.review_items i where i.batch_id=excluded_batch;
+
+  -- A fully attested reviewed image in an unselected campaign must also stay out.
+  insert into public.review_campaigns(campaign_code,internal_name,reviewer_name,
+    target_scientific_name,status) values
+    ('SYNTH-OTHER-'||campaign::text,'Synthetic outside cohort','Synthetic outside cohort',test_name,'open')
+    returning id into campaign;
+  insert into public.review_batches(campaign_id,batch_code,reviewer_name,position,status)
+    values(campaign,'SYNTH-OTHER-'||batch::text,'Synthetic outside cohort',1,'open')
+    returning id into excluded_batch;
+  insert into public.review_items(batch_id,position,image_id,source_provider,image_url,pipeline_metadata)
+    select excluded_batch,1,'synthetic-outside-cohort','synthetic-latest',image_url,pipeline_metadata
+    from public.review_items where batch_id=batch and position=1 returning id into item;
+  insert into public.image_reviews(item_id,reviewer_id,label,submission_id,client_version,"identifiedBy")
+    values(item,reviewer_a,'plant',gen_random_uuid(),'synthetic','Synthetic reviewer A');
 end;
 $test$;
 

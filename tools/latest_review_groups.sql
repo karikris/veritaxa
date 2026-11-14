@@ -1,9 +1,15 @@
--- Run in a transaction after setting veritaxa.round_code and veritaxa.target_name.
+-- Explicit cohort, time window, and attested BioCLIP target evidence are mandatory.
 -- Copy queue memberships; retain every historical item and saved review unchanged.
 do $publish$
 declare
   round_code text := current_setting('veritaxa.round_code');
   target_name text := current_setting('veritaxa.target_name');
+  source_campaigns text[] := array(select jsonb_array_elements_text(
+    current_setting('veritaxa.source_campaigns')::jsonb));
+  reviewed_after timestamptz := current_setting('veritaxa.reviewed_after')::timestamptz;
+  reviewed_before timestamptz := current_setting('veritaxa.reviewed_before')::timestamptz;
+  reopen_source_batches boolean := coalesce(nullif(
+    current_setting('veritaxa.reopen_source_batches',true),''),'false')::boolean;
   group_row record;
   new_campaign_id uuid;
   new_batch_id uuid;
@@ -11,6 +17,10 @@ declare
 begin
   if round_code !~ '^[A-Z0-9][A-Z0-9-]{0,29}$' or length(target_name) not between 1 and 500 then
     raise exception 'Invalid round code or target name';
+  end if;
+  if coalesce(cardinality(source_campaigns),0)=0 or reviewed_after is null
+    or reviewed_before is null or reviewed_after >= reviewed_before then
+    raise exception 'Explicit source campaigns and a valid review time window are required';
   end if;
   set local lock_timeout = '5s';
   lock table public.review_campaigns, public.review_batches,
@@ -24,6 +34,23 @@ begin
     select 'item'::text kind, id, xmin::text version from public.review_items
     union all select 'review', id, xmin::text from public.image_reviews;
 
+  create temporary table latest_group_eligible on commit drop as
+  select distinct i.source_provider,i.image_id
+  from public.image_reviews r
+  join public.review_items i on i.id=r.item_id
+  join public.review_batches b on b.id=i.batch_id
+  join public.review_campaigns c on c.id=b.campaign_id
+  where c.target_scientific_name=target_name and c.campaign_code=any(source_campaigns)
+    and i.pipeline_metadata#>>'{bioclip,top5,0,scientific_name}'=target_name
+    and i.pipeline_metadata#>>'{bioclip,attestation,model}' ilike '%bioclip%'
+    and nullif(i.pipeline_metadata->>'bioclip_media_byte_sha256','') is not null
+    and i.pipeline_metadata->>'scored_cache_image_sha256'=
+      'sha256:'||(i.pipeline_metadata->>'bioclip_media_byte_sha256')
+    and r.updated_at>=i.created_at
+    and ((r.created_at>=reviewed_after and r.created_at<reviewed_before)
+      or (r.updated_at>=reviewed_after and r.updated_at<reviewed_before));
+  create unique index on latest_group_eligible(source_provider,image_id);
+
   create temporary table latest_group_votes on commit drop as
   select i.id original_item_id, i.source_provider, i.image_id, r.id review_id,
     r.updated_at, r.label::text label, to_jsonb(r) review_snapshot
@@ -31,12 +58,19 @@ begin
   join public.review_items i on i.id = r.item_id
   join public.review_batches b on b.id = i.batch_id
   join public.review_campaigns c on c.id = b.campaign_id
-  where c.target_scientific_name = target_name;
+  join latest_group_eligible eligible on eligible.source_provider=i.source_provider
+    and eligible.image_id=i.image_id
+  where c.target_scientific_name = target_name and c.campaign_code=any(source_campaigns)
+    and i.pipeline_metadata#>>'{bioclip,top5,0,scientific_name}'=target_name
+    and i.pipeline_metadata#>>'{bioclip,attestation,model}' ilike '%bioclip%'
+    and i.pipeline_metadata->>'scored_cache_image_sha256'=
+      'sha256:'||nullif(i.pipeline_metadata->>'bioclip_media_byte_sha256','')
+    and r.updated_at>=i.created_at;
   create index on latest_group_votes (source_provider, image_id);
   analyze latest_group_votes;
 
   if not exists (select 1 from latest_group_votes) then
-    raise exception 'No saved reviews for this target';
+    raise exception 'No human-reviewed images match the explicit cohort, date and BioCLIP target';
   end if;
 
   create temporary table latest_group_members on commit drop as
@@ -88,6 +122,9 @@ begin
       jsonb_build_object('_veritaxa_rereview', jsonb_build_object(
         'round_code', round_code, 'category', m.category,
         'grouping_rule', 'latest_updated_at_then_review_id_desc',
+        'eligibility',jsonb_build_object('source_campaigns',source_campaigns,
+          'reviewed_after',reviewed_after,'reviewed_before',reviewed_before,
+          'requires_bioclip_target_top1',true,'requires_matching_scored_media',true),
         'snapshot_at', transaction_timestamp(), 'original_item_id', m.original_item_id,
         'effective_review_id', m.review_id, 'effective_label', m.label,
         'source_reviews', m.source_reviews))
@@ -122,14 +159,12 @@ begin
     and c.campaign_code not like 'REREVIEW-' || round_code || '-%'
     and c.status <> 'archived';
 
-  -- Completed first-round batches leave the active menu after their reviews are copied.
-  -- Partially reviewed batches remain accessible, with team progress shown in the UI.
-  update public.review_batches b set status='closed',closed_at=now()
-  from public.review_campaigns c where c.id=b.campaign_id
-    and c.target_scientific_name=target_name and b.status='open'
-    and c.campaign_code not like 'REREVIEW-%'
-    and exists(select 1 from public.review_items i where i.batch_id=b.id)
-    and not exists(select 1 from public.review_items i where i.batch_id=b.id
-      and not exists(select 1 from public.image_reviews r where r.item_id=i.id));
+  -- Publishing round two must not hide first-round BioCLIP datasets.
+  if reopen_source_batches then
+    update public.review_batches b set status='open',closed_at=null
+    from public.review_campaigns c where c.id=b.campaign_id
+      and c.target_scientific_name=target_name and c.campaign_code=any(source_campaigns)
+      and c.status='open' and b.status='closed';
+  end if;
 end;
 $publish$;

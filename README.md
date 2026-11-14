@@ -524,29 +524,37 @@ provenance. It moves images into the first available batch for each option and
 closes the emptied batches. Progress reflects the entire folder. Existing private
 exports remain unchanged; the fresh export records the updated folder positions.
 
-### Group latest saved answers into three second-round datasets
+### Group a BioCLIP cohort's recent human answers into second-round datasets
 
-For a single target, publish mutually exclusive Yes, No / other butterfly, and
-No butterfly / other or unresolved queues:
+For a specific model cohort and human-review day, publish mutually exclusive
+Yes, No / other butterfly, and No butterfly / other or unresolved queues:
 
 ```text
 uv run python -m tools.publish_latest_review_groups \
-  --round-code DEMO-LATEST-01 --target-name "Taxon example"
+  --round-code DEMO-LATEST-01 --target-name "Taxon example" \
+  --source-campaign DEMO-MODEL-A --source-campaign DEMO-MODEL-C \
+  --reviewed-on 2026-01-15 --timezone Australia/Melbourne
 ```
 
 The default validates publication and rolls back. Add `--publish` to commit.
 Use the existing secure admin environment and verified admin runtime described
-above. Each source-provider/image-ID pair appears once. The most recently
-updated saved review wins across all rounds; equal timestamps use descending
-review UUID order. `target_scientific_name` maps to Yes; `adult_butterfly` and
+above. Source campaigns and the local review day are mandatory. Eligible images
+must have an attested BioCLIP top prediction matching the target, matching scored
+media hashes, and a human review created or updated on the selected day after
+import of that model evidence. Missing or different model predictions are excluded.
+Each source-provider/image-ID pair appears once, including images shared across
+the selected cohorts. The most recently updated saved review in those qualifying
+cohorts wins; equal timestamps use descending review UUID order.
+`target_scientific_name` maps to Yes; `adult_butterfly` and
 `target_not_present` map to No. Other labels map to the third queue, retaining
 their precise labels, including unavailable images, in private provenance.
 An unresolved latest legacy keyword answer stops publication.
 
 Every original item and review remains unchanged, and all saved answers for each
-image are snapshotted. Older second-round menus are archived, and completed
-first-round batches close after successful publication. Partially reviewed
-first-round batches remain available. New answers do not automatically regroup
+eligible cohort image are snapshotted. Older second-round menus are archived.
+First-round groups remain available, including completed batches with visible
+progress. Add `--reopen-source-batches` to reopen closed batches in the selected
+source campaigns. New answers do not automatically regroup
 an existing snapshot; publish a fresh round code when another refresh is needed.
 
 The header's **Choose a dataset** selector shows remaining work and round labels.
@@ -564,7 +572,7 @@ transaction, then roll back: `tools/tests/latest_review_groups.sql`,
 `tools/latest_review_groups.sql`,
 `tools/tests/latest_review_groups_assertions.sql`, and
 `tools/tests/dataset_progress_permissions.sql`. Use a disposable migrated database.
-They exercise conflicting reviews, timestamp ties, original review preservation,
+They exercise date/cohort/model/media exclusions, conflicting reviews, timestamp ties, original review preservation,
 round-specific progress, authenticated permissions, save retries, and stale versions.
 
 ### Archive bulky pipeline metadata
