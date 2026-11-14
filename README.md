@@ -294,8 +294,12 @@ https://karikris.github.io/veritaxa/
 A reviewer can then enter their name, immediately choose an open neutral batch,
 classify one image, and resume at their next unreviewed item later. Their session
 is remembered on that browser; progress reflects their own saved answers.
-Datasets appear in A, B, C series order, with replacement datasets in their
-original code sequence. Completed published datasets remain available for corrections.
+Geotagged discovery datasets appear first, followed by the remaining A, B, and C
+groups. Second-round scientific-name folders follow, then Adult butterfly,
+Caterpillar, Moth, Other insect, and the other classification folders. The
+database returns this order through the existing reviewer API; private source
+metadata is not added to its response. Completed published datasets remain
+available for corrections unless an administrator consolidates the live queue.
 
 Scroll over the picture to zoom toward the pointer, or double-click to zoom.
 Once zoomed, drag to move the subject into view; even a corner can reach the
