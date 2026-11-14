@@ -138,6 +138,40 @@ Every exported value is checked against a private CSV snapshot. Long text uses
 continuation columns, URLs are clickable, and formulas are never inferred from
 source text. A JSON receipt records source hashes, counts and the validation.
 
+## Attach and group saved clues on live images
+
+`tools.location_clue_groups.build_payload` combines an image's summary, full
+location evidence, relative-time evidence and temporal references. It assigns one
+primary group and retains all applicable source/type tags. Coordinate references,
+named locality candidates and nearby geotagged photos take precedence; remaining
+groups distinguish owner comments, photo text, other comments and relative timing.
+Profile locations, greetings, species ranges and questions do not independently
+qualify an image for these groups. All supporting evidence and its flags remain
+available in the private payload.
+
+Prepare a private gzip JSONL plan with `item_id`, `source_provider`,
+`source_record_id` and `payload` per image, then validate it against live records:
+
+```text
+uv run python -m tools.attach_location_clues \
+  --env-file /secure/config.env --plan /private/attachment-plan.jsonl.gz \
+  --output /private/location-attachment
+```
+
+Add `--publish` to attach each payload under
+`pipeline_metadata._veritaxa_location_clues`. Each update compares the complete
+previous metadata value, retries concurrent metadata changes using a fresh read,
+and verifies the returned merged value. Matching existing payloads are skipped.
+The output directory retains the initial metadata backup and per-item results for
+recovery and resuming partial runs. Plans and backups must stay outside Git.
+
+Clues retain source hashes and unverified status. Target latitude and longitude
+remain empty: named-place centers, quoted coordinates, profile locations and
+reference-photo coordinates are never promoted to the target's capture location.
+The enrichment remains private administrative metadata and is not added to the
+reviewer RPCs. Dataset membership, image IDs, existing model metadata and saved
+human classifications are preserved.
+
 ## Checks
 
 ```bash
