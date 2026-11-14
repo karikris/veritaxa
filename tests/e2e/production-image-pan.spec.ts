@@ -34,7 +34,7 @@ async function openSyntheticReview(page: Page): Promise<void> {
         user,
       };
     } else if (path === '/auth/v1/user') data = user;
-    else if (path === '/rest/v1/rpc/list_review_batches') {
+    else if (path === '/rest/v1/rpc/list_review_batches_v2') {
       data = [
         {
           batch_id: '00000000-0000-4000-8000-000000000002',
@@ -43,9 +43,11 @@ async function openSyntheticReview(page: Page): Promise<void> {
           reviewed_count: 0,
           total_count: 1,
           complete: false,
+          team_reviewed_count: 0,
+          review_round: 1,
         },
       ];
-    } else if (path === '/rest/v1/rpc/get_review_cursor') {
+    } else if (path === '/rest/v1/rpc/get_review_cursor_v2') {
       data = [
         {
           item_id: '00000000-0000-4000-8000-000000000003',
@@ -60,6 +62,8 @@ async function openSyntheticReview(page: Page): Promise<void> {
           reviewed_count: 0,
           total_count: 1,
           complete: false,
+          team_reviewed_count: 0,
+          reviewed_by_anyone: false,
         },
       ];
     } else {
@@ -77,6 +81,11 @@ async function openSyntheticReview(page: Page): Promise<void> {
   await page.goto('./');
   await page.getByLabel('Name', { exact: true }).fill('Synthetic test');
   await page.getByRole('button', { name: 'Start reviewing' }).click();
+  await expect(page.getByLabel('Choose a dataset ↓')).toBeVisible();
+  await expect(page.locator('.dataset-progress')).toHaveText(
+    '0 / 1 reviewed by team in this dataset',
+  );
+  await expect(page.locator('.image-review-status')).toHaveText('Needs review in this dataset');
   await expect
     .poll(() =>
       page.locator('.review-image').evaluate((image: HTMLImageElement) => image.naturalWidth),

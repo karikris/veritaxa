@@ -56,6 +56,7 @@ export class ReviewView {
   readonly #previous: HTMLButtonElement;
   readonly #next: HTMLButtonElement;
   readonly #position: HTMLElement;
+  readonly #reviewStatus: HTMLElement;
   readonly #loading: HTMLElement;
   readonly #queueError: HTMLElement;
   readonly #unavailable: HTMLElement;
@@ -93,6 +94,7 @@ export class ReviewView {
     this.element.className = 'review-main';
     this.element.innerHTML = `
       <p class="completion-status" role="status" hidden>All reviewed—answers can still be updated.</p>
+      <p class="image-review-status" role="status" hidden></p>
       <section class="image-stage" aria-label="Image under review">
         <span class="stage-message" hidden>Loading image…</span>
         <div class="image-unavailable" hidden>
@@ -154,6 +156,7 @@ export class ReviewView {
     this.#previous = find('[aria-label="Previous image"]', HTMLButtonElement);
     this.#next = find('[aria-label="Next image"]', HTMLButtonElement);
     this.#position = find('.image-position', HTMLElement);
+    this.#reviewStatus = find('.image-review-status', HTMLElement);
     this.#loading = find('.stage-message', HTMLElement);
     this.#queueError = find('.queue-error', HTMLElement);
     this.#unavailable = find('.image-unavailable', HTMLElement);
@@ -246,6 +249,16 @@ export class ReviewView {
 
   update(state: ReviewViewState): void {
     const { item, draft, comparison, source, sources, canEdit } = state;
+    this.#reviewStatus.hidden = !item;
+    this.#reviewStatus.textContent = item?.currentVersion
+      ? '✓ Reviewed by you in this dataset'
+      : item?.reviewedByAnyone
+        ? '✓ Reviewed by another reviewer in this dataset · Your review is still open'
+        : 'Needs review in this dataset';
+    this.#reviewStatus.classList.toggle(
+      'image-review-status--saved',
+      !!item && (item.currentVersion > 0 || !!item.reviewedByAnyone),
+    );
     this.#completion.hidden = !state.complete;
     this.#classifier.hidden = !item;
     this.#navigation.hidden = !item;

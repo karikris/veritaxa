@@ -244,6 +244,9 @@ export class VeriTaxaApp {
       const storedId = this.#storage?.getItem(LAST_BATCH_KEY);
       const selected =
         batches.find((batch) => batch.id === storedId) ??
+        batches.find(
+          (batch) => (batch.teamReviewedCount ?? batch.reviewedCount) < batch.totalCount,
+        ) ??
         batches.find((batch) => !batch.complete) ??
         batches[0];
       if (!selected) {
@@ -446,6 +449,7 @@ export class VeriTaxaApp {
         nextItem.reviewedCount,
         nextItem.totalCount,
         nextItem.complete,
+        nextItem.teamReviewedCount,
       );
       this.#draft.pendingSubmission = null;
       this.#drafts.delete(current.id);
@@ -495,6 +499,7 @@ export class VeriTaxaApp {
       item.reviewedCount,
       item.totalCount,
       item.reviewedCount === item.totalCount && item.totalCount > 0,
+      item.teamReviewedCount,
     );
   }
 
@@ -562,9 +567,18 @@ export class VeriTaxaApp {
     reviewedCount: number,
     totalCount: number,
     complete: boolean,
+    teamReviewedCount?: number,
   ): void {
     this.#batches = this.#batches.map((batch) =>
-      batch.id === batchId ? { ...batch, reviewedCount, totalCount, complete } : batch,
+      batch.id === batchId
+        ? {
+            ...batch,
+            reviewedCount,
+            totalCount,
+            complete,
+            ...(teamReviewedCount === undefined ? {} : { teamReviewedCount }),
+          }
+        : batch,
     );
   }
 
@@ -753,15 +767,19 @@ export class VeriTaxaApp {
     const brand = element('span', 'wordmark');
     brand.textContent = 'VeriTaxa';
     const controls = element('div', 'header-controls');
-    const selectLabel = element('label', 'visually-hidden');
+    const chooser = element('div', 'dataset-chooser');
+    const selectLabel = element('label', 'dataset-label');
     selectLabel.htmlFor = 'batch-select';
-    selectLabel.textContent = 'Review batch';
+    selectLabel.textContent = 'Choose a dataset ↓';
     const select = element('select', 'batch-select');
     select.id = 'batch-select';
+    select.setAttribute('aria-describedby', 'dataset-progress');
     select.addEventListener('change', () => {
       if (this.#canChangeBatch) void this.#selectBatch(select.value);
     });
     const progress = element('span', 'header-progress');
+    const datasetProgress = element('span', 'dataset-progress');
+    datasetProgress.id = 'dataset-progress';
     const saveState = element('span', 'save-state');
     saveState.setAttribute('role', 'status');
     const saveStateText = document.createTextNode('');
@@ -776,12 +794,14 @@ export class VeriTaxaApp {
         this.#render();
       });
     });
-    controls.append(selectLabel, select, progress, saveState, signOut);
+    chooser.append(selectLabel, select, datasetProgress);
+    controls.append(chooser, progress, saveState, signOut);
     header.append(brand, controls);
     this.#updateHeader = () => {
       header.classList.toggle('site-header--active', !!this.#session);
       controls.hidden = !this.#session;
       select.hidden = selectLabel.hidden = this.#batches.length === 0;
+      chooser.hidden = this.#batches.length === 0;
       select.disabled = !this.#canChangeBatch;
       while (select.options.length > this.#batches.length) select.remove(select.options.length - 1);
       this.#batches.forEach((batch, index) => {
@@ -791,11 +811,27 @@ export class VeriTaxaApp {
           select.add(option);
         }
         if (option.value !== batch.id) option.value = batch.id;
-        const text = `${batch.code} · ${batch.name} · ${String(batch.totalCount)} ${batch.totalCount === 1 ? 'image' : 'images'}`;
+        const teamCount = batch.teamReviewedCount ?? batch.reviewedCount;
+        const remaining = Math.max(0, batch.totalCount - teamCount);
+        const status = remaining === 0 ? '✓ Reviewed by team' : `${String(remaining)} need review`;
+        const roundName = batch.reviewRound ? `Round ${String(batch.reviewRound)}` : '';
+        const round = roundName && !batch.name.startsWith(roundName) ? `${roundName} · ` : '';
+        const text = `${round}${batch.name} · ${status} · ${batch.code}`;
         if (option.textContent !== text) option.textContent = text;
       });
       select.value = this.#batchId ?? '';
       const active = this.#batches.find((batch) => batch.id === this.#batchId);
+      const teamCount = active?.teamReviewedCount ?? active?.reviewedCount ?? 0;
+      datasetProgress.textContent = active
+        ? `${String(teamCount)} / ${String(active.totalCount)} reviewed by team in this dataset`
+        : '';
+      progress.title = 'Your saved reviews in this dataset';
+      progress.setAttribute(
+        'aria-label',
+        active
+          ? `Your progress: ${String(active.reviewedCount)} of ${String(active.totalCount)} reviewed`
+          : 'Your progress',
+      );
       progress.textContent = active
         ? `${String(active.reviewedCount)} / ${String(active.totalCount)}`
         : '— / —';

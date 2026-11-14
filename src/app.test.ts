@@ -133,6 +133,41 @@ describe('VeriTaxa application', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  it('distinguishes shared dataset progress from the current reviewer and marks reviewed images', async () => {
+    const repo = repository({
+      cursor: { ...firstItem, reviewedByAnyone: true, teamReviewedCount: 1 },
+    });
+    repo.listBatches.mockResolvedValue([{ ...batch, teamReviewedCount: 1, reviewRound: 2 }]);
+    const app = createApp(repo);
+    await app.start();
+    expect(document.querySelector('.dataset-label')?.textContent).toBe('Choose a dataset ↓');
+    expect(document.querySelector('.dataset-progress')?.textContent).toBe(
+      '1 / 2 reviewed by team in this dataset',
+    );
+    expect(document.querySelector('.batch-select option')?.textContent).toContain('1 need review');
+    expect(document.querySelector('.header-progress')?.textContent).toBe('0 / 2');
+    expect(document.querySelector('.image-review-status')?.textContent).toContain(
+      'Reviewed by another reviewer',
+    );
+    app.dispose();
+  });
+
+  it('starts with a dataset that still needs shared review instead of a completed dataset', async () => {
+    const repo = repository();
+    const pendingId = '30000000-0000-0000-0000-000000000002';
+    repo.listBatches.mockResolvedValue([
+      { ...batch, teamReviewedCount: 2 },
+      { ...batch, id: pendingId, teamReviewedCount: 0 },
+    ]);
+    const app = createApp(repo);
+    await app.start();
+    expect(repo.getCursor).toHaveBeenCalledWith(pendingId, null, 'resume', expect.any(AbortSignal));
+    expect(document.querySelector('.batch-select option')?.textContent).toContain(
+      '✓ Reviewed by team',
+    );
+    app.dispose();
+  });
+
   it('does not request batches or images before authentication', async () => {
     const repo = repository({ signedIn: false });
     const app = createApp(repo);

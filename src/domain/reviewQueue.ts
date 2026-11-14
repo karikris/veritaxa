@@ -2,7 +2,7 @@ import type { ReviewLabelCode } from './reviewLabels';
 import { countCodePoints } from './text';
 
 export const MAX_COMMENT_LENGTH = 1000;
-export const CLIENT_VERSION = 'veritaxa-web/0.6.0';
+export const CLIENT_VERSION = 'veritaxa-web/0.7.0';
 
 export type ReviewBatch = {
   id: string;
@@ -11,6 +11,8 @@ export type ReviewBatch = {
   reviewedCount: number;
   totalCount: number;
   complete: boolean;
+  teamReviewedCount?: number;
+  reviewRound?: number;
 };
 
 export type ReviewItem = {
@@ -23,6 +25,8 @@ export type ReviewItem = {
   currentLabel: ReviewLabelCode | null;
   currentComment: string | null;
   currentVersion: number;
+  reviewedByAnyone?: boolean;
+  teamReviewedCount?: number;
   reviewedCount: number;
   totalCount: number;
   complete: boolean;

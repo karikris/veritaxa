@@ -80,7 +80,7 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      get_review_cursor: {
+      get_review_cursor_v2: {
         Args: {
           p_anchor_position: number | null;
           p_batch_id: string;
@@ -88,6 +88,8 @@ export type Database = {
         };
         Returns: {
           complete: boolean;
+          team_reviewed_count: number;
+          reviewed_by_anyone: boolean;
           current_comment: string | null;
           current_label: Database['public']['Enums']['review_label'] | null;
           current_version: number;
@@ -105,18 +107,20 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
       };
-      list_review_batches: {
+      list_review_batches_v2: {
         Args: Record<PropertyKey, never>;
         Returns: {
           batch_code: string;
           batch_id: string;
           complete: boolean;
+          team_reviewed_count: number;
+          review_round: number;
           reviewed_count: number;
           reviewer_name: string;
           total_count: number;
         }[];
       };
-      save_image_review_v2: {
+      save_image_review_v3: {
         Args: {
           p_client_version: string;
           p_comment: string | null;
@@ -127,6 +131,8 @@ export type Database = {
         };
         Returns: {
           complete: boolean;
+          team_reviewed_count: number;
+          reviewed_by_anyone: boolean;
           current_comment: string | null;
           current_label: Database['public']['Enums']['review_label'] | null;
           current_version: number;

@@ -67,7 +67,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
   }
 
   async listBatches(signal: AbortSignal): Promise<ReviewBatch[]> {
-    const { data, error } = await this.#client.rpc('list_review_batches').abortSignal(signal);
+    const { data, error } = await this.#client.rpc('list_review_batches_v2').abortSignal(signal);
     if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
     if (error?.code === '42501') throw new ReviewerAccessDisabledError();
     if (error) throw new Error('Could not load review batches.');
@@ -82,7 +82,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
     signal: AbortSignal,
   ): Promise<ReviewItem | null> {
     const { data, error } = await this.#client
-      .rpc('get_review_cursor', {
+      .rpc('get_review_cursor_v2', {
         p_anchor_position: anchorPosition,
         p_batch_id: batchId,
         p_direction: direction,
@@ -96,7 +96,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
   }
 
   async saveReview(submission: ReviewSubmission): Promise<ReviewItem> {
-    const { data, error } = await this.#client.rpc('save_image_review_v2', {
+    const { data, error } = await this.#client.rpc('save_image_review_v3', {
       p_client_version: submission.clientVersion,
       p_comment: submission.comment,
       p_expected_version: submission.expectedVersion,
@@ -131,6 +131,8 @@ function parseBatch(value: unknown): ReviewBatch {
     reviewedCount: requiredCount(row.reviewed_count, 'reviewed count'),
     totalCount: requiredCount(row.total_count, 'total count'),
     complete: requiredBoolean(row.complete, 'completion state'),
+    teamReviewedCount: requiredCount(row.team_reviewed_count, 'team reviewed count'),
+    reviewRound: requiredCount(row.review_round, 'review round'),
   };
 }
 
@@ -141,6 +143,8 @@ function parseItem(value: unknown): ReviewItem {
   const currentComment = row.current_comment;
   const currentLabel = row.current_label;
   return {
+    reviewedByAnyone: requiredBoolean(row.reviewed_by_anyone, 'shared review state'),
+    teamReviewedCount: requiredCount(row.team_reviewed_count, 'team reviewed count'),
     id: requiredString(row.item_id, 36, 'item ID'),
     imageId: requiredString(row.image_id, MAX_IMAGE_ID_LENGTH, 'image ID'),
     targetScientificName:

@@ -20,6 +20,8 @@ const item = {
   reviewed_count: 1,
   total_count: 1,
   complete: true,
+  team_reviewed_count: 1,
+  reviewed_by_anyone: true,
 };
 
 function repository() {
@@ -31,6 +33,30 @@ function repository() {
 
 describe('review RPC response boundary', () => {
   beforeEach(() => rpc.mockReset());
+
+  it('accepts count-only shared progress without retaining private metadata', async () => {
+    rpc.mockReturnValue({ abortSignal: vi.fn().mockResolvedValue({ data: [{
+      batch_id: '30000000-0000-0000-0000-000000000001',
+      reviewer_name: 'Synthetic dataset', batch_code: 'SYNTH-001',
+      reviewed_count: 0, total_count: 2, complete: false, team_reviewed_count: 1,
+      review_round: 2, pipeline_metadata: { private: 'synthetic detail' },
+    }] }) });
+    const [batch] = await repository().listBatches(new AbortController().signal);
+    expect(batch?.teamReviewedCount).toBe(1);
+    expect(batch?.reviewRound).toBe(2);
+    expect(batch).not.toHaveProperty('pipeline_metadata');
+  });
+
+  it('reads the shared image status without exposing another reviewer’s answer', async () => {
+    rpc.mockReturnValue({ abortSignal: vi.fn().mockResolvedValue({ data: [{
+      ...item, current_label: null, current_version: 0, reviewed_count: 0,
+      another_review: { label: 'plant', name: 'Synthetic other reviewer' },
+    }] }) });
+    const result = await repository().getCursor('synthetic-batch', null, 'resume', new AbortController().signal);
+    expect(result?.reviewedByAnyone).toBe(true);
+    expect(result?.currentLabel).toBeNull();
+    expect(result).not.toHaveProperty('another_review');
+  });
 
   it.each([
     ['40001', 'stale_version'],
@@ -75,7 +101,7 @@ describe('review RPC response boundary', () => {
     const result = await repository().saveReview(submission);
     expect(result.currentComment).toBe(submission.comment);
     expect(result).not.toHaveProperty('hidden_metadata');
-    expect(rpc).toHaveBeenLastCalledWith('save_image_review_v2', {
+    expect(rpc).toHaveBeenLastCalledWith('save_image_review_v3', {
       p_item_id: submission.itemId,
       p_label: submission.label,
       p_comment: submission.comment,

@@ -45,6 +45,9 @@ test('Yes and No submit immediately and preserve answers for corrections', async
   await expect(page.getByRole('heading', { name: 'Is this Papilio exemplaris?' })).toBeVisible();
   await expect(page.locator('input[name="review-label"]')).toHaveCount(0);
   await expect(page.getByLabel('Comment')).toHaveCount(0);
+  await expect(page.getByLabel('Choose a dataset ↓')).toBeVisible();
+  await expect(page.locator('.dataset-label')).toBeVisible();
+  await expect(page.locator('.image-review-status')).toHaveText('Needs review in this dataset');
   await expect(page.getByRole('button', { name: 'Send', exact: true })).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('model output');
   await expect(page.locator('body')).not.toContainText('synthetic lepidoptera keyword');
@@ -61,6 +64,9 @@ test('Yes and No submit immediately and preserve answers for corrections', async
   await expect(page.getByText('All reviewed—answers can still be updated.')).toBeVisible();
   await expect(image).toHaveAttribute('src', /review-001\.svg/);
   await expect(page.getByText('Your saved answer: Yes. Choose again to update it.')).toBeVisible();
+  await expect(page.locator('.image-review-status')).toHaveText(
+    '✓ Reviewed by you in this dataset',
+  );
   await page.getByRole('button', { name: 'Next image' }).click();
   await expect(page.getByText('Your saved answer: No. Choose again to update it.')).toBeVisible();
   await page.getByRole('button', { name: 'Yes', exact: true }).click();
@@ -103,7 +109,7 @@ test('Y/N submit outside editable controls and batch selection survives reload',
   await routeSyntheticImages(page, []);
   await page.goto('/veritaxa/?repository=synthetic');
   await expect(page.locator('img.review-image')).toBeVisible();
-  await page.getByLabel('Review batch').focus();
+  await page.getByLabel('Choose a dataset ↓').focus();
   await page.keyboard.press('y');
   await expect(page.locator('.header-progress')).toHaveText('0 / 2');
   await page.locator('.classification-panel').focus();
@@ -111,10 +117,12 @@ test('Y/N submit outside editable controls and batch selection survives reload',
   await expect(page.locator('.image-position')).toHaveText('2 / 2');
   await page.keyboard.press('n');
   await expect(page.locator('.header-progress')).toHaveText('2 / 2');
-  await page.getByLabel('Review batch').selectOption('30000000-0000-0000-0000-000000000002');
+  await page.getByLabel('Choose a dataset ↓').selectOption('30000000-0000-0000-0000-000000000002');
   await expect(page.getByRole('heading', { name: 'Is this Danaus exemplaris?' })).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Review batch')).toHaveValue('30000000-0000-0000-0000-000000000002');
+  await expect(page.getByLabel('Choose a dataset ↓')).toHaveValue(
+    '30000000-0000-0000-0000-000000000002',
+  );
   await expect(page.locator('img.review-image')).toHaveCount(1);
 });
 

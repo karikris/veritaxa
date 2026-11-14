@@ -524,6 +524,49 @@ provenance. It moves images into the first available batch for each option and
 closes the emptied batches. Progress reflects the entire folder. Existing private
 exports remain unchanged; the fresh export records the updated folder positions.
 
+### Group latest saved answers into three second-round datasets
+
+For a single target, publish mutually exclusive Yes, No / other butterfly, and
+No butterfly / other or unresolved queues:
+
+```text
+uv run python -m tools.publish_latest_review_groups \
+  --round-code DEMO-LATEST-01 --target-name "Taxon example"
+```
+
+The default validates publication and rolls back. Add `--publish` to commit.
+Use the existing secure admin environment and verified admin runtime described
+above. Each source-provider/image-ID pair appears once. The most recently
+updated saved review wins across all rounds; equal timestamps use descending
+review UUID order. `target_scientific_name` maps to Yes; `adult_butterfly` and
+`target_not_present` map to No. Other labels map to the third queue, retaining
+their precise labels, including unavailable images, in private provenance.
+An unresolved latest legacy keyword answer stops publication.
+
+Every original item and review remains unchanged, and all saved answers for each
+image are snapshotted. Older second-round menus are archived, and completed
+first-round batches close after successful publication. Partially reviewed
+first-round batches remain available. New answers do not automatically regroup
+an existing snapshot; publish a fresh round code when another refresh is needed.
+
+The header's **Choose a dataset** selector shows remaining work and round labels.
+Team counts mean images with at least one saved human review in that dataset;
+multiple reviewers count once. Personal progress and each image's saved status
+are shown separately. First-round reviews do not mark second-round copies done.
+These markers describe review progress, not certainty about species identity.
+Counts refresh on image loads and saves; reload to refresh the whole dataset list.
+The additive progress RPCs retain the older API for existing browser tabs and
+return only counts and saved-status flags, without other reviewers' answers or
+source metadata.
+
+For database integration checks, run these files in order inside a single
+transaction, then roll back: `tools/tests/latest_review_groups.sql`,
+`tools/latest_review_groups.sql`,
+`tools/tests/latest_review_groups_assertions.sql`, and
+`tools/tests/dataset_progress_permissions.sql`. Use a disposable migrated database.
+They exercise conflicting reviews, timestamp ties, original review preservation,
+round-specific progress, authenticated permissions, save retries, and stale versions.
+
 ### Archive bulky pipeline metadata
 
 The admin tools can keep bulky pipeline JSON in a private S3-compatible archive,
