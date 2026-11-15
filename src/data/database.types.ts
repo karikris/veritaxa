@@ -80,7 +80,7 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      get_review_cursor_v3: {
+      get_review_cursor_v4: {
         Args: {
           p_anchor_position: number | null;
           p_batch_id: string;
@@ -90,6 +90,7 @@ export type Database = {
           complete: boolean;
           team_reviewed_count: number;
           reviewed_by_anyone: boolean;
+          previously_reviewed: boolean;
           current_comment: string | null;
           current_label: Database['public']['Enums']['review_label'] | null;
           current_version: number;
@@ -122,7 +123,7 @@ export type Database = {
           total_count: number;
         }[];
       };
-      save_image_review_v4: {
+      save_image_review_v5: {
         Args: {
           p_client_version: string;
           p_comment: string | null;
@@ -135,6 +136,7 @@ export type Database = {
           complete: boolean;
           team_reviewed_count: number;
           reviewed_by_anyone: boolean;
+          previously_reviewed: boolean;
           current_comment: string | null;
           current_label: Database['public']['Enums']['review_label'] | null;
           current_version: number;

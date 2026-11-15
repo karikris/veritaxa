@@ -569,7 +569,7 @@ an append does not duplicate them. The command reports counts of newly added ima
 The header's **Choose a dataset** selector shows remaining work and round labels.
 Team counts mean images with at least one saved human review in that dataset;
 multiple reviewers count once. Personal progress and each image's saved status
-are shown separately. First-round reviews do not mark second-round copies done.
+are shown separately. First-round reviews do not mark second-round copies done. Images reviewed in another dataset show a separate previous-review marker; it does not count as completion in the current dataset. Only that boolean is returned, without historical answers or reviewer identity.
 These markers describe review progress, not certainty about species identity.
 Counts refresh on image loads and saves; reload to refresh the whole dataset list.
 The additive progress RPCs retain the older API for existing browser tabs and

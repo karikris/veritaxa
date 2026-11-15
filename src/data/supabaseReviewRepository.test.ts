@@ -22,6 +22,7 @@ const item = {
   complete: true,
   team_reviewed_count: 1,
   reviewed_by_anyone: true,
+  previously_reviewed: false,
 };
 
 function repository() {
@@ -79,6 +80,17 @@ describe('review RPC response boundary', () => {
     expect(result).not.toHaveProperty('another_review');
   });
 
+  it('reads only the previous-review marker, without retaining historical answers', async () => {
+    rpc.mockReturnValue({ abortSignal: vi.fn().mockResolvedValue({ data: [{
+      ...item, previously_reviewed: true,
+      prior_reviews: [{ label: 'plant', identifiedBy: 'Synthetic private reviewer' }],
+    }] }) });
+    const result = await repository().getCursor('synthetic-batch', null, 'resume', new AbortController().signal);
+    expect(result?.previouslyReviewed).toBe(true);
+    expect(result).not.toHaveProperty('prior_reviews');
+    expect(rpc).toHaveBeenCalledWith('get_review_cursor_v4', expect.any(Object));
+  });
+
   it.each([
     ['40001', 'stale_version'],
     ['23505', 'submission_conflict'],
@@ -122,7 +134,7 @@ describe('review RPC response boundary', () => {
     const result = await repository().saveReview(submission);
     expect(result.currentComment).toBe(submission.comment);
     expect(result).not.toHaveProperty('hidden_metadata');
-    expect(rpc).toHaveBeenLastCalledWith('save_image_review_v4', {
+    expect(rpc).toHaveBeenLastCalledWith('save_image_review_v5', {
       p_item_id: submission.itemId,
       p_label: submission.label,
       p_comment: submission.comment,

@@ -82,7 +82,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
     signal: AbortSignal,
   ): Promise<ReviewItem | null> {
     const { data, error } = await this.#client
-      .rpc('get_review_cursor_v3', {
+      .rpc('get_review_cursor_v4', {
         p_anchor_position: anchorPosition,
         p_batch_id: batchId,
         p_direction: direction,
@@ -96,7 +96,7 @@ export class SupabaseReviewRepository implements ReviewRepository {
   }
 
   async saveReview(submission: ReviewSubmission): Promise<ReviewItem> {
-    const { data, error } = await this.#client.rpc('save_image_review_v4', {
+    const { data, error } = await this.#client.rpc('save_image_review_v5', {
       p_client_version: submission.clientVersion,
       p_comment: submission.comment,
       p_expected_version: submission.expectedVersion,
@@ -144,6 +144,7 @@ function parseItem(value: unknown): ReviewItem {
   const currentLabel = row.current_label;
   return {
     reviewedByAnyone: requiredBoolean(row.reviewed_by_anyone, 'shared review state'),
+    previouslyReviewed: requiredBoolean(row.previously_reviewed, 'previous review state'),
     teamReviewedCount: requiredCount(row.team_reviewed_count, 'team reviewed count'),
     id: requiredString(row.item_id, 36, 'item ID'),
     imageId: requiredString(row.image_id, MAX_IMAGE_ID_LENGTH, 'image ID'),

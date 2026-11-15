@@ -262,14 +262,17 @@ export class ReviewView {
   update(state: ReviewViewState): void {
     const { item, draft, comparison, source, sources, canEdit } = state;
     this.#reviewStatus.hidden = !item;
-    this.#reviewStatus.textContent = item?.currentVersion
+    const datasetReviewStatus = item?.currentVersion
       ? '✓ Reviewed by you in this dataset'
       : item?.reviewedByAnyone
         ? '✓ Reviewed by another reviewer in this dataset · Your review is still open'
         : 'Needs review in this dataset';
+    this.#reviewStatus.textContent = item?.previouslyReviewed
+      ? `Previously reviewed in another dataset · ${datasetReviewStatus}`
+      : datasetReviewStatus;
     this.#reviewStatus.classList.toggle(
       'image-review-status--saved',
-      !!item && (item.currentVersion > 0 || !!item.reviewedByAnyone),
+      !!item && (item.currentVersion > 0 || !!item.reviewedByAnyone || !!item.previouslyReviewed),
     );
     this.#completion.hidden = !state.complete;
     this.#classifier.hidden = !item;

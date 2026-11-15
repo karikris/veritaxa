@@ -32,6 +32,7 @@ export type ReviewItem = {
   currentComment: string | null;
   currentVersion: number;
   reviewedByAnyone?: boolean;
+  previouslyReviewed?: boolean;
   teamReviewedCount?: number;
   reviewedCount: number;
   totalCount: number;

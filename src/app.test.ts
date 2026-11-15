@@ -156,6 +156,18 @@ describe('VeriTaxa application', () => {
     app.dispose();
   });
 
+  it('marks a previous dataset review without completing the current review', async () => {
+    const repo = repository({ cursor: { ...firstItem, previouslyReviewed: true } });
+    const app = createApp(repo);
+    await app.start();
+    expect(document.querySelector('.image-review-status')?.textContent).toBe(
+      'Previously reviewed in another dataset · Needs review in this dataset',
+    );
+    expect(document.querySelector('.header-progress')?.textContent).toBe('0 / 2');
+    expect(document.querySelector('.answer-button--yes')?.hasAttribute('disabled')).toBe(false);
+    app.dispose();
+  });
+
   it('starts with a dataset that still needs shared review instead of a completed dataset', async () => {
     const repo = repository();
     const pendingId = '30000000-0000-0000-0000-000000000002';

@@ -2,7 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Exercise the built application and its production CSP. Every auth, RPC and
 // image response is synthetic, including when checking the deployed Pages URL.
-async function openSyntheticReview(page: Page, includeNoGeotag = false): Promise<void> {
+async function openSyntheticReview(
+  page: Page,
+  includeNoGeotag = false,
+  previouslyReviewed = false,
+): Promise<void> {
   const user = {
     id: '00000000-0000-4000-8000-000000000001',
     aud: 'authenticated',
@@ -65,7 +69,7 @@ async function openSyntheticReview(page: Page, includeNoGeotag = false): Promise
           },
         );
       }
-    } else if (path === '/rest/v1/rpc/get_review_cursor_v3') {
+    } else if (path === '/rest/v1/rpc/get_review_cursor_v4') {
       data = [
         {
           item_id: '00000000-0000-4000-8000-000000000003',
@@ -82,6 +86,7 @@ async function openSyntheticReview(page: Page, includeNoGeotag = false): Promise
           complete: false,
           team_reviewed_count: 0,
           reviewed_by_anyone: false,
+          previously_reviewed: previouslyReviewed,
         },
       ];
     } else {
@@ -103,7 +108,11 @@ async function openSyntheticReview(page: Page, includeNoGeotag = false): Promise
   await expect(page.locator('.dataset-progress')).toHaveText(
     '0 / 1 reviewed by team in this dataset',
   );
-  await expect(page.locator('.image-review-status')).toHaveText('Needs review in this dataset');
+  await expect(page.locator('.image-review-status')).toHaveText(
+    previouslyReviewed
+      ? 'Previously reviewed in another dataset · Needs review in this dataset'
+      : 'Needs review in this dataset',
+  );
   await expect
     .poll(() =>
       page.locator('.review-image').evaluate((image: HTMLImageElement) => image.naturalWidth),
@@ -206,4 +215,14 @@ test('production picture supports pointer-focused wheel zoom and dragging to eve
   await expect(image).toHaveAttribute('src', /original.svg/);
   expect(await picture(page)).toMatchObject({ x: 0, y: 0, zoom: 1 });
   expect(errors).toEqual([]);
+});
+
+test('previous review history remains distinct from the current dataset', async ({ page }) => {
+  await openSyntheticReview(page, false, true);
+  await expect(page.locator('.dataset-progress')).toHaveText(
+    '0 / 1 reviewed by team in this dataset',
+  );
+  await expect(page.locator('.image-review-status')).toHaveText(
+    'Previously reviewed in another dataset · Needs review in this dataset',
+  );
 });
