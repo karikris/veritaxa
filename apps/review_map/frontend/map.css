@@ -196,7 +196,7 @@
   font-size: 14px;
   cursor: pointer;
 }
-.photo-included {
+.photo-excluded {
   width: 18px;
   height: 18px;
   accent-color: #2563eb;
@@ -206,4 +206,70 @@
 }
 .export-status:empty {
   display: none;
+}
+
+.region-filters {
+  margin: 0 0 12px;
+  padding: 10px 12px 12px;
+  border: 1px solid #cad5dc;
+  border-radius: 10px;
+  font:
+    14px ui-sans-serif,
+    system-ui,
+    sans-serif;
+  color: var(--st-text-color, #172b37);
+}
+.region-filters legend {
+  padding: 0 5px;
+  font-weight: 600;
+}
+.region-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+.region-options label,
+.csv-date-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.region-options input,
+.csv-date-option input {
+  width: 17px;
+  height: 17px;
+  accent-color: #2563eb;
+}
+.csv-date-option {
+  margin: 0 0 14px;
+  font:
+    14px ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+.photo-exclusion-reason {
+  margin: -5px 14px 12px;
+  font:
+    12px ui-sans-serif,
+    system-ui,
+    sans-serif;
+  color: #64748b;
+}
+.photo-exclusion-reason[hidden],
+.map-count[hidden],
+.map-excluded[hidden] {
+  display: none;
+}
+.map-excluded {
+  background: transparent;
+  border: 0;
+}
+.map-excluded-square {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid white;
+  background: #64748b;
+  box-shadow: 0 0 0 1px #47556988;
 }

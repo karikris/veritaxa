@@ -13,6 +13,8 @@ from urllib.parse import urlsplit
 
 from pyproj import Transformer
 
+from apps.review_map.regions import region_for
+
 GRID_METRES = 10_000
 COLOUR_DATE_BOUNDS = (date(2004, 1, 1), date(2026, 1, 1))
 
@@ -215,6 +217,23 @@ def selected_csv(
     return output.getvalue().encode("utf-8-sig")
 
 
+def photo_series(photo: Photo) -> str:
+    """Collapse reliable same-day photographs only, within their display cell."""
+    return "date:" + photo.export_date if len(photo.export_date) == 10 else "image:" + photo.key
+
+
+def selection_catalog(snapshot: Snapshot) -> list[dict]:
+    """A global selection index without source URLs or original coordinates."""
+    return [
+        {
+            "key": photo.key,
+            "region": region_for(photo.latitude, photo.longitude),
+            "cell": grid_cell(photo.latitude, photo.longitude)[0],
+        }
+        for photo in snapshot.photos
+    ]
+
+
 def map_cells(snapshot: Snapshot, years: tuple[int, int] | None = None) -> list[dict]:
     """Only coarsened coordinates and opaque keys leave the Python server."""
     groups: dict[str, list[Photo]] = defaultdict(list)
@@ -227,18 +246,21 @@ def map_cells(snapshot: Snapshot, years: tuple[int, int] | None = None) -> list[
     for key, photos in sorted(groups.items()):
         photos.sort(key=lambda p: (p.photo_date or date.min, p.key), reverse=True)
         lat, lon = centres[key]
+        series_count = len({photo_series(photo) for photo in photos})
         cells.append(
             {
                 "key": key,
                 "latitude": lat,
                 "longitude": lon,
                 "count": len(photos),
-                "radius": min(38, 6 * math.sqrt(len(photos))),
+                "series_count": series_count,
+                "radius": min(38, 6 * math.sqrt(series_count)),
                 "colour": date_colour(photos[0].photo_date),
                 "photos": [
                     {
                         "key": p.key,
                         "date": p.date_label,
+                        "series": photo_series(p),
                         "colour": date_colour(p.photo_date),
                     }
                     for p in photos

@@ -15,9 +15,13 @@ function createMap(component, surface) {
   const toolbar = component.parentElement.querySelector('.map-toolbar');
   const summary = toolbar.querySelector('.selection-summary');
   const download = toolbar.querySelector('.download-csv');
-  const includeVisible = toolbar.querySelector('.include-visible');
+  const clearExclusions = toolbar.querySelector('.clear-exclusions');
+  const regionOptions = component.parentElement.querySelector('.region-options');
+  const limitDates = component.parentElement.querySelector('.limit-csv-dates');
   const exportStatus = toolbar.querySelector('.export-status');
-  const included = root.querySelector('.photo-included');
+  const excluded = root.querySelector('.photo-excluded');
+  const exclusionLabel = root.querySelector('.photo-exclusion-label');
+  const exclusionReason = root.querySelector('.photo-exclusion-reason');
   const page = root.querySelector('.photo-page');
   const map = L.map(surface, { worldCopyJump: true, minZoom: LANDING_ZOOM, maxZoom: 18 }).setView(
     [14, 10],
@@ -40,6 +44,13 @@ function createMap(component, surface) {
     cells: new Map(),
     markers: new Map(),
     counts: new Map(),
+    excludedMarkers: new Map(),
+    catalog: new Map(),
+    cellKeys: new Map(),
+    visibleKeys: new Set(),
+    excludedRegions: new Set(),
+    limitDates: false,
+    regionInputs: new Map(),
     excluded: new Set(),
     selectionVersion: 0,
     exportToken: null,
@@ -53,38 +64,64 @@ function createMap(component, surface) {
     loadTimer: null,
   };
 
+  state.isExcluded = (key) =>
+    state.excluded.has(key) || state.excludedRegions.has(state.catalog.get(key)?.region);
   state.includedKeys = () =>
-    [...state.cells.values()].flatMap((cell) =>
-      cell.photos.filter((photo) => !state.excluded.has(photo.key)).map((photo) => photo.key),
+    [...state.catalog.keys()].filter(
+      (key) => !state.isExcluded(key) && (!state.limitDates || state.visibleKeys.has(key)),
     );
+  state.renderCardSelection = () => {
+    const keys = state.cellKeys.get(state.selected) || [];
+    const excludedCount = keys.filter((key) => state.isExcluded(key)).length;
+    const blocked = keys.filter((key) =>
+      state.excludedRegions.has(state.catalog.get(key)?.region),
+    ).length;
+    excluded.checked = keys.length > 0 && excludedCount === keys.length;
+    excluded.indeterminate = excludedCount > 0 && excludedCount < keys.length;
+    excluded.disabled = keys.length > 0 && blocked === keys.length;
+    exclusionLabel.textContent = `Exclude this location (${keys.length.toLocaleString()} image${keys.length === 1 ? '' : 's'})`;
+    exclusionReason.hidden = blocked === 0;
+  };
   state.renderSelection = () => {
-    let total = 0,
-      count = 0;
     for (const cell of state.cells.values()) {
-      const selected = cell.photos.filter((photo) => !state.excluded.has(photo.key));
-      total += cell.photos.length;
-      count += selected.length;
+      const selected = cell.photos.filter((photo) => !state.isExcluded(photo.key));
+      const excludedCount = cell.photos.length - selected.length;
+      const seriesCount = new Set(selected.map((photo) => photo.series)).size;
+      const radius = Math.min(38, 6 * Math.sqrt(Math.max(1, seriesCount)));
       const marker = state.markers.get(cell.key);
-      marker?.setRadius(Math.min(38, 6 * Math.sqrt(Math.max(1, selected.length))));
-      marker?.setStyle({
-        fillColor: selected[0]?.colour || '#94a3b8',
-        fillOpacity: selected.length ? 0.88 : 0.2,
-      });
+      marker?.setRadius(radius);
+      marker?.setStyle({ fillColor: selected[0]?.colour || '#94a3b8', fillOpacity: 0.88 });
+      const circle = marker?.getElement();
+      if (circle) circle.style.display = selected.length ? '' : 'none';
+      const square = state.excludedMarkers.get(cell.key)?.getElement();
+      if (square) {
+        square.hidden = excludedCount === 0;
+        square.querySelector('span').style.transform = selected.length
+          ? `translateX(${radius + 9}px)`
+          : '';
+        square.setAttribute(
+          'aria-label',
+          `Open ${excludedCount} excluded photograph${excludedCount === 1 ? '' : 's'}`,
+        );
+      }
       const label = state.counts.get(cell.key)?.getElement();
       if (label) {
-        label.querySelector('span').textContent = String(selected.length);
-        label.hidden = selected.length <= 1;
+        label.querySelector('span').textContent = String(seriesCount);
+        label.hidden = seriesCount <= 1;
       }
     }
-    summary.textContent = `${count.toLocaleString()} of ${total.toLocaleString()} visible observations selected`;
+    const count = state.includedKeys().length;
+    const total = state.limitDates ? state.visibleKeys.size : state.catalog.size;
+    summary.textContent = `${count.toLocaleString()} of ${total.toLocaleString()} images included in CSV`;
     download.disabled = count === 0 || Boolean(state.exportToken);
-    includeVisible.disabled = count === total;
-    const photo = state.cells.get(state.selected)?.photos[state.index];
-    if (photo) included.checked = !state.excluded.has(photo.key);
+    clearExclusions.disabled = state.excluded.size === 0 && state.excludedRegions.size === 0;
+    limitDates.checked = state.limitDates;
+    for (const [region, input] of state.regionInputs)
+      input.checked = state.excludedRegions.has(region);
+    state.renderCardSelection();
   };
   state.saveSelection = () => {
     state.selectionVersion++;
-    // A changed selection cancels an export still in flight.
     state.exportToken = null;
     exportStatus.textContent = '';
     state.renderSelection();
@@ -92,19 +129,47 @@ function createMap(component, surface) {
       source_revision: state.sourceRevision,
       version: state.selectionVersion,
       keys: [...state.excluded],
+      regions: [...state.excludedRegions],
+      limit_dates: state.limitDates,
     });
   };
-  included.addEventListener('change', () => {
-    const photo = state.cells.get(state.selected)?.photos[state.index];
-    if (!photo) return;
-    if (included.checked) state.excluded.delete(photo.key);
-    else state.excluded.add(photo.key);
+  state.buildRegionOptions = (regions) => {
+    regionOptions.replaceChildren();
+    state.regionInputs.clear();
+    for (const region of regions) {
+      const count = [...state.catalog.values()].filter((photo) => photo.region === region).length;
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('aria-label', `Exclude ${region}`);
+      input.addEventListener('change', () => {
+        if (input.checked) state.excludedRegions.add(region);
+        else state.excludedRegions.delete(region);
+        state.saveSelection();
+      });
+      const text = document.createElement('span');
+      text.textContent = `${region} (${count.toLocaleString()})`;
+      label.append(input, text);
+      regionOptions.append(label);
+      state.regionInputs.set(region, input);
+    }
+  };
+  excluded.addEventListener('change', () => {
+    const keys = state.cellKeys.get(state.selected) || [];
+    for (const key of keys) {
+      if (excluded.checked) state.excluded.add(key);
+      else state.excluded.delete(key);
+    }
     state.pinned = true;
     state.saveSelection();
   });
-  includeVisible.addEventListener('click', () => {
-    for (const cell of state.cells.values())
-      for (const photo of cell.photos) state.excluded.delete(photo.key);
+  clearExclusions.addEventListener('click', () => {
+    state.excluded.clear();
+    state.excludedRegions.clear();
+    state.saveSelection();
+  });
+  limitDates.addEventListener('change', () => {
+    state.limitDates = limitDates.checked;
     state.saveSelection();
   });
   download.addEventListener('click', () => {
@@ -117,6 +182,7 @@ function createMap(component, surface) {
       keys,
       token: state.exportToken,
       view_revision: state.revision,
+      limit_dates: state.limitDates,
     });
   });
   state.showExport = (response) => {
@@ -180,7 +246,7 @@ function createMap(component, surface) {
     if (!cell) return;
     const photo = cell.photos[state.index];
     date.textContent = photo.date;
-    included.checked = !state.excluded.has(photo.key);
+    state.renderCardSelection();
     pager.hidden = cell.count === 1;
     page.textContent = `${state.index + 1} / ${cell.count}`;
     previous.disabled = state.index === 0;
@@ -201,16 +267,17 @@ function createMap(component, surface) {
         state.component.setTriggerValue('photo_request', { key: photo.key, token });
     }, delay);
   };
-  state.open = (key, pin = false) => {
+  state.open = (key, pin = false, index = null) => {
     clearTimeout(state.hideTimer);
     if (state.pinned && !pin && state.selected !== key) return;
     const changed = state.selected !== key;
     state.selected = key;
     state.pinned = pin || state.pinned;
     if (changed) state.index = 0;
+    if (index !== null) state.index = index;
     card.hidden = false;
     state.positionCard();
-    if (changed || !state.token) state.requestPhoto(pin ? 0 : 160);
+    if (changed || !state.token || index !== null) state.requestPhoto(pin ? 0 : 160);
   };
   card.addEventListener('mouseenter', () => clearTimeout(state.hideTimer));
   card.addEventListener('mouseleave', state.scheduleClose);
@@ -260,18 +327,31 @@ export default function (component) {
     state.excluded = new Set(data.excluded_keys || []);
     state.selectionVersion = data.selection_version || 0;
     state.exportToken = null;
+    state.catalog = new Map(data.catalog.map((photo) => [photo.key, photo]));
+    state.cellKeys = new Map();
+    for (const photo of data.catalog) {
+      if (!state.cellKeys.has(photo.cell)) state.cellKeys.set(photo.cell, []);
+      state.cellKeys.get(photo.cell).push(photo.key);
+    }
+    state.buildRegionOptions(data.regions);
   }
   if ((data.selection_version || 0) >= state.selectionVersion) {
     state.excluded = new Set(data.excluded_keys || []);
     state.selectionVersion = data.selection_version || 0;
+    state.excludedRegions = new Set(data.excluded_regions || []);
+    state.limitDates = Boolean(data.limit_csv_dates);
   }
   if (state.revision !== data.revision) {
     state.close();
     state.layers.clearLayers();
     state.markers.clear();
     state.counts.clear();
+    state.excludedMarkers.clear();
     state.exportToken = null;
     state.cells = new Map(data.cells.map((cell) => [cell.key, cell]));
+    state.visibleKeys = new Set(
+      data.cells.flatMap((cell) => cell.photos.map((photo) => photo.key)),
+    );
     const L = window.L;
     for (const cell of data.cells) {
       const marker = L.circleMarker([cell.latitude, cell.longitude], {
@@ -283,6 +363,23 @@ export default function (component) {
         bubblingMouseEvents: false,
       }).addTo(state.layers);
       state.markers.set(cell.key, marker);
+      const excludedMarker = L.marker([cell.latitude, cell.longitude], {
+        keyboard: true,
+        icon: L.divIcon({
+          className: 'map-excluded',
+          html: '<span class="map-excluded-square"></span>',
+          iconSize: [10, 10],
+          iconAnchor: [5, 5],
+        }),
+      }).addTo(state.layers);
+      const openExcluded = (pin = false) => {
+        const index = cell.photos.findIndex((photo) => state.isExcluded(photo.key));
+        if (index !== -1) state.open(cell.key, pin, index);
+      };
+      excludedMarker.on('mouseover', () => openExcluded());
+      excludedMarker.on('mouseout', state.scheduleClose);
+      excludedMarker.on('click', () => openExcluded(true));
+      state.excludedMarkers.set(cell.key, excludedMarker);
       marker.on('mouseover', () => state.open(cell.key));
       marker.on('mouseout', state.scheduleClose);
       marker.on('click', () => state.open(cell.key, true));
@@ -309,7 +406,7 @@ export default function (component) {
           keyboard: false,
           icon: L.divIcon({
             className: 'map-count',
-            html: `<span>${Number(cell.count)}</span>`,
+            html: `<span>${Number(cell.series_count)}</span>`,
             iconSize: [48, 22],
             iconAnchor: [24, 11],
           }),

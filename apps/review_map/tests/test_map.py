@@ -46,6 +46,7 @@ def test_counts_reconcile_and_only_display_cells_leave_server():
     assert cells[0]["photos"][0] == {
         "key": "opaque-b",
         "date": "1 Jan 2020",
+        "series": "date:2020-01-01",
         "colour": date_colour(date(2020, 1, 1)),
     }
     serialized = json.dumps(cells)

@@ -5,7 +5,11 @@ keeps its existing one-page application and review controls. The map opens
 directly for all visitors and requires no viewer password.
 
 The world map groups photographs into 10,000 m grid cells in EPSG:6933 and plots
-the cell centres. Marker area grows with the image count, capped for readability.
+the cell centres. Marker area and count labels use distinct date/location series,
+capped for readability. All photos on the same calendar day in the same 10 km
+cell contribute one series; different dates count separately. Missing dates and
+month/year-only dates stay separate because a shared day cannot be established.
+CSV exports and the photo carousel retain every image.
 Colour follows the most recent reliable photo date in each cell, using a fixed
 blue-to-red scale from 2004 to 2026 across date filters. The date slider covers
 2004-2026 and initially selects that entire period. Earlier dates stay blue;
@@ -22,19 +26,29 @@ not sent in the map payload. Thumbnails are downloaded by the server, resized,
 stripped of source metadata, and returned through the app session.
 The private snapshot retains coordinate provenance.
 
-Each photo has an **Include in CSV** checkbox. Deselection persists through map
-navigation and date filters for the browser session. Excluded photos remain
-available for re-selection; **Include all visible** restores the current date
-range. Marker counts, sizes and colours follow the included observations.
+The card's **Exclude this location** checkbox excludes every image at that
+10 km location, including other carousel images and dates outside the current
+map filter. Excluded locations shrink to a small grey square and remain available
+to preview and restore. At a location with a mixture of included and excluded
+images, the bubble counts the included series and a square marks the excluded
+images.
 
-**Download CSV** exports exactly the selected observations in the current date
-range, with four columns: `image_url`, `date`, `geotag`, `bioclip_label`. Dates are
-ISO formatted with their original day/month/year precision. Geotags are the same
-10 km cell centres used on the map. The label is the actual BioCLIP top-1 label,
-or blank when unavailable. Source URLs and model labels are sent to the viewer
-only in an explicitly requested CSV. An explicit click-time key list prevents an
-export racing the server's selection acknowledgement. Selections are temporary;
-the app does not alter review records.
+**Exclude continents** applies to all images in the chosen regions, with Africa
+split into **North Africa** and **Sub-Saharan Africa**. Region filters and manual
+location exclusions are independent: clearing a continent exclusion preserves
+manual location exclusions. **Clear exclusions** restores all images. Geographic
+lookup runs offline using bundled [public boundaries](geography/README.md).
+
+**Download CSV** includes every image by default, across all dates. The optional
+**Apply date filter to CSV** checkbox limits the export to the dates shown on the
+map. Location and continent exclusions apply in either mode and persist across
+map navigation and date changes for the browser session. Exports have four
+columns: `image_url`, `date`, `geotag`, `bioclip_label`. Dates preserve their original
+day/month/year precision. Geotags are the same 10 km cell centres used on the map.
+The label is the actual BioCLIP top-1 label, or blank when unavailable. Source URLs
+and model labels reach the viewer only in an explicitly requested CSV. An explicit
+click-time key list prevents an export racing a selection acknowledgement.
+Selections are temporary; the app does not alter review records.
 
 ## Local preview
 

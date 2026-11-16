@@ -20,8 +20,10 @@ from apps.review_map.core import (  # noqa: E402
     SnapshotError,
     map_cells,
     selected_csv,
+    selection_catalog,
 )
 from apps.review_map.images import Thumbnails, image_response  # noqa: E402
+from apps.review_map.regions import REGIONS  # noqa: E402
 from apps.review_map.source import load_snapshot  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -83,8 +85,11 @@ def main():
         st.session_state["map_selection_source"] = snapshot.revision
         st.session_state["map_excluded_keys"] = []
         st.session_state["map_selection_version"] = 0
+        st.session_state["map_excluded_regions"] = []
+        st.session_state["map_limit_csv_dates"] = False
         st.session_state.pop("map_export_response", None)
     cells = map_cells(snapshot, years)
+    catalog = selection_catalog(snapshot)
     view_revision = snapshot.revision + ":" + str(years)
     visible = sum(cell["count"] for cell in cells)
     st.caption(f"{visible:,} photographs · {len(cells):,} locations · 10 km display grid")
@@ -121,10 +126,15 @@ def main():
         if not isinstance(request, dict) or request.get("source_revision") != snapshot.revision:
             return
         keys, version = request.get("keys"), request.get("version")
+        regions, limit_dates = request.get("regions", []), request.get("limit_dates", False)
         if (
             not isinstance(keys, list)
             or len(keys) > len(photos)
             or any(not isinstance(key, str) or key not in photos for key in keys)
+            or not isinstance(regions, list)
+            or len(regions) > len(REGIONS)
+            or any(not isinstance(region, str) or region not in REGIONS for region in regions)
+            or not isinstance(limit_dates, bool)
             or not isinstance(version, int)
             or isinstance(version, bool)
             or version <= st.session_state.get("map_selection_version", 0)
@@ -132,6 +142,8 @@ def main():
             return
         st.session_state["map_excluded_keys"] = list(set(keys))
         st.session_state["map_selection_version"] = version
+        st.session_state["map_excluded_regions"] = list(set(regions))
+        st.session_state["map_limit_csv_dates"] = limit_dates
 
     def on_export_request():
         request = st.session_state.get("world_map", {}).get("export_request")
@@ -144,7 +156,10 @@ def main():
             if request.get("view_revision") != view_revision:
                 raise ValueError("The map changed. Please download again.")
             # The explicit click-time selection avoids racing an exclusions callback.
-            body = selected_csv(snapshot, request.get("keys"), years)
+            limit_dates = request.get("limit_dates", False)
+            if not isinstance(limit_dates, bool):
+                raise ValueError("Invalid export scope.")
+            body = selected_csv(snapshot, request.get("keys"), years if limit_dates else None)
             response = {
                 "token": token,
                 "csv": base64.b64encode(body).decode("ascii"),
@@ -160,6 +175,10 @@ def main():
             "revision": view_revision,
             "excluded_keys": st.session_state.get("map_excluded_keys", []),
             "selection_version": st.session_state.get("map_selection_version", 0),
+            "excluded_regions": st.session_state.get("map_excluded_regions", []),
+            "limit_csv_dates": st.session_state.get("map_limit_csv_dates", False),
+            "catalog": catalog,
+            "regions": REGIONS,
             "export_response": st.session_state.get("map_export_response"),
             "cells": cells,
             "photo_response": st.session_state.get("map_photo_response"),
@@ -171,7 +190,9 @@ def main():
     )
     st.caption(
         "Hover to preview. Click or tap to keep a photo open. "
-        "Uncheck Include in CSV to exclude a photograph from downloads. "
+        "Check Exclude this location or a continent to omit images from the CSV. "
+        "CSV downloads include all dates by default. "
+        "Bubbles count distinct dates at each location. "
         "Selections apply to this session. Dates use the capture date when reliable, "
         "otherwise the upload date."
     )
