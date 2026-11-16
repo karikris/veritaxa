@@ -228,6 +228,7 @@ def selection_catalog(snapshot: Snapshot) -> list[dict]:
         {
             "key": photo.key,
             "region": region_for(photo.latitude, photo.longitude),
+            "label": photo.bioclip_label,
             "cell": grid_cell(photo.latitude, photo.longitude)[0],
         }
         for photo in snapshot.photos

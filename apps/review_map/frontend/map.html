@@ -1,13 +1,42 @@
 <div class="map-toolbar">
   <span class="selection-summary" role="status" aria-live="polite"></span>
+  <button class="include-visible" type="button">Include all visible</button>
+  <details class="continent-select">
+    <summary class="continent-summary" aria-label="Choose continents">
+      Continents: all selected
+    </summary>
+    <fieldset class="region-filters">
+      <legend>Include continents</legend>
+      <div class="filter-actions">
+        <button class="region-all" type="button">Select all</button
+        ><button class="region-none" type="button">Clear selection</button>
+      </div>
+      <div class="region-options"></div>
+    </fieldset>
+  </details>
+  <details class="label-select">
+    <summary class="label-summary" aria-label="Choose BioCLIP top-1 labels">
+      BioCLIP top-1: all selected
+    </summary>
+    <fieldset class="region-filters">
+      <legend>Include BioCLIP top-1 labels</legend>
+      <div class="filter-actions">
+        <button class="label-all" type="button">Select all</button
+        ><button class="label-none" type="button">Clear selection</button>
+      </div>
+      <input
+        class="label-search"
+        type="search"
+        aria-label="Search BioCLIP labels"
+        placeholder="Find a label"
+      />
+      <div class="label-options"></div>
+    </fieldset>
+  </details>
   <button class="clear-exclusions" type="button">Clear exclusions</button>
   <button class="download-csv" type="button">Download CSV</button>
   <span class="export-status" role="status"></span>
 </div>
-<fieldset class="region-filters">
-  <legend>Exclude continents</legend>
-  <div class="region-options"></div>
-</fieldset>
 <label class="csv-date-option"
   ><input class="limit-csv-dates" type="checkbox" /> Apply date filter to CSV</label
 >
@@ -31,7 +60,7 @@
       ><input class="photo-excluded" type="checkbox" />
       <span class="photo-exclusion-label">Exclude this location</span></label
     >
-    <p class="photo-exclusion-reason" hidden>Excluded by continent filter</p>
+    <p class="photo-exclusion-reason" hidden>Excluded by continent or BioCLIP filter</p>
   </aside>
   <div class="map-empty" hidden>No images in this date range.</div>
 </section>

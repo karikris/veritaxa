@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
 import sys
 import tempfile
@@ -48,16 +49,23 @@ def thumbnail_cache(directory: str):
     return Thumbnails(Path(directory))
 
 
+def frontend_assets(frontend: Path) -> tuple[str, str, str]:
+    # Read outside the resource cache so an asset-only deploy refreshes the renderer.
+    return (
+        (frontend / "map.html").read_text(),
+        (frontend / "vendor/leaflet.css").read_text() + "\n" + (frontend / "map.css").read_text(),
+        (frontend / "vendor/leaflet.js").read_text() + "\n" + (frontend / "map.js").read_text(),
+    )
+
+
 @st.cache_resource(show_spinner=False)
-def map_component():
-    frontend = HERE / "frontend"
+def map_component(html: str, css: str, js: str):
+    version = hashlib.sha256(repr((html, css, js)).encode()).hexdigest()[:16]
     return st.components.v2.component(
-        "review_world_map",
-        html=(frontend / "map.html").read_text(),
-        css=(frontend / "vendor/leaflet.css").read_text()
-        + "\n"
-        + (frontend / "map.css").read_text(),
-        js=(frontend / "vendor/leaflet.js").read_text() + "\n" + (frontend / "map.js").read_text(),
+        "review_world_map_" + version,
+        html=html,
+        css=css,
+        js=js,
         isolate_styles=True,
     )
 
@@ -86,10 +94,12 @@ def main():
         st.session_state["map_excluded_keys"] = []
         st.session_state["map_selection_version"] = 0
         st.session_state["map_excluded_regions"] = []
+        st.session_state["map_excluded_labels"] = []
         st.session_state["map_limit_csv_dates"] = False
         st.session_state.pop("map_export_response", None)
     cells = map_cells(snapshot, years)
     catalog = selection_catalog(snapshot)
+    model_labels = sorted({photo.bioclip_label for photo in snapshot.photos})
     view_revision = snapshot.revision + ":" + str(years)
     visible = sum(cell["count"] for cell in cells)
     st.caption(f"{visible:,} photographs · {len(cells):,} locations · 10 km display grid")
@@ -127,6 +137,7 @@ def main():
             return
         keys, version = request.get("keys"), request.get("version")
         regions, limit_dates = request.get("regions", []), request.get("limit_dates", False)
+        labels = request.get("labels", [])
         if (
             not isinstance(keys, list)
             or len(keys) > len(photos)
@@ -134,6 +145,9 @@ def main():
             or not isinstance(regions, list)
             or len(regions) > len(REGIONS)
             or any(not isinstance(region, str) or region not in REGIONS for region in regions)
+            or not isinstance(labels, list)
+            or len(labels) > len(model_labels)
+            or any(not isinstance(label, str) or label not in model_labels for label in labels)
             or not isinstance(limit_dates, bool)
             or not isinstance(version, int)
             or isinstance(version, bool)
@@ -143,6 +157,7 @@ def main():
         st.session_state["map_excluded_keys"] = list(set(keys))
         st.session_state["map_selection_version"] = version
         st.session_state["map_excluded_regions"] = list(set(regions))
+        st.session_state["map_excluded_labels"] = list(set(labels))
         st.session_state["map_limit_csv_dates"] = limit_dates
 
     def on_export_request():
@@ -169,13 +184,15 @@ def main():
             response = {"token": token, "error": "The map changed. Please download again."}
         st.session_state["map_export_response"] = response
 
-    map_component()(
+    map_component(*frontend_assets(HERE / "frontend"))(
         data={
             "source_revision": snapshot.revision,
             "revision": view_revision,
             "excluded_keys": st.session_state.get("map_excluded_keys", []),
             "selection_version": st.session_state.get("map_selection_version", 0),
             "excluded_regions": st.session_state.get("map_excluded_regions", []),
+            "excluded_labels": st.session_state.get("map_excluded_labels", []),
+            "labels": model_labels,
             "limit_csv_dates": st.session_state.get("map_limit_csv_dates", False),
             "catalog": catalog,
             "regions": REGIONS,
@@ -190,7 +207,7 @@ def main():
     )
     st.caption(
         "Hover to preview. Click or tap to keep a photo open. "
-        "Check Exclude this location or a continent to omit images from the CSV. "
+        "Check Exclude this location or use the continent and BioCLIP filters to omit images. "
         "CSV downloads include all dates by default. "
         "Bubbles count distinct dates at each location. "
         "Selections apply to this session. Dates use the capture date when reliable, "

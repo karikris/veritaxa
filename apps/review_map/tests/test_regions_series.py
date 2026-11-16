@@ -72,9 +72,23 @@ def test_global_catalog_includes_dates_outside_map_and_only_coarsened_selection_
     assert sum(c["count"] for c in map_cells(data, (2004, 2026))) == 1
     catalog = selection_catalog(data)
     assert {p["key"] for p in catalog} == {"a", "b"}
-    assert all(set(p) == {"key", "region", "cell"} for p in catalog)
+    assert all(set(p) == {"key", "region", "label", "cell"} for p in catalog)
     assert catalog[0]["cell"] == catalog[1]["cell"]
     assert all(p["region"] in REGIONS for p in catalog)
     assert "images.example.invalid" not in json.dumps(catalog)
     assert "151.2099" not in json.dumps(catalog)
     assert len(rows(selected_csv(data, ["a", "b"]))) == 2
+
+
+def test_filter_labels_match_csv_top1_values_including_missing_labels():
+    data = parse_snapshot(
+        snapshot(
+            record("a", bioclip_label="Synthetic alpha"),
+            record("b", bioclip_label="Synthetic beta"),
+            record("c", bioclip_label=""),
+        )
+    )
+    catalog = selection_catalog(data)
+    assert {p["label"] for p in catalog} == {"Synthetic alpha", "Synthetic beta", ""}
+    exported = rows(selected_csv(data, [p["key"] for p in catalog]))
+    assert [p["label"] for p in catalog] == [row["bioclip_label"] for row in exported]

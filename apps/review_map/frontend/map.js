@@ -1,6 +1,10 @@
 /* global window, ResizeObserver, setTimeout, clearTimeout */
 
 const LANDING_ZOOM = 2;
+const WORLD_BOUNDS = [
+  [-85.0511287798, -180],
+  [85.0511287798, 180],
+];
 
 function createMap(component, surface) {
   const L = window.L;
@@ -16,6 +20,12 @@ function createMap(component, surface) {
   const summary = toolbar.querySelector('.selection-summary');
   const download = toolbar.querySelector('.download-csv');
   const clearExclusions = toolbar.querySelector('.clear-exclusions');
+  const includeVisible = toolbar.querySelector('.include-visible');
+  const continentSelect = toolbar.querySelector('.continent-select');
+  const continentSummary = toolbar.querySelector('.continent-summary');
+  const labelSelect = toolbar.querySelector('.label-select');
+  const labelSummary = toolbar.querySelector('.label-summary');
+  const labelOptions = toolbar.querySelector('.label-options');
   const regionOptions = component.parentElement.querySelector('.region-options');
   const limitDates = component.parentElement.querySelector('.limit-csv-dates');
   const exportStatus = toolbar.querySelector('.export-status');
@@ -23,12 +33,18 @@ function createMap(component, surface) {
   const exclusionLabel = root.querySelector('.photo-exclusion-label');
   const exclusionReason = root.querySelector('.photo-exclusion-reason');
   const page = root.querySelector('.photo-page');
-  const map = L.map(surface, { worldCopyJump: true, minZoom: LANDING_ZOOM, maxZoom: 18 }).setView(
-    [14, 10],
-    LANDING_ZOOM,
-  );
+  const map = L.map(surface, {
+    minZoom: LANDING_ZOOM,
+    maxZoom: 18,
+    zoomSnap: 0,
+    maxBounds: WORLD_BOUNDS,
+    maxBoundsViscosity: 1,
+    worldCopyJump: false,
+    bounceAtZoomLimits: false,
+  }).setView([14, 0], LANDING_ZOOM);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
+    noWrap: true,
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
   }).addTo(map);
@@ -49,6 +65,8 @@ function createMap(component, surface) {
     cellKeys: new Map(),
     visibleKeys: new Set(),
     excludedRegions: new Set(),
+    excludedLabels: new Set(),
+    labelInputs: new Map(),
     limitDates: false,
     regionInputs: new Map(),
     excluded: new Set(),
@@ -65,7 +83,9 @@ function createMap(component, surface) {
   };
 
   state.isExcluded = (key) =>
-    state.excluded.has(key) || state.excludedRegions.has(state.catalog.get(key)?.region);
+    state.excluded.has(key) ||
+    state.excludedRegions.has(state.catalog.get(key)?.region) ||
+    state.excludedLabels.has(state.catalog.get(key)?.label);
   state.includedKeys = () =>
     [...state.catalog.keys()].filter(
       (key) => !state.isExcluded(key) && (!state.limitDates || state.visibleKeys.has(key)),
@@ -73,8 +93,10 @@ function createMap(component, surface) {
   state.renderCardSelection = () => {
     const keys = state.cellKeys.get(state.selected) || [];
     const excludedCount = keys.filter((key) => state.isExcluded(key)).length;
-    const blocked = keys.filter((key) =>
-      state.excludedRegions.has(state.catalog.get(key)?.region),
+    const blocked = keys.filter(
+      (key) =>
+        state.excludedRegions.has(state.catalog.get(key)?.region) ||
+        state.excludedLabels.has(state.catalog.get(key)?.label),
     ).length;
     excluded.checked = keys.length > 0 && excludedCount === keys.length;
     excluded.indeterminate = excludedCount > 0 && excludedCount < keys.length;
@@ -114,10 +136,26 @@ function createMap(component, surface) {
     const total = state.limitDates ? state.visibleKeys.size : state.catalog.size;
     summary.textContent = `${count.toLocaleString()} of ${total.toLocaleString()} images included in CSV`;
     download.disabled = count === 0 || Boolean(state.exportToken);
-    clearExclusions.disabled = state.excluded.size === 0 && state.excludedRegions.size === 0;
+    clearExclusions.disabled =
+      state.excluded.size === 0 &&
+      state.excludedRegions.size === 0 &&
+      state.excludedLabels.size === 0;
+    includeVisible.disabled = ![...state.visibleKeys].some((key) => state.isExcluded(key));
+    const selectedRegions = state.regionInputs.size - state.excludedRegions.size;
+    continentSummary.textContent =
+      selectedRegions === state.regionInputs.size
+        ? 'Continents: all selected'
+        : `Continents: ${selectedRegions} selected`;
+    const selectedLabels = state.labelInputs.size - state.excludedLabels.size;
+    labelSummary.textContent =
+      selectedLabels === state.labelInputs.size
+        ? 'BioCLIP top-1: all selected'
+        : `BioCLIP top-1: ${selectedLabels} selected`;
+    for (const [label, input] of state.labelInputs)
+      input.checked = !state.excludedLabels.has(label);
     limitDates.checked = state.limitDates;
     for (const [region, input] of state.regionInputs)
-      input.checked = state.excludedRegions.has(region);
+      input.checked = !state.excludedRegions.has(region);
     state.renderCardSelection();
   };
   state.saveSelection = () => {
@@ -130,6 +168,7 @@ function createMap(component, surface) {
       version: state.selectionVersion,
       keys: [...state.excluded],
       regions: [...state.excludedRegions],
+      labels: [...state.excludedLabels],
       limit_dates: state.limitDates,
     });
   };
@@ -141,10 +180,10 @@ function createMap(component, surface) {
       const label = document.createElement('label');
       const input = document.createElement('input');
       input.type = 'checkbox';
-      input.setAttribute('aria-label', `Exclude ${region}`);
+      input.setAttribute('aria-label', `Include ${region}`);
       input.addEventListener('change', () => {
-        if (input.checked) state.excludedRegions.add(region);
-        else state.excludedRegions.delete(region);
+        if (input.checked) state.excludedRegions.delete(region);
+        else state.excludedRegions.add(region);
         state.saveSelection();
       });
       const text = document.createElement('span');
@@ -154,6 +193,43 @@ function createMap(component, surface) {
       state.regionInputs.set(region, input);
     }
   };
+  state.buildLabelOptions = (labels) => {
+    labelOptions.replaceChildren();
+    state.labelInputs.clear();
+    for (const value of labels) {
+      const count = [...state.catalog.values()].filter((photo) => photo.label === value).length;
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('aria-label', `Include BioCLIP ${value || 'Unlabeled'}`);
+      input.addEventListener('change', () => {
+        if (input.checked) state.excludedLabels.delete(value);
+        else state.excludedLabels.add(value);
+        state.saveSelection();
+      });
+      const text = document.createElement('span');
+      text.textContent = `${value || 'Unlabeled'} (${count.toLocaleString()})`;
+      label.append(input, text);
+      labelOptions.append(label);
+      state.labelInputs.set(value, input);
+    }
+  };
+  for (const [selector, field, inputs, clear] of [
+    ['.region-all', 'excludedRegions', 'regionInputs', true],
+    ['.region-none', 'excludedRegions', 'regionInputs', false],
+    ['.label-all', 'excludedLabels', 'labelInputs', true],
+    ['.label-none', 'excludedLabels', 'labelInputs', false],
+  ]) {
+    toolbar.querySelector(selector).addEventListener('click', () => {
+      state[field] = clear ? new Set() : new Set(state[inputs].keys());
+      state.saveSelection();
+    });
+  }
+  toolbar.querySelector('.label-search').addEventListener('input', (event) => {
+    const query = event.target.value.trim().toLowerCase();
+    for (const option of labelOptions.querySelectorAll('label'))
+      option.hidden = !option.textContent.toLowerCase().includes(query);
+  });
   excluded.addEventListener('change', () => {
     const keys = state.cellKeys.get(state.selected) || [];
     for (const key of keys) {
@@ -163,9 +239,37 @@ function createMap(component, surface) {
     state.pinned = true;
     state.saveSelection();
   });
+  includeVisible.addEventListener('click', () => {
+    // Preserve excluded observations outside the date range while restoring visible dots.
+    const hiddenExcluded = [...state.catalog.keys()].filter(
+      (key) => !state.visibleKeys.has(key) && state.isExcluded(key),
+    );
+    state.excluded = new Set(hiddenExcluded);
+    state.excludedRegions.clear();
+    state.excludedLabels.clear();
+    state.saveSelection();
+  });
+  const outsideClick = (event) => {
+    for (const dropdown of [continentSelect, labelSelect]) {
+      if (!event.composedPath().includes(dropdown)) dropdown.open = false;
+    }
+  };
+  document.addEventListener('pointerdown', outsideClick);
+  for (const [dropdown, summary] of [
+    [continentSelect, continentSummary],
+    [labelSelect, labelSummary],
+  ]) {
+    dropdown.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        dropdown.open = false;
+        summary.focus();
+      }
+    });
+  }
   clearExclusions.addEventListener('click', () => {
     state.excluded.clear();
     state.excludedRegions.clear();
+    state.excludedLabels.clear();
     state.saveSelection();
   });
   limitDates.addEventListener('change', () => {
@@ -301,15 +405,25 @@ function createMap(component, surface) {
     }
   });
   map.on('move zoom resize', state.positionCard);
-  const observer = new ResizeObserver(() => {
+  state.constrainViewport = () => {
     map.invalidateSize({ pan: false });
+    const minimum = Math.max(
+      LANDING_ZOOM,
+      Math.log2(Math.max(surface.clientWidth, surface.clientHeight, 1) / 256),
+    );
+    map.setMinZoom(minimum);
+    if (map.getZoom() < minimum) map.setZoom(minimum, { animate: false });
+    map.panInsideBounds(WORLD_BOUNDS, { animate: false });
     state.positionCard();
-  });
+  };
+  state.constrainViewport();
+  const observer = new ResizeObserver(state.constrainViewport);
   observer.observe(surface);
   state.cleanup = () => {
     clearTimeout(state.hideTimer);
     clearTimeout(state.loadTimer);
     observer.disconnect();
+    document.removeEventListener('pointerdown', outsideClick);
     map.remove();
   };
   return state;
@@ -334,11 +448,13 @@ export default function (component) {
       state.cellKeys.get(photo.cell).push(photo.key);
     }
     state.buildRegionOptions(data.regions);
+    state.buildLabelOptions(data.labels);
   }
   if ((data.selection_version || 0) >= state.selectionVersion) {
     state.excluded = new Set(data.excluded_keys || []);
     state.selectionVersion = data.selection_version || 0;
     state.excludedRegions = new Set(data.excluded_regions || []);
+    state.excludedLabels = new Set(data.excluded_labels || []);
     state.limitDates = Boolean(data.limit_csv_dates);
   }
   if (state.revision !== data.revision) {

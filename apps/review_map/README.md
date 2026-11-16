@@ -15,6 +15,8 @@ blue-to-red scale from 2004 to 2026 across date filters. The date slider covers
 2004-2026 and initially selects that entire period. Earlier dates stay blue;
 2026 and later dates stay red. The initial world view is the furthest zoom-out
 level; wheel, pinch, keyboard and zoom controls can zoom in and back to that view.
+The minimum zoom also fills the viewport on wide displays. Dragging is bounded to
+a single world extent; repeated world tiles and pinch zoom bounce are disabled.
 Capture dates take priority over upload
 dates; month/year precision is preserved and invalid/future capture dates use the
 upload date. Display binning does not improve the source coordinate accuracy.
@@ -33,11 +35,21 @@ to preview and restore. At a location with a mixture of included and excluded
 images, the bubble counts the included series and a square marks the excluded
 images.
 
-**Exclude continents** applies to all images in the chosen regions, with Africa
+The **Continents** multiselect dropdown beside **Include all visible** starts
+with every continent selected. Deselect a continent to exclude all its images;
+select it again to restore them. The filter applies to all dates, with Africa
 split into **North Africa** and **Sub-Saharan Africa**. Region filters and manual
 location exclusions are independent: clearing a continent exclusion preserves
-manual location exclusions. **Clear exclusions** restores all images. Geographic
+manual location exclusions. **Include all visible** restores images within the
+map's current date range while preserving exclusions outside it. **Clear exclusions**
+restores all images. Geographic
 lookup runs offline using bundled [public boundaries](geography/README.md).
+
+The **BioCLIP top-1** multiselect lists every distinct top-1 label from the snapshot
+with its image count. Labels start selected; deselect labels to exclude them from
+the map selection and CSV. Both dropdowns offer **Select all** and **Clear selection**;
+the label dropdown also supports search. To keep one species, clear its selection
+and tick that label. These filters combine with continent and location exclusions.
 
 **Download CSV** includes every image by default, across all dates. The optional
 **Apply date filter to CSV** checkbox limits the export to the dates shown on the
@@ -45,8 +57,9 @@ map. Location and continent exclusions apply in either mode and persist across
 map navigation and date changes for the browser session. Exports have four
 columns: `image_url`, `date`, `geotag`, `bioclip_label`. Dates preserve their original
 day/month/year precision. Geotags are the same 10 km cell centres used on the map.
-The label is the actual BioCLIP top-1 label, or blank when unavailable. Source URLs
-and model labels reach the viewer only in an explicitly requested CSV. An explicit
+The label is the actual BioCLIP top-1 label, or blank when unavailable. Model labels
+are available in the filter controls; source URLs reach the viewer only in an
+explicitly requested CSV. An explicit
 click-time key list prevents an export racing a selection acknowledgement.
 Selections are temporary; the app does not alter review records.
 
@@ -111,7 +124,8 @@ Copy the settings in `secrets.toml.example` into the Cloud Secrets editor. Set
 `MAP_SNAPSHOT_PATH` or local cache paths into Cloud. Keep the signed URL separate
 from the public code and deployment links. Set the Cloud app's sharing access to
 public so everyone can open it. The entrypoint's pinned requirements file supplies
-the Cloud dependencies.
+the Cloud dependencies. The component cache is keyed by the HTML, CSS and JavaScript
+contents, so frontend-only changes take effect without reusing an older renderer.
 
 ## Checks
 
