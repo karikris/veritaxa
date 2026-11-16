@@ -39,8 +39,9 @@ def setting(name: str, default: str = "") -> str:
         return default
 
 
-@st.cache_data(ttl=300, max_entries=2, show_spinner=False)
+@st.cache_data(ttl=30, max_entries=2, show_spinner=False)
 def snapshot_data(reference: str, local: bool):
+    """Load a snapshot or its private deployment pointer."""
     return load_snapshot(reference, local=local)
 
 
@@ -104,7 +105,22 @@ def main():
         st.session_state.pop("map_export_response", None)
     cells = map_cells(snapshot, years)
     catalog = selection_catalog(snapshot)
-    model_labels = sorted({photo.bioclip_label for photo in snapshot.photos})
+    model_labels = ["Papilio demoleus", "Papilio demodocus", "Other"]
+    legacy_labels = set(st.session_state.get("map_excluded_labels", [])) - set(model_labels)
+    if legacy_labels:
+        previous = set(st.session_state.get("map_excluded_keys", []))
+        previous.update(
+            photo.key for photo in snapshot.photos if photo.bioclip_label in legacy_labels
+        )
+        st.session_state["map_excluded_keys"] = list(previous)
+        st.session_state["map_excluded_labels"] = [
+            label
+            for label in st.session_state.get("map_excluded_labels", [])
+            if label in model_labels
+        ]
+        st.session_state["map_selection_version"] = (
+            st.session_state.get("map_selection_version", 0) + 1
+        )
     view_revision = snapshot.revision + ":" + str(years)
     visible = sum(cell["count"] for cell in cells)
     st.caption(f"{visible:,} photographs · {len(cells):,} locations · 10 km display grid")

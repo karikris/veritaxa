@@ -221,7 +221,9 @@ function createMap(component, surface) {
     labelOptions.replaceChildren();
     state.labelInputs.clear();
     for (const value of labels) {
-      const count = [...state.catalog.values()].filter((photo) => photo.label === value).length;
+      const count = [...state.catalog.values()].filter(
+        (photo) => labelGroup(photo.label) === value,
+      ).length;
       const label = document.createElement('label');
       const input = document.createElement('input');
       input.type = 'checkbox';
@@ -249,11 +251,6 @@ function createMap(component, surface) {
       state.saveSelection();
     });
   }
-  toolbar.querySelector('.label-search').addEventListener('input', (event) => {
-    const query = event.target.value.trim().toLowerCase();
-    for (const option of labelOptions.querySelectorAll('label'))
-      option.hidden = !option.textContent.toLowerCase().includes(query);
-  });
   imageExcluded.addEventListener('change', () => {
     const photo = state.cells.get(state.selected)?.photos[state.index];
     if (!photo) return;

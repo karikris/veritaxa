@@ -56,11 +56,12 @@ keeping the dropdown choices. **Clear exclusions**
 restores all images. Geographic
 lookup runs offline using bundled [public boundaries](geography/README.md).
 
-The **BioCLIP top-1** multiselect lists every distinct top-1 label from the snapshot
-with its image count. Labels start selected; deselect labels to exclude them from
-the map selection and CSV. Both dropdowns offer **Select all** and **Clear selection**;
-the label dropdown also supports search. To keep one species, clear its selection
-and tick that label. These filters combine with continent and location exclusions.
+The **BioCLIP top-1** multiselect has three groups: **Papilio demoleus**,
+**Papilio demodocus** and **Other**. Other contains every remaining prediction,
+including missing labels. All groups start selected. Deselect a group to exclude
+its images; both dropdowns offer **Select all** and **Clear selection**. The card
+and CSV keep each image's exact original top-1 label. Grouping never relabels a
+prediction or replaces it with the human answer.
 
 **Download CSV** includes every image by default, across all dates. The optional
 **Apply date filter to CSV** checkbox limits the export to the dates shown on the
@@ -122,6 +123,30 @@ download checksum, and writes its signed download URL to the private receipt.
 The URL grants read access only to that snapshot and expires after one year by
 default. Refresh it before expiry. No Supabase administrative key is needed by the
 viewer app.
+
+To update a deployed map without changing its server secret, publish the new
+immutable snapshot first, then activate it using the existing storage receipt:
+
+```bash
+.venv/bin/python -m tools.activate_review_map_snapshot \
+  --channel-receipt "$CURRENT_MAP_STORAGE_RECEIPT" \
+  --snapshot-receipt "$NEW_MAP_STORAGE_RECEIPT" \
+  --env-file "$ADMIN_ENV_FILE" \
+  --private-output "$NEW_PRIVATE_CHANNEL_RECEIPT"
+```
+
+Activation first verifies and archives the previous private object, then replaces
+that configured address with a schema-2 private pointer to the new snapshot. The
+snapshot objects and archived originals remain immutable; only the live pointer
+changes. Save the new channel receipt for the next activation. The loader follows
+one same-host pointer and verifies the snapshot checksum, revision and count.
+Pointer requests and the app cache refresh every 30 seconds. Neither the pointer
+nor its signed snapshot URL is sent to the browser.
+
+Human review curation produces a new snapshot containing retained images only.
+Removed images are absent from map markers, cards, the selection index and CSV
+exports; individual inclusion overrides cannot restore them. Review records stay
+in the review database and the original snapshots stay in private storage.
 
 ## Streamlit Community Cloud
 

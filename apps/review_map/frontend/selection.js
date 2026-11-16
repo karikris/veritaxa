@@ -1,9 +1,16 @@
+export function labelGroup(label) {
+  const name = (label || '').trim().toLowerCase();
+  if (name === 'papilio demoleus') return 'Papilio demoleus';
+  if (name === 'papilio demodocus') return 'Papilio demodocus';
+  return 'Other';
+}
+
 /** Selection rules act on individual image keys, even when images share a bubble. */
 export function filterExclusionReason(selection, key) {
   const photo = selection.catalog.get(key);
   if (selection.excludedRegions.has(photo?.region)) return `Excluded by continent: ${photo.region}`;
-  if (selection.excludedLabels.has(photo?.label))
-    return `Excluded by BioCLIP top-1: ${photo.label || 'Unlabeled'}`;
+  if (selection.excludedLabels.has(labelGroup(photo?.label)))
+    return `Excluded by BioCLIP group: ${labelGroup(photo?.label)} (${photo?.label || 'Unlabeled'})`;
   return null;
 }
 
