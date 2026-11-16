@@ -43,7 +43,11 @@ def test_counts_reconcile_and_only_display_cells_leave_server():
     assert len(cells) == 1
     assert cells[0]["count"] == 2
     assert cells[0]["radius"] > map_cells(parse_snapshot(snapshot(first)))[0]["radius"]
-    assert cells[0]["photos"][0] == {"key": "opaque-b", "date": "1 Jan 2020", "colour": "#ef4444"}
+    assert cells[0]["photos"][0] == {
+        "key": "opaque-b",
+        "date": "1 Jan 2020",
+        "colour": date_colour(date(2020, 1, 1)),
+    }
     serialized = json.dumps(cells)
     assert first["image_url"] not in serialized
     assert str(first["latitude"]) not in serialized
@@ -78,7 +82,7 @@ def test_capture_date_fallback_and_partial_date_precision():
     assert display_date(record(captured_at=None, uploaded_at=None)) == (None, "Date unavailable")
 
 
-def test_colours_use_global_date_scale_and_latest_photo_in_cell():
+def test_colours_use_fixed_date_scale_and_latest_photo_in_cell():
     data = parse_snapshot(
         snapshot(
             record(),
@@ -88,10 +92,26 @@ def test_colours_use_global_date_scale_and_latest_photo_in_cell():
     )
     cells = map_cells(data)
     group = next(cell for cell in cells if cell["count"] == 2)
-    assert group["colour"] == "#ef4444"
+    assert group["colour"] == date_colour(date(2020, 3, 4))
+    assert group["colour"] != "#ef4444"
     filtered = map_cells(data, (2010, 2020))
     assert filtered[0]["colour"] == group["colour"]
-    assert date_colour(date(2000, 3, 4), data.date_bounds) == "#2563eb"
+    assert date_colour(date(2000, 3, 4)) == "#2563eb"
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (date(1965, 1, 1), "#2563eb"),
+        (date(2004, 1, 1), "#2563eb"),
+        (date(2015, 1, 1), "#8a5498"),
+        (date(2026, 1, 1), "#ef4444"),
+        (date(2026, 12, 31), "#ef4444"),
+        (None, "#94a3b8"),
+    ],
+)
+def test_colour_range_clamps_outliers_without_making_recent_history_all_red(value, expected):
+    assert date_colour(value) == expected
 
 
 def test_no_matching_years_produces_an_empty_map():

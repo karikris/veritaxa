@@ -7,7 +7,11 @@ directly for all visitors and requires no viewer password.
 The world map groups photographs into 10,000 m grid cells in EPSG:6933 and plots
 the cell centres. Marker area grows with the image count, capped for readability.
 Colour follows the most recent reliable photo date in each cell, using a fixed
-blue-to-red scale across date filters. Capture dates take priority over upload
+blue-to-red scale from 2004 to 2026 across date filters. The date slider covers
+2004-2026 and initially selects that entire period. Earlier dates stay blue;
+2026 and later dates stay red. The initial world view is the furthest zoom-out
+level; wheel, pinch, keyboard and zoom controls can zoom in and back to that view.
+Capture dates take priority over upload
 dates; month/year precision is preserved and invalid/future capture dates use the
 upload date. Display binning does not improve the source coordinate accuracy.
 

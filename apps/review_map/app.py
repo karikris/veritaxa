@@ -15,7 +15,12 @@ REPOSITORY = Path(__file__).resolve().parents[2]
 if str(REPOSITORY) not in sys.path:
     sys.path.insert(0, str(REPOSITORY))
 
-from apps.review_map.core import SnapshotError, map_cells, selected_csv  # noqa: E402
+from apps.review_map.core import (  # noqa: E402
+    COLOUR_DATE_BOUNDS,
+    SnapshotError,
+    map_cells,
+    selected_csv,
+)
 from apps.review_map.images import Thumbnails, image_response  # noqa: E402
 from apps.review_map.source import load_snapshot  # noqa: E402
 
@@ -68,15 +73,12 @@ def main():
         st.error(str(error))
         return
     st.title(snapshot.title)
-    bounds = snapshot.date_bounds
-    years = None
-    if bounds[0] and bounds[1] and bounds[0].year != bounds[1].year:
-        years = st.slider(
-            "Photo dates",
-            min_value=bounds[0].year,
-            max_value=bounds[1].year,
-            value=(bounds[0].year, bounds[1].year),
-        )
+    years = st.slider(
+        "Photo dates",
+        min_value=COLOUR_DATE_BOUNDS[0].year,
+        max_value=COLOUR_DATE_BOUNDS[1].year,
+        value=(COLOUR_DATE_BOUNDS[0].year, COLOUR_DATE_BOUNDS[1].year),
+    )
     if st.session_state.get("map_selection_source") != snapshot.revision:
         st.session_state["map_selection_source"] = snapshot.revision
         st.session_state["map_excluded_keys"] = []
@@ -86,17 +88,16 @@ def main():
     view_revision = snapshot.revision + ":" + str(years)
     visible = sum(cell["count"] for cell in cells)
     st.caption(f"{visible:,} photographs · {len(cells):,} locations · 10 km display grid")
-    if bounds[0] and bounds[1]:
-        st.markdown(
-            '<div style="display:flex;align-items:center;gap:12px;margin:0 0 14px;'
-            'font-size:13px"><span>'
-            + str(bounds[0].year)
-            + '</span><span style="height:8px;width:190px;border-radius:9px;'
-            'background:linear-gradient(90deg,#2563eb,#ef4444)"></span><span>'
-            + str(bounds[1].year)
-            + "</span></div>",
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        '<div style="display:flex;align-items:center;gap:12px;margin:0 0 14px;'
+        'font-size:13px"><span>'
+        + str(COLOUR_DATE_BOUNDS[0].year)
+        + '</span><span style="height:8px;width:190px;border-radius:9px;'
+        'background:linear-gradient(90deg,#2563eb,#ef4444)"></span><span>'
+        + str(COLOUR_DATE_BOUNDS[1].year)
+        + "</span></div>",
+        unsafe_allow_html=True,
+    )
     photos = {photo.key: photo for photo in snapshot.photos}
     cache = thumbnail_cache(
         setting("MAP_CACHE_DIR", str(Path(tempfile.gettempdir()) / "review-map-thumbnails"))

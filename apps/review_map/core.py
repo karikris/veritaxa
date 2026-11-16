@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 from pyproj import Transformer
 
 GRID_METRES = 10_000
+COLOUR_DATE_BOUNDS = (date(2004, 1, 1), date(2026, 1, 1))
 
 
 class SnapshotError(ValueError):
@@ -163,12 +164,12 @@ def grid_cell(latitude: float, longitude: float) -> tuple[str, float, float]:
     return f"{ix}:{iy}", lat, lon
 
 
-def date_colour(value: date | None, bounds: tuple[date | None, date | None]) -> str:
-    oldest, newest = bounds
-    if value is None or oldest is None or newest is None:
+def date_colour(value: date | None) -> str:
+    """Use a fixed 2004-2026 scale, clamping dates outside the colour range."""
+    oldest, newest = COLOUR_DATE_BOUNDS
+    if value is None:
         return "#94a3b8"
-    fraction = (value - oldest).days / max((newest - oldest).days, 1)
-    fraction = min(1.0, max(0.0, fraction)) if oldest != newest else 0.5
+    fraction = min(1.0, max(0.0, (value - oldest).days / (newest - oldest).days))
     blue, red = (37, 99, 235), (239, 68, 68)
     rgb = [round(a + fraction * (b - a)) for a, b in zip(blue, red, strict=True)]
     return "#" + "".join(f"{value:02x}" for value in rgb)
@@ -223,7 +224,6 @@ def map_cells(snapshot: Snapshot, years: tuple[int, int] | None = None) -> list[
         groups[key].append(photo)
         centres[key] = lat, lon
     cells = []
-    bounds = snapshot.date_bounds
     for key, photos in sorted(groups.items()):
         photos.sort(key=lambda p: (p.photo_date or date.min, p.key), reverse=True)
         lat, lon = centres[key]
@@ -234,12 +234,12 @@ def map_cells(snapshot: Snapshot, years: tuple[int, int] | None = None) -> list[
                 "longitude": lon,
                 "count": len(photos),
                 "radius": min(38, 6 * math.sqrt(len(photos))),
-                "colour": date_colour(photos[0].photo_date, bounds),
+                "colour": date_colour(photos[0].photo_date),
                 "photos": [
                     {
                         "key": p.key,
                         "date": p.date_label,
-                        "colour": date_colour(p.photo_date, bounds),
+                        "colour": date_colour(p.photo_date),
                     }
                     for p in photos
                 ],

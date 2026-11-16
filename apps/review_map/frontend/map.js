@@ -1,5 +1,7 @@
 /* global window, ResizeObserver, setTimeout, clearTimeout */
 
+const LANDING_ZOOM = 2;
+
 function createMap(component, surface) {
   const L = window.L;
   const root = surface.parentElement;
@@ -17,7 +19,10 @@ function createMap(component, surface) {
   const exportStatus = toolbar.querySelector('.export-status');
   const included = root.querySelector('.photo-included');
   const page = root.querySelector('.photo-page');
-  const map = L.map(surface, { worldCopyJump: true, minZoom: 1, maxZoom: 18 }).setView([14, 10], 2);
+  const map = L.map(surface, { worldCopyJump: true, minZoom: LANDING_ZOOM, maxZoom: 18 }).setView(
+    [14, 10],
+    LANDING_ZOOM,
+  );
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution:
