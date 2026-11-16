@@ -15,6 +15,8 @@ blue-to-red scale from 2004 to 2026 across date filters. The date slider covers
 2004-2026 and initially selects that entire period. Earlier dates stay blue;
 2026 and later dates stay red. The initial world view is the furthest zoom-out
 level; wheel, pinch, keyboard and zoom controls can zoom in and back to that view.
+Wheel/trackpad zoom uses quarter-level steps, a short debounce and immediate
+updates to avoid sluggish animated scrolling.
 The minimum zoom also fills the viewport on wide displays. Dragging is bounded to
 a single world extent; repeated world tiles and pinch zoom bounce are disabled.
 Capture dates take priority over upload
@@ -22,26 +24,35 @@ dates; month/year precision is preserved and invalid/future capture dates use th
 upload date. Display binning does not improve the source coordinate accuracy.
 
 Hover to load a thumbnail. Click or tap to pin the card; previous/next controls
-browse photographs sharing a cell. **Cards show only the photograph and date.**
+browse photographs sharing a cell. **Cards show the photograph, date and its BioCLIP top-1 label.**
 Source image identifiers, source URLs, original coordinates and location provenance are
 not sent in the map payload. Thumbnails are downloaded by the server, resized,
 stripped of source metadata, and returned through the app session.
 The private snapshot retains coordinate provenance.
 
-The card's **Exclude this location** checkbox excludes every image at that
-10 km location, including other carousel images and dates outside the current
-map filter. Excluded locations shrink to a small grey square and remain available
-to preview and restore. At a location with a mixture of included and excluded
-images, the bubble counts the included series and a square marks the excluded
-images.
+The card's **Exclude this image** checkbox affects the currently displayed image
+only. Its status states whether that image is included, excluded manually, or
+excluded by a specific continent/model filter. Restoring an image individually
+can override an active filter without restoring its neighbours. The separate
+**Exclude this location** checkbox still applies to every image at that 10 km
+location, including dates outside the current map filter.
+
+A top-1 label filter acts on each image's own label. A mixed-label bubble retains
+its matching included images and shrinks only as their series are excluded. The
+included bubble opens on an included image; the small grey square opens an
+excluded image. The carousel keeps all images available, with an independent
+checkbox and status for each. A partly excluded location has a mixed-state
+location checkbox and an excluded/total count. **Clear exclusions** clears manual
+exclusions, individual inclusion overrides and both dropdown filters.
 
 The **Continents** multiselect dropdown beside **Include all visible** starts
 with every continent selected. Deselect a continent to exclude all its images;
 select it again to restore them. The filter applies to all dates, with Africa
 split into **North Africa** and **Sub-Saharan Africa**. Region filters and manual
 location exclusions are independent: clearing a continent exclusion preserves
-manual location exclusions. **Include all visible** restores images within the
-map's current date range while preserving exclusions outside it. **Clear exclusions**
+manual location and image exclusions. **Include all visible** restores images
+within the map's current date range while preserving exclusions outside it and
+keeping the dropdown choices. **Clear exclusions**
 restores all images. Geographic
 lookup runs offline using bundled [public boundaries](geography/README.md).
 
@@ -133,6 +144,7 @@ contents, so frontend-only changes take effect without reusing an older renderer
 uv pip install --python .venv-map/bin/python pytest==9.1.1
 .venv-map/bin/python -m pytest -q apps/review_map/tests
 node --check apps/review_map/frontend/map.js
+node --test apps/review_map/tests/selection.test.mjs
 npm run data:check
 git diff --check
 ```

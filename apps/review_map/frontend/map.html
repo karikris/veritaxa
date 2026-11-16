@@ -56,11 +56,16 @@
         <button class="photo-next" type="button" aria-label="Next photograph">›</button>
       </nav>
     </div>
+    <p class="photo-model">BioCLIP top-1: <strong class="photo-model-label"></strong></p>
     <label class="photo-selection"
+      ><input class="photo-image-excluded" type="checkbox" /> Exclude this image</label
+    >
+    <p class="photo-image-status" role="status"></p>
+    <label class="photo-selection photo-location-selection"
       ><input class="photo-excluded" type="checkbox" />
       <span class="photo-exclusion-label">Exclude this location</span></label
     >
-    <p class="photo-exclusion-reason" hidden>Excluded by continent or BioCLIP filter</p>
+    <p class="photo-location-summary"></p>
   </aside>
   <div class="map-empty" hidden>No images in this date range.</div>
 </section>

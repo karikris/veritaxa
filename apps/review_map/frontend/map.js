@@ -31,16 +31,22 @@ function createMap(component, surface) {
   const exportStatus = toolbar.querySelector('.export-status');
   const excluded = root.querySelector('.photo-excluded');
   const exclusionLabel = root.querySelector('.photo-exclusion-label');
-  const exclusionReason = root.querySelector('.photo-exclusion-reason');
+  const imageExcluded = root.querySelector('.photo-image-excluded');
+  const imageStatus = root.querySelector('.photo-image-status');
+  const modelLabel = root.querySelector('.photo-model-label');
+  const locationSummary = root.querySelector('.photo-location-summary');
   const page = root.querySelector('.photo-page');
   const map = L.map(surface, {
     minZoom: LANDING_ZOOM,
     maxZoom: 18,
-    zoomSnap: 0,
+    zoomSnap: 0.25,
     maxBounds: WORLD_BOUNDS,
     maxBoundsViscosity: 1,
     worldCopyJump: false,
     bounceAtZoomLimits: false,
+    wheelDebounceTime: 20,
+    wheelPxPerZoomLevel: 80,
+    zoomAnimation: false,
   }).setView([14, 0], LANDING_ZOOM);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -61,6 +67,7 @@ function createMap(component, surface) {
     markers: new Map(),
     counts: new Map(),
     excludedMarkers: new Map(),
+    markerStyles: new Map(),
     catalog: new Map(),
     cellKeys: new Map(),
     visibleKeys: new Set(),
@@ -70,6 +77,7 @@ function createMap(component, surface) {
     limitDates: false,
     regionInputs: new Map(),
     excluded: new Set(),
+    included: new Set(),
     selectionVersion: 0,
     exportToken: null,
     cache: new Map(),
@@ -82,10 +90,7 @@ function createMap(component, surface) {
     loadTimer: null,
   };
 
-  state.isExcluded = (key) =>
-    state.excluded.has(key) ||
-    state.excludedRegions.has(state.catalog.get(key)?.region) ||
-    state.excludedLabels.has(state.catalog.get(key)?.label);
+  state.isExcluded = (key) => imageExclusionReason(state, key) !== null;
   state.includedKeys = () =>
     [...state.catalog.keys()].filter(
       (key) => !state.isExcluded(key) && (!state.limitDates || state.visibleKeys.has(key)),
@@ -93,23 +98,38 @@ function createMap(component, surface) {
   state.renderCardSelection = () => {
     const keys = state.cellKeys.get(state.selected) || [];
     const excludedCount = keys.filter((key) => state.isExcluded(key)).length;
-    const blocked = keys.filter(
-      (key) =>
-        state.excludedRegions.has(state.catalog.get(key)?.region) ||
-        state.excludedLabels.has(state.catalog.get(key)?.label),
-    ).length;
     excluded.checked = keys.length > 0 && excludedCount === keys.length;
     excluded.indeterminate = excludedCount > 0 && excludedCount < keys.length;
-    excluded.disabled = keys.length > 0 && blocked === keys.length;
+    excluded.disabled = keys.length === 0;
     exclusionLabel.textContent = `Exclude this location (${keys.length.toLocaleString()} image${keys.length === 1 ? '' : 's'})`;
-    exclusionReason.hidden = blocked === 0;
+    locationSummary.textContent = `${excludedCount} of ${keys.length} images excluded at this location`;
+    locationSummary.hidden = keys.length <= 1;
+    const photo = state.cells.get(state.selected)?.photos[state.index];
+    if (photo) {
+      const reason = imageExclusionReason(state, photo.key);
+      imageExcluded.checked = reason !== null;
+      modelLabel.textContent = state.catalog.get(photo.key)?.label || 'Unavailable';
+      imageStatus.textContent =
+        reason ||
+        (state.included.has(photo.key) && filterExclusionReason(state, photo.key)
+          ? 'Included individually despite active filters'
+          : 'Included in CSV');
+      imageStatus.dataset.excluded = String(reason !== null);
+    }
+    state.positionCard?.();
   };
   state.renderSelection = () => {
-    for (const cell of state.cells.values()) {
+    const markersChanged =
+      state.drawnRevision !== state.revision ||
+      state.drawnSelectionVersion !== state.selectionVersion;
+    for (const cell of markersChanged ? state.cells.values() : []) {
       const selected = cell.photos.filter((photo) => !state.isExcluded(photo.key));
       const excludedCount = cell.photos.length - selected.length;
       const seriesCount = new Set(selected.map((photo) => photo.series)).size;
       const radius = Math.min(38, 6 * Math.sqrt(Math.max(1, seriesCount)));
+      const styleKey = `${seriesCount}:${excludedCount}:${selected[0]?.colour || ''}`;
+      if (state.markerStyles.get(cell.key) === styleKey) continue;
+      state.markerStyles.set(cell.key, styleKey);
       const marker = state.markers.get(cell.key);
       marker?.setRadius(radius);
       marker?.setStyle({ fillColor: selected[0]?.colour || '#94a3b8', fillOpacity: 0.88 });
@@ -132,12 +152,15 @@ function createMap(component, surface) {
         label.hidden = seriesCount <= 1;
       }
     }
+    state.drawnRevision = state.revision;
+    state.drawnSelectionVersion = state.selectionVersion;
     const count = state.includedKeys().length;
     const total = state.limitDates ? state.visibleKeys.size : state.catalog.size;
     summary.textContent = `${count.toLocaleString()} of ${total.toLocaleString()} images included in CSV`;
     download.disabled = count === 0 || Boolean(state.exportToken);
     clearExclusions.disabled =
       state.excluded.size === 0 &&
+      state.included.size === 0 &&
       state.excludedRegions.size === 0 &&
       state.excludedLabels.size === 0;
     includeVisible.disabled = ![...state.visibleKeys].some((key) => state.isExcluded(key));
@@ -167,6 +190,7 @@ function createMap(component, surface) {
       source_revision: state.sourceRevision,
       version: state.selectionVersion,
       keys: [...state.excluded],
+      included_keys: [...state.included],
       regions: [...state.excludedRegions],
       labels: [...state.excludedLabels],
       limit_dates: state.limitDates,
@@ -230,23 +254,20 @@ function createMap(component, surface) {
     for (const option of labelOptions.querySelectorAll('label'))
       option.hidden = !option.textContent.toLowerCase().includes(query);
   });
+  imageExcluded.addEventListener('change', () => {
+    const photo = state.cells.get(state.selected)?.photos[state.index];
+    if (!photo) return;
+    setImageExclusion(state, photo.key, imageExcluded.checked);
+    state.pinned = true;
+    state.saveSelection();
+  });
   excluded.addEventListener('change', () => {
-    const keys = state.cellKeys.get(state.selected) || [];
-    for (const key of keys) {
-      if (excluded.checked) state.excluded.add(key);
-      else state.excluded.delete(key);
-    }
+    setLocationExclusion(state, state.cellKeys.get(state.selected) || [], excluded.checked);
     state.pinned = true;
     state.saveSelection();
   });
   includeVisible.addEventListener('click', () => {
-    // Preserve excluded observations outside the date range while restoring visible dots.
-    const hiddenExcluded = [...state.catalog.keys()].filter(
-      (key) => !state.visibleKeys.has(key) && state.isExcluded(key),
-    );
-    state.excluded = new Set(hiddenExcluded);
-    state.excludedRegions.clear();
-    state.excludedLabels.clear();
+    for (const key of state.visibleKeys) setImageExclusion(state, key, false);
     state.saveSelection();
   });
   const outsideClick = (event) => {
@@ -268,6 +289,7 @@ function createMap(component, surface) {
   }
   clearExclusions.addEventListener('click', () => {
     state.excluded.clear();
+    state.included.clear();
     state.excludedRegions.clear();
     state.excludedLabels.clear();
     state.saveSelection();
@@ -377,7 +399,12 @@ function createMap(component, surface) {
     const changed = state.selected !== key;
     state.selected = key;
     state.pinned = pin || state.pinned;
-    if (changed) state.index = 0;
+    if (changed) {
+      const firstIncluded = state.cells
+        .get(key)
+        .photos.findIndex((photo) => !state.isExcluded(photo.key));
+      state.index = firstIncluded < 0 ? 0 : firstIncluded;
+    }
     if (index !== null) state.index = index;
     card.hidden = false;
     state.positionCard();
@@ -439,6 +466,7 @@ export default function (component) {
     state.cache.clear();
     state.sourceRevision = data.source_revision;
     state.excluded = new Set(data.excluded_keys || []);
+    state.included = new Set(data.included_keys || []);
     state.selectionVersion = data.selection_version || 0;
     state.exportToken = null;
     state.catalog = new Map(data.catalog.map((photo) => [photo.key, photo]));
@@ -452,6 +480,7 @@ export default function (component) {
   }
   if ((data.selection_version || 0) >= state.selectionVersion) {
     state.excluded = new Set(data.excluded_keys || []);
+    state.included = new Set(data.included_keys || []);
     state.selectionVersion = data.selection_version || 0;
     state.excludedRegions = new Set(data.excluded_regions || []);
     state.excludedLabels = new Set(data.excluded_labels || []);
@@ -463,6 +492,7 @@ export default function (component) {
     state.markers.clear();
     state.counts.clear();
     state.excludedMarkers.clear();
+    state.markerStyles.clear();
     state.exportToken = null;
     state.cells = new Map(data.cells.map((cell) => [cell.key, cell]));
     state.visibleKeys = new Set(

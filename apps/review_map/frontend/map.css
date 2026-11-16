@@ -394,3 +394,36 @@
 .label-options label[hidden] {
   display: none;
 }
+
+.photo-card {
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+.photo-model {
+  margin: 0 14px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.photo-image-excluded {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+}
+.photo-image-status,
+.photo-location-summary {
+  margin: -5px 14px 12px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.photo-image-status[data-excluded='true'] {
+  color: #9a3412;
+}
+.photo-location-selection {
+  padding-top: 12px;
+  border-top: 1px solid #cad5dc;
+}
+.photo-location-summary[hidden] {
+  display: none;
+}

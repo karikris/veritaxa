@@ -82,6 +82,7 @@ jobs:
         run: |
           .venv-map/bin/python -m pytest -q apps/review_map/tests
           node --check apps/review_map/frontend/map.js
+          node --test apps/review_map/tests/selection.test.mjs
 
   admin-runtime:
     runs-on: ubuntu-latest

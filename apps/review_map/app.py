@@ -54,7 +54,11 @@ def frontend_assets(frontend: Path) -> tuple[str, str, str]:
     return (
         (frontend / "map.html").read_text(),
         (frontend / "vendor/leaflet.css").read_text() + "\n" + (frontend / "map.css").read_text(),
-        (frontend / "vendor/leaflet.js").read_text() + "\n" + (frontend / "map.js").read_text(),
+        (frontend / "vendor/leaflet.js").read_text()
+        + "\n"
+        + (frontend / "selection.js").read_text()
+        + "\n"
+        + (frontend / "map.js").read_text(),
     )
 
 
@@ -92,6 +96,7 @@ def main():
     if st.session_state.get("map_selection_source") != snapshot.revision:
         st.session_state["map_selection_source"] = snapshot.revision
         st.session_state["map_excluded_keys"] = []
+        st.session_state["map_included_keys"] = []
         st.session_state["map_selection_version"] = 0
         st.session_state["map_excluded_regions"] = []
         st.session_state["map_excluded_labels"] = []
@@ -136,12 +141,16 @@ def main():
         if not isinstance(request, dict) or request.get("source_revision") != snapshot.revision:
             return
         keys, version = request.get("keys"), request.get("version")
+        included_keys = request.get("included_keys", [])
         regions, limit_dates = request.get("regions", []), request.get("limit_dates", False)
         labels = request.get("labels", [])
         if (
             not isinstance(keys, list)
             or len(keys) > len(photos)
             or any(not isinstance(key, str) or key not in photos for key in keys)
+            or not isinstance(included_keys, list)
+            or len(included_keys) > len(photos)
+            or any(not isinstance(key, str) or key not in photos for key in included_keys)
             or not isinstance(regions, list)
             or len(regions) > len(REGIONS)
             or any(not isinstance(region, str) or region not in REGIONS for region in regions)
@@ -155,6 +164,7 @@ def main():
         ):
             return
         st.session_state["map_excluded_keys"] = list(set(keys))
+        st.session_state["map_included_keys"] = list(set(included_keys))
         st.session_state["map_selection_version"] = version
         st.session_state["map_excluded_regions"] = list(set(regions))
         st.session_state["map_excluded_labels"] = list(set(labels))
@@ -189,6 +199,7 @@ def main():
             "source_revision": snapshot.revision,
             "revision": view_revision,
             "excluded_keys": st.session_state.get("map_excluded_keys", []),
+            "included_keys": st.session_state.get("map_included_keys", []),
             "selection_version": st.session_state.get("map_selection_version", 0),
             "excluded_regions": st.session_state.get("map_excluded_regions", []),
             "excluded_labels": st.session_state.get("map_excluded_labels", []),
@@ -207,7 +218,7 @@ def main():
     )
     st.caption(
         "Hover to preview. Click or tap to keep a photo open. "
-        "Check Exclude this location or use the continent and BioCLIP filters to omit images. "
+        "Exclude an image or its whole location, or use the continent and BioCLIP filters. "
         "CSV downloads include all dates by default. "
         "Bubbles count distinct dates at each location. "
         "Selections apply to this session. Dates use the capture date when reliable, "

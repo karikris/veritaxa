@@ -10,6 +10,7 @@ def test_frontend_asset_changes_invalidate_component_resource(monkeypatch, tmp_p
         "map.html": "<section>version one</section>",
         "map.css": ".map {color: blue}",
         "map.js": "export default function () {}",
+        "selection.js": "export function syntheticSelection() {}",
         "vendor/leaflet.css": ".leaflet {}",
         "vendor/leaflet.js": "/* synthetic vendor */",
     }.items():
@@ -28,6 +29,7 @@ def test_frontend_asset_changes_invalidate_component_resource(monkeypatch, tmp_p
         assert map_component(*frontend_assets(tmp_path)) is original
         for path, new_text in [
             ("map.js", "export default function () { /* new bounds */ }"),
+            ("selection.js", "export function syntheticSelection() { return true; }"),
             ("map.html", "<section>new dropdown</section>"),
             ("map.css", ".map {color: red}"),
         ]:
@@ -35,8 +37,8 @@ def test_frontend_asset_changes_invalidate_component_resource(monkeypatch, tmp_p
             renderer = map_component(*frontend_assets(tmp_path))
             assert renderer is not original
             original = renderer
-        assert len(registrations) == 4
-        assert len({name for name, _, _ in registrations}) == 4
+        assert len(registrations) == 5
+        assert len({name for name, _, _ in registrations}) == 5
         assert registrations[-1][1]["html"] == "<section>new dropdown</section>"
     finally:
         map_component.clear()

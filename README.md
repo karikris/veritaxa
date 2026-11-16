@@ -740,8 +740,8 @@ enforces common accidental-disclosure patterns.
 ## Map viewer
 
 A separate [Streamlit photo map](apps/review_map/README.md) displays a private,
-versioned review snapshot on a 10 km grid. Image previews show only the photo and
-date. The map opens without a viewer password. Its dependencies, snapshot source
+versioned review snapshot on a 10 km grid. Image previews show the photo, date and
+BioCLIP top-1 label. The map opens without a viewer password. Its dependencies, snapshot source
 and deployment are separate from this review application.
 
 ## Licence
