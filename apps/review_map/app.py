@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import base64
-import hashlib
-import hmac
 import os
 import sys
 import tempfile
@@ -33,29 +31,6 @@ def setting(name: str, default: str = "") -> str:
         return default
 
 
-def authenticated() -> bool:
-    expected = setting("MAP_ACCESS_PASSWORD_SHA256")
-    if len(expected) != 64:
-        st.info(
-            "Viewer access is not configured. Set the map access secret before sharing this app."
-        )
-        return False
-    if st.session_state.get("map_authenticated") == expected:
-        return True
-    st.title("Photo map")
-    with st.form("map_sign_in"):
-        st.text_input("Viewer password", type="password", key="_map_password")
-        submitted = st.form_submit_button("Open map")
-    if submitted:
-        supplied = hashlib.sha256(st.session_state.get("_map_password", "").encode()).hexdigest()
-        if hmac.compare_digest(supplied, expected):
-            st.session_state["map_authenticated"] = expected
-            st.rerun()
-        else:
-            st.error("Incorrect viewer password.")
-    return False
-
-
 @st.cache_data(ttl=300, max_entries=2, show_spinner=False)
 def snapshot_data(reference: str, local: bool):
     return load_snapshot(reference, local=local)
@@ -82,8 +57,6 @@ def map_component():
 
 def main():
     st.set_page_config(page_title="Photo map", page_icon="🦋", layout="wide")
-    if not authenticated():
-        return
     local_path, remote_url = setting("MAP_SNAPSHOT_PATH"), setting("MAP_SNAPSHOT_URL")
     reference = local_path or remote_url
     if not reference:
@@ -201,9 +174,6 @@ def main():
         "Selections apply to this session. Dates use the capture date when reliable, "
         "otherwise the upload date."
     )
-    if st.button("Sign out"):
-        st.session_state.clear()
-        st.rerun()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
-# Private photo map
+# Photo map
 
 A separate Streamlit viewer for a versioned review snapshot. The review website
-keeps its existing one-page application and review controls.
+keeps its existing one-page application and review controls. The map opens
+directly for all visitors and requires no viewer password.
 
 The world map groups photographs into 10,000 m grid cells in EPSG:6933 and plots
 the cell centres. Marker area grows with the image count, capped for readability.
@@ -14,11 +15,11 @@ Hover to load a thumbnail. Click or tap to pin the card; previous/next controls
 browse photographs sharing a cell. **Cards show only the photograph and date.**
 Source image identifiers, source URLs, original coordinates and location provenance are
 not sent in the map payload. Thumbnails are downloaded by the server, resized,
-stripped of source metadata, and returned through the authenticated app session.
+stripped of source metadata, and returned through the app session.
 The private snapshot retains coordinate provenance.
 
 Each photo has an **Include in CSV** checkbox. Deselection persists through map
-navigation and date filters for the signed-in session. Excluded photos remain
+navigation and date filters for the browser session. Excluded photos remain
 available for re-selection; **Include all visible** restores the current date
 range. Marker counts, sizes and colours follow the included observations.
 
@@ -45,11 +46,8 @@ Configure `.streamlit/secrets.toml` (ignored by Git):
 
 ```toml
 MAP_SNAPSHOT_PATH = "/absolute/path/to/private-snapshot.json"
-MAP_ACCESS_PASSWORD_SHA256 = "sha256-of-a-strong-viewer-password"
 ```
 
-Generate the viewer password outside Git and store only its SHA-256 in the app
-settings. Without an access secret, the app stops before loading private data.
 `MAP_CACHE_DIR` optionally chooses a private thumbnail-cache directory; the default
 is an app-owned temporary directory. Downloads are bounded to 8 MiB and a fixed
 source-host allowlist, including each redirect. Thumbnails expire after 24 hours;
@@ -91,11 +89,11 @@ App URL field. Community Cloud confirms whether the name is available; an
 anonymous not-found/no-access page is not proof that a name can be reserved.
 
 Copy the settings in `secrets.toml.example` into the Cloud Secrets editor. Set
-`MAP_SNAPSHOT_URL` to the signed private snapshot URL and
-`MAP_ACCESS_PASSWORD_SHA256` to the viewer-password hash. Do not copy local
-`MAP_SNAPSHOT_PATH` or local cache paths into Cloud. Keep the signed URL and viewer
-password separate from the public code and deployment links. The entrypoint's
-pinned requirements file supplies the Cloud dependencies.
+`MAP_SNAPSHOT_URL` to the signed private snapshot URL. Do not copy local
+`MAP_SNAPSHOT_PATH` or local cache paths into Cloud. Keep the signed URL separate
+from the public code and deployment links. Set the Cloud app's sharing access to
+public so everyone can open it. The entrypoint's pinned requirements file supplies
+the Cloud dependencies.
 
 ## Checks
 

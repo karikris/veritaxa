@@ -741,8 +741,8 @@ enforces common accidental-disclosure patterns.
 
 A separate [Streamlit photo map](apps/review_map/README.md) displays a private,
 versioned review snapshot on a 10 km grid. Image previews show only the photo and
-date. Its dependencies, viewer access secret, snapshot source and deployment are
-separate from this review application.
+date. The map opens without a viewer password. Its dependencies, snapshot source
+and deployment are separate from this review application.
 
 ## Licence
 
