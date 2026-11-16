@@ -89,7 +89,9 @@ def test_invalid_private_pointer_fails_closed_without_exposing_its_signed_url(mo
     assert "private-synthetic-token" not in str(caught.value)
 
 
-@pytest.mark.parametrize("failure", [None, "public-bucket", "changed-source", "changed-target"])
+@pytest.mark.parametrize(
+    "failure", [None, "public-bucket", "changed-source", "changed-target", "delayed-read"]
+)
 def test_activation_archives_previous_data_and_replaces_only_the_private_pointer(
     tmp_path, monkeypatch, failure
 ):
@@ -100,6 +102,10 @@ def test_activation_archives_previous_data_and_replaces_only_the_private_pointer
     old_path, new_path = "private-map/snapshots/old.json", "private-map/snapshots/new.json"
     objects = {old_path: old, new_path: new}
     writes = []
+    sleeps = []
+    stale_reads = 1 if failure == "delayed-read" else 0
+    updated = False
+    monkeypatch.setattr(activation.time, "sleep", sleeps.append)
 
     def receipt(path, body):
         return {
@@ -121,9 +127,13 @@ def test_activation_archives_previous_data_and_replaces_only_the_private_pointer
     )
 
     def request(req, timeout):
+        nonlocal stale_reads, updated
         assert timeout == 45
         if isinstance(req, str):
             path = urlsplit(req).path.removeprefix("/storage/v1/object/sign/")
+            if path == old_path and updated and stale_reads:
+                stale_reads -= 1
+                return Reply(old)
             return Reply(objects[path])
         path = urlsplit(req.full_url).path.removeprefix("/storage/v1")
         method = req.get_method()
@@ -134,10 +144,12 @@ def test_activation_archives_previous_data_and_replaces_only_the_private_pointer
         key = path.removeprefix("/object/")
         writes.append((method, key))
         objects[key] = req.data
+        if method == "PUT":
+            updated = True
         return Reply(b"{}")
 
     monkeypatch.setattr(activation.urllib.request, "urlopen", request)
-    if failure:
+    if failure and failure != "delayed-read":
         with pytest.raises(ValueError):
             activation.activate(channel, target, tmp_path / "synthetic.env")
         assert writes == []
@@ -152,3 +164,4 @@ def test_activation_archives_previous_data_and_replaces_only_the_private_pointer
     assert pointer["sha256"] == hashlib.sha256(new).hexdigest()
     assert writes[-1] == ("PUT", old_path)
     assert result["signed_url"] == channel["signed_url"]
+    assert sleeps == ([1] if failure == "delayed-read" else [])

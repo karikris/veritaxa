@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -112,7 +113,12 @@ def activate(channel: dict, target: dict, env_file: Path) -> dict:
         raise ValueError("The active map changed during preparation; no pointer was replaced.")
     request("PUT", "/object/" + channel["object_path"], body, raw=True)
     digest = hashlib.sha256(body).hexdigest()
-    if hashlib.sha256(_download(channel["signed_url"])).hexdigest() != digest:
+    for attempt in range(4):
+        if hashlib.sha256(_download(channel["signed_url"])).hexdigest() == digest:
+            break
+        if attempt < 3:
+            time.sleep(2**attempt)
+    else:
         raise RuntimeError("The active private pointer could not be verified.")
     return {
         **channel,
