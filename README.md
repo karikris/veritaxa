@@ -737,6 +737,13 @@ No real candidate data, reviewer emails, source URLs, model outputs, exports,
 or administrative credentials belong in this repository. The CI data-leak scan
 enforces common accidental-disclosure patterns.
 
+## Map viewer
+
+A separate [Streamlit photo map](apps/review_map/README.md) displays a private,
+versioned review snapshot on a 10 km grid. Image previews show only the photo and
+date. Its dependencies, viewer access secret, snapshot source and deployment are
+separate from this review application.
+
 ## Licence
 
 VeriTaxa is licensed under the GNU Affero General Public License v3.0. See

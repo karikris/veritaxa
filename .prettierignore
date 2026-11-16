@@ -7,6 +7,9 @@ uv.lock
 # Vendor-provided Fingerprint skills and private local tooling
 .claude/
 .venv/
+.venv-map/
+apps/review_map/frontend/vendor/
+.streamlit/secrets.toml
 data/
 reviewed/
 test-results/

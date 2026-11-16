@@ -13,6 +13,8 @@ playwright-report/
 
 # Python
 .venv/
+.venv-map/
+**/.streamlit/secrets.toml
 __pycache__/
 *.py[cod]
 .pytest_cache/

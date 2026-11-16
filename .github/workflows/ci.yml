@@ -63,6 +63,26 @@ jobs:
       - name: Check whitespace
         run: git diff --check
 
+  review-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+      - name: Install the isolated map runtime
+        run: |
+          uv venv --python 3.12 .venv-map
+          uv pip install --python .venv-map/bin/python -r apps/review_map/requirements.txt pytest==9.1.1
+      - name: Verify map data, thumbnails and private snapshot exports
+        run: |
+          .venv-map/bin/python -m pytest -q apps/review_map/tests
+          node --check apps/review_map/frontend/map.js
+
   admin-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 30

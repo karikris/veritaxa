@@ -10,6 +10,8 @@ export default tseslint.config(
       'playwright-report/',
       'node_modules/',
       '.venv/',
+      '.venv-map/',
+      'apps/review_map/frontend/',
       'data/',
       'reviewed/',
       '.claude/',

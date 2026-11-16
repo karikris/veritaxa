@@ -1,0 +1,13 @@
+[server]
+headless = true
+maxMessageSize = 20
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#2563eb"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f1f5f9"
+textColor = "#183247"
+font = "sans-serif"

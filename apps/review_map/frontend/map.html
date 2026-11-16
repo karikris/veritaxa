@@ -1,0 +1,28 @@
+<div class="map-toolbar">
+  <span class="selection-summary" role="status" aria-live="polite"></span>
+  <button class="include-visible" type="button">Include all visible</button>
+  <button class="download-csv" type="button">Download CSV</button>
+  <span class="export-status" role="status"></span>
+</div>
+<section class="map-shell" aria-label="World map">
+  <div class="map-surface" aria-label="Photograph locations"></div>
+  <aside class="photo-card" role="dialog" aria-label="Photograph preview" hidden>
+    <button class="photo-close" type="button" aria-label="Close preview">×</button>
+    <div class="photo-frame">
+      <div class="photo-loading" role="status">Loading image…</div>
+      <img class="photo-image" alt="Photograph" hidden />
+    </div>
+    <div class="photo-caption">
+      <time class="photo-date"></time>
+      <nav class="photo-pager" aria-label="Photographs at this location">
+        <button class="photo-previous" type="button" aria-label="Previous photograph">‹</button>
+        <span class="photo-page"></span>
+        <button class="photo-next" type="button" aria-label="Next photograph">›</button>
+      </nav>
+    </div>
+    <label class="photo-selection"
+      ><input class="photo-included" type="checkbox" checked /> Include in CSV</label
+    >
+  </aside>
+  <div class="map-empty" hidden>No images in this date range.</div>
+</section>
