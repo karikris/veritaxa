@@ -22,6 +22,7 @@ from apps.review_map.core import (  # noqa: E402
     map_cells,
     selected_csv,
     selection_catalog,
+    selection_groups,
 )
 from apps.review_map.images import Thumbnails, image_response  # noqa: E402
 from apps.review_map.regions import REGIONS  # noqa: E402
@@ -105,7 +106,7 @@ def main():
         st.session_state.pop("map_export_response", None)
     cells = map_cells(snapshot, years)
     catalog = selection_catalog(snapshot)
-    model_labels = ["Papilio demoleus", "Papilio demodocus", "Other"]
+    model_labels = selection_groups(snapshot)
     legacy_labels = set(st.session_state.get("map_excluded_labels", [])) - set(model_labels)
     if legacy_labels:
         previous = set(st.session_state.get("map_excluded_keys", []))

@@ -34,6 +34,7 @@ function createMap(component, surface) {
   const imageExcluded = root.querySelector('.photo-image-excluded');
   const imageStatus = root.querySelector('.photo-image-status');
   const modelLabel = root.querySelector('.photo-model-label');
+  const datasetLabel = root.querySelector('.photo-dataset-label');
   const locationSummary = root.querySelector('.photo-location-summary');
   const page = root.querySelector('.photo-page');
   const map = L.map(surface, {
@@ -109,6 +110,8 @@ function createMap(component, surface) {
       const reason = imageExclusionReason(state, photo.key);
       imageExcluded.checked = reason !== null;
       modelLabel.textContent = state.catalog.get(photo.key)?.label || 'Unavailable';
+      datasetLabel.textContent = state.catalog.get(photo.key)?.group || '';
+      datasetLabel.hidden = !datasetLabel.textContent;
       imageStatus.textContent =
         reason ||
         (state.included.has(photo.key) && filterExclusionReason(state, photo.key)
@@ -222,7 +225,7 @@ function createMap(component, surface) {
     state.labelInputs.clear();
     for (const value of labels) {
       const count = [...state.catalog.values()].filter(
-        (photo) => labelGroup(photo.label) === value,
+        (photo) => selectionGroup(photo) === value,
       ).length;
       const label = document.createElement('label');
       const input = document.createElement('input');

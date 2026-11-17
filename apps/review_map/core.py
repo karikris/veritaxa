@@ -34,6 +34,7 @@ class Photo:
     date_label: str
     export_date: str
     bioclip_label: str
+    dataset_label: str = ""
 
 
 @dataclass(frozen=True)
@@ -128,6 +129,14 @@ def parse_snapshot(payload: object) -> Snapshot:
         ):
             raise SnapshotError("Invalid model label.")
         fallback = record.get("fallback_url")
+        dataset_label = record.get("dataset_label", "")
+        if (
+            not isinstance(dataset_label, str)
+            or len(dataset_label) > 120
+            or dataset_label != dataset_label.strip()
+            or any(ord(c) < 32 for c in dataset_label)
+        ):
+            raise SnapshotError("Invalid dataset label.")
         photos.append(
             Photo(
                 key,
@@ -139,6 +148,7 @@ def parse_snapshot(payload: object) -> Snapshot:
                 label,
                 export_date,
                 model_label,
+                dataset_label,
             )
         )
     title, revision = payload.get("title"), payload.get("revision")
@@ -230,9 +240,17 @@ def selection_catalog(snapshot: Snapshot) -> list[dict]:
             "region": region_for(photo.latitude, photo.longitude),
             "label": photo.bioclip_label,
             "cell": grid_cell(photo.latitude, photo.longitude)[0],
+            **({"group": photo.dataset_label} if photo.dataset_label else {}),
         }
         for photo in snapshot.photos
     ]
+
+
+def selection_groups(snapshot: Snapshot) -> list[str]:
+    """Keep named datasets independently selectable from the legacy model groups."""
+    groups = ["Papilio demoleus", "Papilio demodocus", "Other"]
+    datasets = {p.dataset_label for p in snapshot.photos if p.dataset_label}
+    return groups + sorted(datasets - set(groups))
 
 
 def map_cells(snapshot: Snapshot, years: tuple[int, int] | None = None) -> list[dict]:

@@ -56,12 +56,18 @@ keeping the dropdown choices. **Clear exclusions**
 restores all images. Geographic
 lookup runs offline using bundled [public boundaries](geography/README.md).
 
-The **BioCLIP top-1** multiselect has three groups: **Papilio demoleus**,
+The **BioCLIP top-1** multiselect starts with three groups: **Papilio demoleus**,
 **Papilio demodocus** and **Other**. Other contains every remaining prediction,
 including missing labels. All groups start selected. Deselect a group to exclude
 its images; both dropdowns offer **Select all** and **Clear selection**. The card
 and CSV keep each image's exact original top-1 label. Grouping never relabels a
 prediction or replaces it with the human answer.
+
+Snapshots can also supply named datasets as additional choices in this dropdown.
+An image with a `dataset_label` belongs to that dataset's filter group; the three
+model groups apply to the remaining images. Cards show the dataset name alongside
+the unchanged species prediction, and CSV exports keep the original species label.
+This lets provisional-location cohorts be inspected or excluded independently.
 
 **Download CSV** includes every image by default, across all dates. The optional
 **Apply date filter to CSV** checkbox limits the export to the dates shown on the

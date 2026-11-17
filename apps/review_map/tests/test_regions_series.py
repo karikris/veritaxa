@@ -4,7 +4,13 @@ import json
 
 import pytest
 
-from apps.review_map.core import map_cells, parse_snapshot, selected_csv, selection_catalog
+from apps.review_map.core import (
+    map_cells,
+    parse_snapshot,
+    selected_csv,
+    selection_catalog,
+    selection_groups,
+)
 from apps.review_map.regions import REGIONS, region_for
 from apps.review_map.tests.test_map import record, snapshot
 from apps.review_map.tests.test_selection import rows
@@ -92,3 +98,29 @@ def test_filter_labels_match_csv_top1_values_including_missing_labels():
     assert {p["label"] for p in catalog} == {"Synthetic alpha", "Synthetic beta", ""}
     exported = rows(selected_csv(data, [p["key"] for p in catalog]))
     assert [p["label"] for p in catalog] == [row["bioclip_label"] for row in exported]
+
+
+def test_named_dataset_can_be_selected_without_rewriting_bioclip_species():
+    data = parse_snapshot(
+        snapshot(
+            record("existing", bioclip_label="Papilio demoleus"),
+            record(
+                "new", bioclip_label="Synthetic butterfly", dataset_label="New provisional dataset"
+            ),
+        )
+    )
+    catalog = {p["key"]: p for p in selection_catalog(data)}
+    assert catalog["new"]["group"] == "New provisional dataset"
+    assert catalog["new"]["label"] == "Synthetic butterfly"
+    assert "group" not in catalog["existing"]
+    assert selection_groups(data) == [
+        "Papilio demoleus", "Papilio demodocus", "Other", "New provisional dataset"
+    ]
+    exported = rows(selected_csv(data, ["new"]))
+    assert exported[0]["bioclip_label"] == "Synthetic butterfly"
+
+
+@pytest.mark.parametrize("label", [[], 12, "x" * 121, "untrusted\nlabel"])
+def test_invalid_dataset_labels_fail_closed(label):
+    with pytest.raises(ValueError, match="dataset"):
+        parse_snapshot(snapshot(record(dataset_label=label)))

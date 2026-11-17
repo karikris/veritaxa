@@ -5,12 +5,18 @@ export function labelGroup(label) {
   return 'Other';
 }
 
+export function selectionGroup(photo) {
+  return photo?.group || labelGroup(photo?.label);
+}
+
 /** Selection rules act on individual image keys, even when images share a bubble. */
 export function filterExclusionReason(selection, key) {
   const photo = selection.catalog.get(key);
   if (selection.excludedRegions.has(photo?.region)) return `Excluded by continent: ${photo.region}`;
-  if (selection.excludedLabels.has(labelGroup(photo?.label)))
-    return `Excluded by BioCLIP group: ${labelGroup(photo?.label)} (${photo?.label || 'Unlabeled'})`;
+  if (selection.excludedLabels.has(selectionGroup(photo)))
+    return photo?.group
+      ? `Excluded by dataset: ${photo.group}`
+      : `Excluded by BioCLIP group: ${labelGroup(photo?.label)} (${photo?.label || 'Unlabeled'})`;
   return null;
 }
 

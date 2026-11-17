@@ -90,3 +90,20 @@ test('Other groups odd top1 labels without rewriting their exact names', () => {
   assert.equal(imageExclusionReason(state, 'odd'), null);
   assert.equal(state.catalog.get('odd').label, 'Synthetic gamma');
 });
+
+test('a named dataset is independently selectable while retaining actual species labels', () => {
+  const state = selection();
+  state.catalog.set('new', {
+    label: 'Papilio demoleus',
+    group: 'New provisional dataset',
+    region: 'Europe',
+  });
+  state.excludedLabels.add('Papilio demoleus');
+  assert.match(imageExclusionReason(state, 'a'), /BioCLIP/);
+  assert.equal(imageExclusionReason(state, 'new'), null);
+  state.excludedLabels.add('New provisional dataset');
+  assert.match(imageExclusionReason(state, 'new'), /New provisional dataset/);
+  setImageExclusion(state, 'new', false);
+  assert.equal(imageExclusionReason(state, 'new'), null);
+  assert.equal(state.catalog.get('new').label, 'Papilio demoleus');
+});
